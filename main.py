@@ -60,6 +60,7 @@ class ModelInfo(BaseModel):
     default_guidance: float
     default_negative_prompt: str
     trigger_word: str
+    prompt_style: Literal["prose", "tags"]
 
     @classmethod
     def from_spec(cls, spec: ModelSpec) -> "ModelInfo":
@@ -69,7 +70,7 @@ class ModelInfo(BaseModel):
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
-            trigger_word=spec.trigger_word,
+            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style,
         )
 
 
