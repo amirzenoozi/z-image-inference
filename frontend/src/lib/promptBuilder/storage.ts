@@ -1,11 +1,15 @@
 import { emptyBuilderState, type BuilderState } from './build'
+import { NUDITY_LEVELS } from './extraData'
 
-const STORAGE_KEY = 'z-image-studio.prompt-builder.v1'
+const STORAGE_KEY = 'z-image-studio.prompt-builder.v2'
 
-/** True when `value` has every key of `template`, each of the same kind (nested objects checked too). */
+/** True when `value` has every key of `template`, each of the same kind (nested objects and lists checked too). */
 function matchesShape(value: unknown, template: unknown): boolean {
   if (Array.isArray(template)) {
-    return Array.isArray(value) && value.length === template.length && value.every((item) => matchesShape(item, template[0]))
+    if (!Array.isArray(value)) return false
+    // An empty template list holds any number of strings; a filled one is a fixed-length tuple
+    if (template.length === 0) return value.every((item) => typeof item === 'string')
+    return value.length === template.length && value.every((item) => matchesShape(item, template[0]))
   }
   if (typeof template === 'object' && template !== null) {
     if (typeof value !== 'object' || value === null) return false
@@ -15,13 +19,17 @@ function matchesShape(value: unknown, template: unknown): boolean {
   return typeof value === typeof template
 }
 
+function isBuilderState(value: unknown): value is BuilderState {
+  const knownNudity = NUDITY_LEVELS.some((level) => level.value === (value as BuilderState | null)?.nudity)
+  return matchesShape(value, emptyBuilderState()) && knownNudity
+}
+
 export function loadBuilderState(): BuilderState {
-  const fallback = emptyBuilderState()
   try {
     const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
-    return matchesShape(stored, fallback) ? (stored as BuilderState) : fallback
+    return isBuilderState(stored) ? stored : emptyBuilderState()
   } catch {
-    return fallback
+    return emptyBuilderState()
   }
 }
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as api from './api'
@@ -59,18 +59,22 @@ it('shows a retryable error when the catalog cannot load', async () => {
   expect(await screen.findByRole('button', { name: 'Generate' })).toBeInTheDocument()
 })
 
-it('generates from the prompt builder with its negative prompt', async () => {
+it('fills the Write box from the prompt builder dialog, then generates with it', async () => {
   vi.mocked(api.generateImage).mockResolvedValue(historyItem())
   render(<App />)
 
-  await userEvent.click(await screen.findByRole('tab', { name: 'Builder' }))
-  expect(screen.queryByRole('button', { name: 'Generating…' })).not.toBeInTheDocument()
-  await userEvent.type(screen.getByLabelText('Subject'), 'adult woman')
-  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  await userEvent.click(await screen.findByRole('button', { name: /Prompt builder/ }))
+  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  await userEvent.selectOptions(within(dialog).getByLabelText('Who'), 'man')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 
-  expect(api.generateImage).toHaveBeenCalledOnce()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Prompt')).toHaveValue('Photo of an adult man.')
+  expect(api.generateImage).not.toHaveBeenCalled()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
   expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({
-    prompt: 'Photo of adult woman.',
+    prompt: 'Photo of an adult man.',
     negativePrompt: expect.stringContaining('extra fingers'),
   })
 })

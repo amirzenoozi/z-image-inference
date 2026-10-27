@@ -162,7 +162,7 @@ function HistoryDetail({ item, label, onClose, onReuse, onDeleted }: DetailProps
     }
   }
   return (
-    <Modal title="Image details" onClose={onClose} wide>
+    <Modal title="Image details" onClose={onClose} size="lg">
       <div className="grid gap-5 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <img src={imageUrl(item.id)} alt={item.prompt} className="max-h-[70vh] w-full rounded-xl bg-zinc-100 object-contain dark:bg-zinc-800" />
         <div className="space-y-4 text-sm">
