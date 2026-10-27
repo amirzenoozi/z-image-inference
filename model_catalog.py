@@ -6,10 +6,12 @@ class ModelSpec:
     id: str
     label: str
     repo_id: str
+    description: str
+    speed_hint: str
     default_steps: int
     max_steps: int
     max_side: int
-    default_resolution: str
+    default_size: tuple[int, int]
     uses_guidance: bool
     default_guidance: float = 0.0
     default_negative_prompt: str = ""
@@ -20,10 +22,12 @@ Z_IMAGE = ModelSpec(
     id="z-image-turbo",
     label="Z-Image-Turbo",
     repo_id="Tongyi-MAI/Z-Image-Turbo",
+    description="Fast photorealistic images with sharp text rendering.",
+    speed_hint="~10 s at 512, ~50 s at 1024",
     default_steps=9,
     max_steps=20,
     max_side=1536,
-    default_resolution="368x640 (9:16)",
+    default_size=(368, 640),
     uses_guidance=False,
 )
 
@@ -31,10 +35,12 @@ WAI_ILLUSTRIOUS = ModelSpec(
     id="wai-illustrious",
     label="WAI-NSFW-Illustrious v12 (SDXL)",
     repo_id="votepurchase/waiNSFWIllustrious_v120",
+    description="SDXL anime and illustration styles; uses a negative prompt.",
+    speed_hint="~40 s at 1024",
     default_steps=28,
     max_steps=50,
     max_side=1216,
-    default_resolution="1024x1024 (1:1)",
+    default_size=(1024, 1024),
     uses_guidance=True,
     default_guidance=7.0,
     default_negative_prompt=(
@@ -44,12 +50,14 @@ WAI_ILLUSTRIOUS = ModelSpec(
 
 MOSS_IMAGE = ModelSpec(
     id="moss-image-nsfw",
-    label="MOSS-Image NSFW (slow, minutes per image)",
+    label="MOSS-Image NSFW",
     repo_id="axiomofmind/Moss-image-nsfw-uncensored-lora",
+    description="Photorealistic adult content from MOSS-Image with a merged LoRA.",
+    speed_hint="~2 min at 512, ~7 min at 1024",
     default_steps=30,
     max_steps=50,
     max_side=1024,
-    default_resolution="1024x1024 (1:1)",
+    default_size=(1024, 1024),
     uses_guidance=True,
     default_guidance=3.0,
     trigger_word="moss_xvstyle",
