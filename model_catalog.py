@@ -13,6 +13,7 @@ class ModelSpec:
     uses_guidance: bool
     default_guidance: float = 0.0
     default_negative_prompt: str = ""
+    trigger_word: str = ""
 
 
 Z_IMAGE = ModelSpec(
@@ -41,5 +42,18 @@ WAI_ILLUSTRIOUS = ModelSpec(
     ),
 )
 
-MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS)}
+MOSS_IMAGE = ModelSpec(
+    id="moss-image-nsfw",
+    label="MOSS-Image NSFW (slow, minutes per image)",
+    repo_id="axiomofmind/Moss-image-nsfw-uncensored-lora",
+    default_steps=30,
+    max_steps=50,
+    max_side=1024,
+    default_resolution="1024x1024 (1:1)",
+    uses_guidance=True,
+    default_guidance=3.0,
+    trigger_word="moss_xvstyle",
+)
+
+MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE)}
 DEFAULT_MODEL = Z_IMAGE
