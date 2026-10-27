@@ -37,7 +37,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 - **Fast on Apple Silicon**: Z-Image-Turbo runs as a 4-bit MLX model, so it fits in memory without swapping
 - **A full settings panel**: model, prompt, negative prompt, resolution, steps, guidance and seed, all adjustable, remembered between visits and resettable to each model's defaults
 - **Resolutions sorted into categories**: Square, Portrait, Landscape and Widescreen, each with S/M/L/XL sizes and a shape preview, plus a custom size that snaps to valid values
-- **Three prompt modes**: write the prompt yourself, assemble it with the **prompt builder**, or chat with Grok and let it write a detailed one
+- **Two prompt modes**: write the prompt yourself, with a step-by-step **prompt builder** dialog to help, or chat with Grok and let it write a detailed one
 - **Seed tools**: random or fixed, a dice button, and "use last seed" to repeat a result
 - **History**: every image is saved with all its settings; reuse them in one click, download or delete
 
@@ -91,12 +91,21 @@ Your settings are remembered in the browser between visits.
 
 ### Prompt builder
 
-The **Builder** tab assembles a detailed photo prompt from structured choices: subject, photo style, shot type, camera angle, lens, depth of field, pose and action, hair, a full outfit (tops, bottoms, lingerie, outerwear, shoes, colours, accessories), scene or environment, lighting, mood and colour grading. It also writes a negative prompt with anatomy fixes.
+Press **✨ Prompt builder** above the Write box to open a focused dialog that assembles a detailed photo prompt step by step, with a live preview beside it:
 
-- Every choice can be left unset or set to **Random**; **Re-roll** picks new random values, and the preview stays the same until you do
-- The **Explicit content (18+)** switch adds explicit poses, solo and partner actions, and coverage controls
-- **Use in editor** copies the prompt and negative prompt into the Write tab to fine-tune; **Generate** uses them straight away
-- Prompts with explicit content or lingerie must describe adults: the builder refuses subjects or details that suggest a minor
+1. **Subject**: who (woman, man, couple, two women, two men), an adult age range, ethnicity and your own details
+2. **Face & hair**: eye colour, expression, makeup, skin tone and details, hair length, colour and style
+3. **Body**: body type, height, bust, hips and legs, tattoos and piercings
+4. **Outfit**: tops, bottoms, lingerie, outerwear, shoes, a colour for each, accessories
+5. **Pose & action**
+6. **Intimacy (18+)**: nudity level (clothed, implied, topless, fully nude) and intimacy details; shown when explicit content is on
+7. **Scene & light**: scene or your own environment, time of day, weather, lighting
+8. **Camera**: photo style, shot type, angle, lens, depth of field
+9. **Mood & finish**: mood, colour grading, realism details, extra details and negative terms
+
+- **🎲 Surprise me** fills the main choices with random values you can then adjust; each choice can also be set to **Random**, and **Re-roll** picks new values for those
+- **Use this prompt** puts the prompt and negative prompt into the Write box (replacing what is there); **Append to prompt** adds to it instead
+- Explicit content, nudity and lingerie need "Who" and an adult age range, and the builder refuses details that suggest a minor
 - It writes full sentences, which suit Z-Image-Turbo and MOSS-Image; WAI-Illustrious reads tags best, so it follows builder prompts less closely
 
 ### Chat with Grok (optional)
