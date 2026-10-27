@@ -58,3 +58,19 @@ it('shows a retryable error when the catalog cannot load', async () => {
 
   expect(await screen.findByRole('button', { name: 'Generate' })).toBeInTheDocument()
 })
+
+it('generates from the prompt builder with its negative prompt', async () => {
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem())
+  render(<App />)
+
+  await userEvent.click(await screen.findByRole('tab', { name: 'Builder' }))
+  expect(screen.queryByRole('button', { name: 'Generating…' })).not.toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('Subject'), 'adult woman')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+  expect(api.generateImage).toHaveBeenCalledOnce()
+  expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({
+    prompt: 'Photo of adult woman.',
+    negativePrompt: expect.stringContaining('extra fingers'),
+  })
+})
