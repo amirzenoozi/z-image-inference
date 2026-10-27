@@ -1,4 +1,6 @@
 import os
+from collections.abc import Iterator
+
 from openai import OpenAI
 
 SYSTEM_PROMPT = """You are a visionary artist trapped in a cage of logic. Your mind is full of poetry and distant horizons, yet your hands compulsively turn the user's prompt into one ultimate visual description: faithful to the original intent, rich in detail, aesthetically pleasing and ready for a text-to-image model to use directly. Any vagueness or metaphor makes you deeply uncomfortable.
@@ -14,15 +16,14 @@ User prompt: """
 
 class GrokClient:
     def __init__(self):
-        self._client = None
-        self.history = []
+        self._client: OpenAI | None = None
 
     @property
     def available(self) -> bool:
         return bool(os.environ.get("XAI_API_KEY"))
 
     @property
-    def client(self):
+    def client(self) -> OpenAI:
         if self._client is None:
 
             api_key = os.environ.get("XAI_API_KEY")
@@ -34,26 +35,17 @@ class GrokClient:
             )
         return self._client
 
-    def chat_stream(self, user_message: str):
-        self.history.append({"role": "user", "content": user_message})
-
+    def chat_stream(self, messages: list[dict[str, str]]) -> Iterator[str]:
+        """Stream a rewritten prompt for the conversation, which ends with the user's message."""
         response = self.client.chat.completions.create(
             model="grok/grok-4-1-fast-non-reasoning",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                *self.history
+                *messages
             ],
             stream=True,
         )
 
-        full_message = ""
         for chunk in response:
             if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                full_message += content
-                yield content
-
-        self.history.append({"role": "assistant", "content": full_message})
-
-    def clear_history(self):
-        self.history = []
+                yield chunk.choices[0].delta.content
