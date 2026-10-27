@@ -39,8 +39,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   useEffect(() => saveSettings(settings), [settings])
 
   const generating = generation.state.status === 'pending'
-  const generateWith = (prompt: string) => {
-    if (!generating && prompt.trim()) void generation.run({ ...settings, prompt })
+  const generateWith = (prompt: string, negativePrompt = settings.negativePrompt) => {
+    if (!generating && prompt.trim()) void generation.run({ ...settings, prompt, negativePrompt })
   }
   const reuse = (item: HistoryItem) => {
     setSettings(settingsFromItem(item, catalog))
@@ -65,6 +65,10 @@ function Workspace({ catalog }: { catalog: Catalog }) {
             onChatPrompt={(prompt) => {
               setSettings((current) => ({ ...current, prompt }))
               generateWith(prompt)
+            }}
+            onBuilderPrompt={(prompt, negativePrompt, generate) => {
+              setSettings((current) => ({ ...current, prompt, negativePrompt }))
+              if (generate) generateWith(prompt, negativePrompt)
             }}
           />
         </aside>

@@ -15,6 +15,7 @@ export interface ModelInfo {
   default_guidance: number
   default_negative_prompt: string
   trigger_word: string
+  prompt_style: 'prose' | 'tags'
 }
 
 export interface ResolutionInfo {

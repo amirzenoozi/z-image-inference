@@ -14,6 +14,7 @@ export const fastModel: ModelInfo = {
   default_guidance: 0,
   default_negative_prompt: '',
   trigger_word: '',
+  prompt_style: 'prose',
 }
 
 export const animeModel: ModelInfo = {
@@ -30,6 +31,7 @@ export const animeModel: ModelInfo = {
   default_guidance: 7,
   default_negative_prompt: 'nsfw, low quality',
   trigger_word: '',
+  prompt_style: 'tags',
 }
 
 export const catalog: Catalog = {
