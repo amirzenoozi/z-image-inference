@@ -1,6 +1,6 @@
 # Z-Image Inference on Apple Silicon
 
-> Run Z-Image-Turbo and an SDXL anime model locally on your Mac with two commands.
+> Run Z-Image-Turbo, an SDXL anime model and MOSS-Image locally on your Mac with two commands.
 
 This project runs image generation models natively on Apple Silicon behind a simple web interface. You pick the model for each image from a dropdown:
 
@@ -8,6 +8,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 |-------|--------|----------|
 | [Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) from Tongyi Lab | [mflux](https://github.com/filipstrand/mflux) (MLX), 4-bit | Photorealistic images and text rendering |
 | [WAI-NSFW-Illustrious v12](https://huggingface.co/votepurchase/waiNSFWIllustrious_v120) (SDXL) | diffusers on MPS, float16 | Anime and illustration styles |
+| [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) (MOSS-Image with a merged LoRA) | diffusers on MPS, bfloat16 | Photorealistic adult content; slow |
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -18,7 +19,8 @@ This project runs image generation models natively on Apple Silicon behind a sim
 │   │   Gradio    │ HTTP │     FastAPI Model Server         │  │
 │   │   Web UI    │─────▶│   Z-Image-Turbo (MLX, 4-bit)     │  │
 │   │  (main.py)  │      │   WAI-Illustrious (SDXL, MPS)    │  │
-│   └─────────────┘      │   (model_server.py)              │  │
+│   └─────────────┘      │   MOSS-Image (MPS, two-stage)    │  │
+│         │              │   (model_server.py)              │  │
 │         │              └──────────────────────────────────┘  │
 │         ▼                                                    │
 │   ┌─────────────┐                                            │
@@ -101,7 +103,9 @@ Choosing a model resets the steps, resolution, guidance and negative prompt to t
 
 The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/`. This can take longer than the UI is willing to wait; if the request times out, wait for the download to finish in the server terminal and generate again.
 
-WAI-Illustrious is labelled "not for all audiences" on Hugging Face. Its default negative prompt starts with `nsfw` to keep results safe for work. Its licence is CreativeML OpenRAIL-M, which restricts some uses.
+The first image from MOSS-Image downloads it (about 26 GB) into `models/moss-image-nsfw/`. Each image takes minutes rather than seconds; see [Performance](#performance).
+
+WAI-Illustrious and MOSS-Image are labelled "not for all audiences" on Hugging Face. WAI-Illustrious's default negative prompt starts with `nsfw` to keep results safe for work; its licence is CreativeML OpenRAIL-M, which restricts some uses. MOSS-Image is Apache 2.0, and the server adds its trigger word `moss_xvstyle` to prompts that lack it.
 
 ## Configuration
 
@@ -113,12 +117,12 @@ WAI-Illustrious is labelled "not for all audiences" on Hugging Face. Its default
 
 ### Model defaults
 
-| Setting | Z-Image-Turbo | WAI-Illustrious |
-|---------|---------------|-----------------|
-| Steps | 9 (up to 20) | 28 (up to 50) |
-| Guidance (CFG) | not used | 7 |
-| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` |
-| Largest side | 1536px | 1216px |
+| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image |
+|---------|---------------|-----------------|------------|
+| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) |
+| Guidance (CFG) | not used | 7 | 3 |
+| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty |
+| Largest side | 1536px | 1216px | 1024px |
 
 ## Performance
 
@@ -128,6 +132,9 @@ Measured on an Apple M5 with 24 GB of memory:
 |-------|---------|-----------|
 | Z-Image-Turbo, 9 steps | about 10s | about 48s |
 | WAI-Illustrious, 28 steps | | about 40s |
+| MOSS-Image, 30 steps | about 2 min | about 7 min |
+
+Switching models takes about 10 seconds. A MOSS-Image request with a new prompt adds about 20 seconds to run its text encoder; repeating the last prompt with a new seed or size skips that.
 
 ## System Requirements
 
@@ -135,12 +142,13 @@ Measured on an Apple M5 with 24 GB of memory:
 |-----------|-----------|
 | Chip | Apple M5 |
 | Memory | 24 GB |
-| Storage | about 50 GB free for both models |
+| Storage | about 80 GB free for all three models |
 
 ## Technical Notes
 
 - **Z-Image-Turbo** runs as a 4-bit MLX model built from the original weights. In bfloat16 it needs about 20 GB, which does not fit beside macOS on a 24 GB Mac.
 - **WAI-Illustrious** runs in float16 on MPS, with the VAE decoding in float32 to avoid overflow.
+- **MOSS-Image** needs 27 GB in bfloat16, so its text encoder (17 GB) and image model (10 GB) take turns in memory. Its pipeline code is vendored in `moss_pipeline.py` with one fix for MPS, which has no float64.
 - All model work runs on one server thread, because MLX only works on the thread that created it. Requests are handled one at a time.
 - Seeds use a CPU generator for SDXL, so they are reproducible.
 
@@ -152,6 +160,7 @@ z-image-inference/
 ├── model_server.py      # FastAPI inference server
 ├── model_catalog.py     # Model list and defaults, shared by the UI and the server
 ├── history_store.py     # Image history database
+├── moss_pipeline.py     # Vendored MOSS-Image pipeline (Apache 2.0)
 ├── grok_client.py       # xAI Grok API client
 ├── pyproject.toml       # Project dependencies
 ├── models/              # Downloaded and quantised models (not in git)
@@ -173,6 +182,7 @@ z-image-inference/
 
 - [Tongyi Lab](https://huggingface.co/Tongyi-MAI) for the Z-Image-Turbo model
 - [WAI](https://civitai.com/) for the WAI-NSFW-Illustrious model
+- [OpenMOSS](https://huggingface.co/OpenMOSS-Team) for MOSS-Image, and axiomofmind for the NSFW LoRA
 - [mflux](https://github.com/filipstrand/mflux) for MLX inference
 - [Hugging Face](https://huggingface.co/docs/diffusers) for the diffusers library
 - [Gradio](https://gradio.app/) for the web interface framework
