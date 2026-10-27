@@ -17,3 +17,6 @@ history.db
 
 .env
 .claude
+
+# Quantised model weights
+models/

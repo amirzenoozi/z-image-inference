@@ -15,4 +15,6 @@ dependencies = [
     "requests",
     "openai",
     "python-dotenv",
+    "mflux>=0.23.0",
+    "huggingface-hub>=1.33.0",
 ]
