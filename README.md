@@ -37,7 +37,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 - **Fast on Apple Silicon**: Z-Image-Turbo runs as a 4-bit MLX model, so it fits in memory without swapping
 - **A full settings panel**: model, prompt, negative prompt, resolution, steps, guidance and seed, all adjustable, remembered between visits and resettable to each model's defaults
 - **Resolutions sorted into categories**: Square, Portrait, Landscape and Widescreen, each with S/M/L/XL sizes and a shape preview, plus a custom size that snaps to valid values
-- **Two prompt modes**: write the prompt yourself, or chat with Grok and let it write a detailed one
+- **Three prompt modes**: write the prompt yourself, assemble it with the **prompt builder**, or chat with Grok and let it write a detailed one
 - **Seed tools**: random or fixed, a dice button, and "use last seed" to repeat a result
 - **History**: every image is saved with all its settings; reuse them in one click, download or delete
 
@@ -88,6 +88,16 @@ Open http://127.0.0.1:7860 in your browser.
 5. Press **Generate** (or ⌘/Ctrl + Enter). A timer shows how long it has been running
 
 Your settings are remembered in the browser between visits.
+
+### Prompt builder
+
+The **Builder** tab assembles a detailed photo prompt from structured choices: subject, photo style, shot type, camera angle, lens, depth of field, pose and action, hair, a full outfit (tops, bottoms, lingerie, outerwear, shoes, colours, accessories), scene or environment, lighting, mood and colour grading. It also writes a negative prompt with anatomy fixes.
+
+- Every choice can be left unset or set to **Random**; **Re-roll** picks new random values, and the preview stays the same until you do
+- The **Explicit content (18+)** switch adds explicit poses, solo and partner actions, and coverage controls
+- **Use in editor** copies the prompt and negative prompt into the Write tab to fine-tune; **Generate** uses them straight away
+- Prompts with explicit content or lingerie must describe adults: the builder refuses subjects or details that suggest a minor
+- It writes full sentences, which suit Z-Image-Turbo and MOSS-Image; WAI-Illustrious reads tags best, so it follows builder prompts less closely
 
 ### Chat with Grok (optional)
 
@@ -217,6 +227,7 @@ cd frontend && npm test        # frontend
 - [WAI](https://civitai.com/) for the WAI-NSFW-Illustrious model
 - [OpenMOSS](https://huggingface.co/OpenMOSS-Team) for MOSS-Image, and axiomofmind for the NSFW LoRA
 - [mflux](https://github.com/filipstrand/mflux) for MLX inference
+- [ComfyUI Photoreal Prompt Builder](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder) and its [NSFW module](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder-NSFW) by artokun (MIT), which the prompt builder's options and wording are ported from
 - [Hugging Face](https://huggingface.co/docs/diffusers) for the diffusers library
 - [React](https://react.dev/), [Vite](https://vite.dev/) and [Tailwind CSS](https://tailwindcss.com/) for the web interface
 - [z-image-mps](https://github.com/ivanfioravanti/z-image-mps) for MPS optimisation inspiration
