@@ -3,13 +3,12 @@ import type { Catalog, GenerationSettings, ModelInfo } from '../types'
 import { differsFromDefaults, findModel, modelDefaults, withModel } from '../lib/settings'
 import { ChatPanel } from './ChatPanel'
 import { ModelPicker } from './ModelPicker'
-import { PromptBuilder } from './PromptBuilder'
 import { PromptEditor } from './PromptEditor'
 import { ResolutionPicker } from './ResolutionPicker'
 import { SamplingControls } from './SamplingControls'
 import { Section, Spinner } from './ui'
 
-export type PromptMode = 'direct' | 'builder' | 'chat'
+export type PromptMode = 'direct' | 'chat'
 
 interface Props {
   catalog: Catalog
@@ -21,8 +20,6 @@ interface Props {
   lastSeed: number | null
   onGenerate: () => void
   onChatPrompt: (prompt: string) => void
-  /** Applies a built prompt; `generate` also starts generating with it. */
-  onBuilderPrompt: (prompt: string, negativePrompt: string, generate: boolean) => void
 }
 
 export function SettingsPanel(props: Props) {
@@ -70,9 +67,7 @@ export function SettingsPanel(props: Props) {
           <SamplingControls settings={settings} model={model} limits={catalog.limits} lastSeed={lastSeed} onChange={patch} />
         </Section>
       </div>
-      {props.mode !== 'builder' && (
-        <GenerateBar disabled={generating || !settings.prompt.trim()} generating={generating} onGenerate={onGenerate} />
-      )}
+      <GenerateBar disabled={generating || !settings.prompt.trim()} generating={generating} onGenerate={onGenerate} />
     </div>
   )
 }
@@ -101,13 +96,12 @@ interface PromptSectionProps extends Props {
 function PromptSection(props: PromptSectionProps) {
   const { catalog, settings, mode, onModeChange, generating, onGenerate, model, patch } = props
   const modes: { id: PromptMode; label: string; enabled: boolean }[] = [
-    { id: 'direct', label: 'Write', enabled: true },
-    { id: 'builder', label: 'Builder', enabled: true },
+    { id: 'direct', label: 'Write prompt', enabled: true },
     { id: 'chat', label: 'Chat with Grok', enabled: catalog.chat_available },
   ]
   return (
     <Section title="Prompt">
-      <div role="tablist" aria-label="Prompt mode" className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium dark:bg-zinc-800/70">
+      <div role="tablist" aria-label="Prompt mode" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium dark:bg-zinc-800/70">
         {modes.map(({ id, label, enabled }) => (
           <button
             key={id}
@@ -128,23 +122,8 @@ function PromptSection(props: PromptSectionProps) {
       {mode === 'direct' && (
         <PromptEditor settings={settings} model={model} examples={catalog.examples} limits={catalog.limits} onChange={patch} onSubmit={onGenerate} />
       )}
-      {mode === 'builder' && <BuilderMode {...props} />}
       {mode === 'chat' && <ChatPanel busy={generating} onPromptReady={props.onChatPrompt} />}
     </Section>
-  )
-}
-
-function BuilderMode({ model, generating, onBuilderPrompt, onModeChange }: PromptSectionProps) {
-  return (
-    <PromptBuilder
-      model={model}
-      busy={generating}
-      onUse={(prompt, negativePrompt) => {
-        onBuilderPrompt(prompt, negativePrompt, false)
-        onModeChange('direct')
-      }}
-      onGenerate={(prompt, negativePrompt) => onBuilderPrompt(prompt, negativePrompt, true)}
-    />
   )
 }
 

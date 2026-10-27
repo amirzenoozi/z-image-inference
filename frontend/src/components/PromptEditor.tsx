@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { GenerationSettings, Limits, ModelInfo } from '../types'
 import { isModEnter } from '../lib/keyboard'
 import { fieldClass } from '../lib/styles'
+import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
 
 type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt'>>
 
@@ -13,9 +15,36 @@ interface Props {
   onSubmit: () => void
 }
 
+function joinText(current: string, addition: string, separator: string): string {
+  return current.trim() ? `${current.trim()}${separator}${addition}` : addition
+}
+
 export function PromptEditor({ settings, model, examples, limits, onChange, onSubmit }: Props) {
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode) =>
+    onChange(
+      mode === 'replace'
+        ? { prompt, negativePrompt }
+        : { prompt: joinText(settings.prompt, prompt, ' '), negativePrompt: joinText(settings.negativePrompt, negativePrompt, ', ') },
+    )
   return (
     <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => setBuilderOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
+      >
+        ✨ Prompt builder
+      </button>
+      {builderOpen && (
+        <PromptBuilderDialog
+          model={model}
+          hasExistingPrompt={settings.prompt.trim() !== ''}
+          maxPromptLength={limits.max_prompt_length}
+          onClose={() => setBuilderOpen(false)}
+          onConfirm={insertBuilt}
+        />
+      )}
       <div>
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
