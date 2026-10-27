@@ -12,14 +12,16 @@ from pathlib import Path
 import mlx.core as mx
 import torch
 import uvicorn
-from diffusers import EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
+from diffusers import AutoencoderKLFlux2, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
 from fastapi import FastAPI
 from huggingface_hub import snapshot_download
 from mflux.models.z_image.variants.z_image import ZImage
 from PIL import Image
 from pydantic import BaseModel, Field, model_validator
+from transformers import AutoModel, AutoTokenizer
 
-from model_catalog import DEFAULT_MODEL, MODELS, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
+from model_catalog import DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
+from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
 
 MODELS_DIR = Path(__file__).parent / "models"
@@ -29,6 +31,10 @@ Z_IMAGE_Q4_PATH = MODELS_DIR / "zimage-q4"
 WAI_ILLUSTRIOUS_PATH = MODELS_DIR / "waiNSFWIllustrious_v120"
 # The repo's "fp16" files are full precision too, so fetch only one set
 WAI_ILLUSTRIOUS_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
+MOSS_IMAGE_PATH = MODELS_DIR / "moss-image-nsfw"
+MOSS_IMAGE_MODEL_PATH = MOSS_IMAGE_PATH / "merged-model"
+# Only the merged model; its pipeline code is vendored in moss_pipeline.py
+MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged-model/**/*.safetensors"]
 QUANTIZE_BITS = 4
 MIN_SIDE = 256
 MAX_SEED = 2**32 - 1
@@ -71,7 +77,7 @@ class GenerateRequest(BaseModel):
     def to_job(self) -> Job:
         spec = MODELS[self.model]
         return Job(
-            prompt=self.prompt,
+            prompt=with_trigger_word(self.prompt, spec),
             negative_prompt=self.negative_prompt,
             width=self.width,
             height=self.height,
@@ -91,6 +97,12 @@ def check_size(width: int, height: int, spec: ModelSpec) -> None:
     for side in (width, height):
         if not MIN_SIDE <= side <= spec.max_side or side % 16:
             raise ValueError(f"width and height must be multiples of 16 between {MIN_SIDE} and {spec.max_side}")
+
+
+def with_trigger_word(prompt: str, spec: ModelSpec) -> str:
+    if not spec.trigger_word or spec.trigger_word in prompt:
+        return prompt
+    return f"{spec.trigger_word}, {prompt}"
 
 
 def ensure_downloaded(spec: ModelSpec, path: Path, allow_patterns: list[str] | None = None) -> None:
@@ -159,9 +171,73 @@ def decode_in_float32(pipe: StableDiffusionXLPipeline, latents: torch.Tensor) ->
     return pipe.image_processor.postprocess(decoded, output_type="pil")[0]
 
 
+MossEmbeddings = tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+
+
+@torch.no_grad()
+def encode_moss_prompts(prompt: str, negative_prompt: str) -> MossEmbeddings:
+    """Mirrors MOSSImagePipeline.encode_prompt, with the text encoder loaded only for this call."""
+    tokenizer = AutoTokenizer.from_pretrained(MOSS_IMAGE_MODEL_PATH / "tokenizer")
+    encoder = AutoModel.from_pretrained(MOSS_IMAGE_MODEL_PATH / "text_encoder", dtype=torch.bfloat16)
+    encoder.eval().to(torch.device("mps"))
+    encoded: list[torch.Tensor] = []
+    for text in (prompt, negative_prompt):
+        formatted = tokenizer.apply_chat_template(
+            [{"role": "user", "content": text}], tokenize=False, add_generation_prompt=True, enable_thinking=True,
+        )
+        inputs = tokenizer(formatted, return_tensors="pt", truncation=True, max_length=4096).to(encoder.device)
+        hidden = encoder(**inputs, use_cache=False, return_dict=True).last_hidden_state
+        encoded += [hidden.to("cpu"), torch.ones(hidden.shape[:2], dtype=torch.bool)]
+    return encoded[0], encoded[1], encoded[2], encoded[3]
+
+
+def load_moss_image_pipe() -> MOSSImagePipeline:
+    transformer = MOSSImageTransformer.from_pretrained(MOSS_IMAGE_MODEL_PATH / "transformer", torch_dtype=torch.bfloat16)
+    vae = AutoencoderKLFlux2.from_pretrained(MOSS_IMAGE_MODEL_PATH / "vae", torch_dtype=torch.float32)
+    pipe = MOSSImagePipeline(transformer.eval(), MOSSImageScheduler(), None, None, vae.eval())
+    return pipe.to(torch.device("mps"))
+
+
+class MossImageGenerator:
+    """The text encoder (17 GB) and the image model (10 GB) do not fit in memory together, so they take turns.
+
+    The last prompt's embeddings are kept, so a new seed or size for the same prompt skips the text encoder.
+    """
+
+    def __init__(self) -> None:
+        ensure_downloaded(MOSS_IMAGE, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES)
+        self.pipe: MOSSImagePipeline | None = None
+        self.prompts: tuple[str, str] | None = None
+        self.embeddings: MossEmbeddings | None = None
+
+    def __call__(self, job: Job) -> Image.Image:
+        prompts = (job.prompt, job.negative_prompt)
+        if prompts != self.prompts or self.embeddings is None:
+            self.pipe = None
+            release_memory()
+            self.embeddings = encode_moss_prompts(*prompts)
+            self.prompts = prompts
+            release_memory()
+        if self.pipe is None:
+            self.pipe = load_moss_image_pipe()
+        positive, positive_mask, negative, negative_mask = self.embeddings
+        return self.pipe(
+            prompt_embeds=positive,
+            prompt_attention_mask=positive_mask,
+            negative_prompt_embeds=negative,
+            negative_prompt_attention_mask=negative_mask,
+            height=job.height,
+            width=job.width,
+            num_inference_steps=job.steps,
+            guidance_scale=job.guidance,
+            generator=torch.Generator("cpu").manual_seed(job.seed),
+        ).images[0]
+
+
 LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     Z_IMAGE.id: load_z_image,
     WAI_ILLUSTRIOUS.id: load_wai_illustrious,
+    MOSS_IMAGE.id: MossImageGenerator,
 }
 
 loaded_model_id: str | None = None
