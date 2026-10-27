@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,8 @@ class ModelSpec:
     default_guidance: float = 0.0
     default_negative_prompt: str = ""
     trigger_word: str = ""
+    # How the model reads prompts best: natural sentences or comma-separated tags
+    prompt_style: Literal["prose", "tags"] = "prose"
 
 
 Z_IMAGE = ModelSpec(
@@ -43,6 +46,7 @@ WAI_ILLUSTRIOUS = ModelSpec(
     default_size=(1024, 1024),
     uses_guidance=True,
     default_guidance=7.0,
+    prompt_style="tags",
     default_negative_prompt=(
         "nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn"
     ),
