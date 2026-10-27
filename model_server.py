@@ -17,9 +17,10 @@ from fastapi import FastAPI
 from huggingface_hub import snapshot_download
 from mflux.models.z_image.variants.z_image import ZImage
 from PIL import Image
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel
 from transformers import AutoModel, AutoTokenizer
 
+from generation_request import MAX_SEED, GenerateRequest
 from model_catalog import DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
@@ -36,8 +37,6 @@ MOSS_IMAGE_MODEL_PATH = MOSS_IMAGE_PATH / "merged-model"
 # Only the merged model; its pipeline code is vendored in moss_pipeline.py
 MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged-model/**/*.safetensors"]
 QUANTIZE_BITS = 4
-MIN_SIDE = 256
-MAX_SEED = 2**32 - 1
 
 
 @dataclass(frozen=True)
@@ -54,49 +53,23 @@ class Job:
 ImageGenerator = Callable[[Job], Image.Image]
 
 
-class GenerateRequest(BaseModel):
-    model: str = DEFAULT_MODEL.id
-    prompt: str = Field(min_length=1, max_length=4000)
-    negative_prompt: str = Field(default="", max_length=2000)
-    width: int = 1024
-    height: int = 1024
-    steps: int | None = None
-    guidance: float | None = Field(default=None, ge=0, le=20)
-    seed: int | None = Field(default=None, ge=0, le=MAX_SEED)
-
-    @model_validator(mode="after")
-    def check_against_model(self) -> "GenerateRequest":
-        spec = MODELS.get(self.model)
-        if spec is None:
-            raise ValueError(f"Unknown model: {self.model}")
-        check_size(self.width, self.height, spec)
-        if self.steps is not None and not 1 <= self.steps <= spec.max_steps:
-            raise ValueError(f"steps must be between 1 and {spec.max_steps}")
-        return self
-
-    def to_job(self) -> Job:
-        spec = MODELS[self.model]
-        return Job(
-            prompt=with_trigger_word(self.prompt, spec),
-            negative_prompt=self.negative_prompt,
-            width=self.width,
-            height=self.height,
-            steps=self.steps or spec.default_steps,
-            guidance=spec.default_guidance if self.guidance is None else self.guidance,
-            seed=random.randint(0, MAX_SEED) if self.seed is None else self.seed,
-        )
+def to_job(req: GenerateRequest) -> Job:
+    spec = MODELS[req.model]
+    return Job(
+        prompt=with_trigger_word(req.prompt, spec),
+        negative_prompt=req.negative_prompt,
+        width=req.width,
+        height=req.height,
+        steps=req.steps or spec.default_steps,
+        guidance=spec.default_guidance if req.guidance is None else req.guidance,
+        seed=random.randint(0, MAX_SEED) if req.seed is None else req.seed,
+    )
 
 
 class GenerateResponse(BaseModel):
     image_base64: str
     seed: int
     model: str
-
-
-def check_size(width: int, height: int, spec: ModelSpec) -> None:
-    for side in (width, height):
-        if not MIN_SIDE <= side <= spec.max_side or side % 16:
-            raise ValueError(f"width and height must be multiples of 16 between {MIN_SIDE} and {spec.max_side}")
 
 
 def with_trigger_word(prompt: str, spec: ModelSpec) -> str:
@@ -283,7 +256,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest) -> GenerateResponse:
-    job = req.to_job()
+    job = to_job(req)
     png = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job)
     return GenerateResponse(image_base64=base64.b64encode(png).decode("utf-8"), seed=job.seed, model=req.model)
 
