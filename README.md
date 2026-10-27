@@ -16,8 +16,8 @@ This project runs image generation models natively on Apple Silicon behind a sim
 │   Your Mac (Apple Silicon)                                   │
 │                                                              │
 │   ┌─────────────┐      ┌──────────────────────────────────┐  │
-│   │   Gradio    │ HTTP │     FastAPI Model Server         │  │
-│   │   Web UI    │─────▶│   Z-Image-Turbo (MLX, 4-bit)     │  │
+│   │  React UI   │ HTTP │     FastAPI Model Server         │  │
+│   │  + web API  │─────▶│   Z-Image-Turbo (MLX, 4-bit)     │  │
 │   │  (main.py)  │      │   WAI-Illustrious (SDXL, MPS)    │  │
 │   └─────────────┘      │   MOSS-Image (MPS, two-stage)    │  │
 │         │              │   (model_server.py)              │  │
@@ -33,14 +33,13 @@ This project runs image generation models natively on Apple Silicon behind a sim
 
 ## Features
 
-- **Two models, switchable per image**: choose the model in the UI for each request
+- **Three models, chosen per image** from cards that show what each is for and how long it takes
 - **Fast on Apple Silicon**: Z-Image-Turbo runs as a 4-bit MLX model, so it fits in memory without swapping
-- **Two input modes**
-  - Chat Mode: describe the image in natural language and Grok writes the prompt
-  - Direct Mode: full control with your own detailed prompt
-- **Flexible resolutions** from 368px to 1536px in several aspect ratios
-- **Reuse seed**: repeat a result with one click and tweak the prompt
-- **History**: every image is saved to a local database, with its prompt, seed and model
+- **A full settings panel**: model, prompt, negative prompt, resolution, steps, guidance and seed, all adjustable, remembered between visits and resettable to each model's defaults
+- **Resolutions sorted into categories**: Square, Portrait, Landscape and Widescreen, each with S/M/L/XL sizes and a shape preview, plus a custom size that snaps to valid values
+- **Two prompt modes**: write the prompt yourself, or chat with Grok and let it write a detailed one
+- **Seed tools**: random or fixed, a dice button, and "use last seed" to repeat a result
+- **History**: every image is saved with all its settings; reuse them in one click, download or delete
 
 ## Quick Start
 
@@ -49,6 +48,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 - macOS on Apple Silicon
 - Python 3.12+
 - [uv](https://github.com/astral-sh/uv) package manager
+- [Node.js](https://nodejs.org/) 20+ (to build the web UI)
 
 ### Installation
 
@@ -56,6 +56,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 git clone https://github.com/amirzenoozi/z-image-inference.git
 cd z-image-inference
 uv sync
+cd frontend && npm ci && npm run build && cd ..
 ```
 
 ### Run
@@ -78,28 +79,35 @@ Open http://127.0.0.1:7860 in your browser.
 
 ## Usage
 
-### Direct Input Mode
+### Create
 
-1. Choose a **Model**
-2. Go to the **Direct Input Prompt** tab and enter your prompt, or click one of the examples
-3. Pick a resolution and adjust the steps
-4. Click **Generate Image**
+1. Pick a **model** card
+2. Write a **prompt**, or choose one from **Examples**; models that use one also show a **negative prompt**
+3. Choose a **resolution**: pick a category tab, then a size; sizes the model cannot make are greyed out with the reason
+4. Adjust **steps**, **guidance** and **seed** if you like; **Reset to model defaults** undoes your changes
+5. Press **Generate** (or ⌘/Ctrl + Enter). A timer shows how long it has been running
 
-### Chat Mode (optional)
+Your settings are remembered in the browser between visits.
 
-Requires an [xAI API key](https://x.ai/). The tab is hidden when no key is set.
+### Chat with Grok (optional)
+
+Requires an [xAI API key](https://x.ai/). The tab is disabled when no key is set.
 
 1. Create a `.env` file with your key:
    ```
    XAI_API_KEY=your_api_key_here
    ```
-2. Go to the **Chat Mode** tab and describe your image
-3. Grok turns it into a detailed prompt, then the image is generated
-4. Double-click one of your messages to edit it and generate again
+2. Choose **Chat with Grok** and describe your image in plain words
+3. Grok writes a detailed prompt, which becomes your prompt, and the image is generated
+4. Edit one of your messages to branch from there and generate again
+
+### History
+
+The **History** tab shows every image, newest first. Open one to see its prompt and settings, **Reuse settings** to load them into the panel with the same seed, download it or delete it.
 
 ### Switching models
 
-Choosing a model resets the steps, resolution, guidance and negative prompt to that model's defaults. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
+Choosing another model keeps your settings where that model allows them, and offers its recommended defaults in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
 
 The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/`. This can take longer than the UI is willing to wait; if the request times out, wait for the download to finish in the server terminal and generate again.
 
@@ -156,18 +164,43 @@ Switching models takes about 10 seconds. A MOSS-Image request with a new prompt 
 
 ```
 z-image-inference/
-├── main.py              # Gradio web interface
+├── main.py              # Web app: serves the UI and the /api endpoints
 ├── model_server.py      # FastAPI inference server
 ├── model_catalog.py     # Model list and defaults, shared by the UI and the server
+├── generation_request.py # Request checks shared by the web app and the model server
+├── resolutions.py       # Resolution presets with their categories and sizes
 ├── history_store.py     # Image history database
 ├── moss_pipeline.py     # Vendored MOSS-Image pipeline (Apache 2.0)
 ├── grok_client.py       # xAI Grok API client
+├── frontend/            # React, TypeScript and Tailwind UI (Vite)
+├── tests/               # Backend tests
 ├── pyproject.toml       # Project dependencies
 ├── models/              # Downloaded and quantised models (not in git)
 └── history.db           # Generated images database (not in git)
 ```
 
+## Development
+
+Run the UI with live reload while `main.py` and `model_server.py` are running:
+
+```bash
+cd frontend && npm run dev
+```
+
+Open the address Vite prints; it forwards `/api` to `main.py`.
+
+Tests:
+
+```bash
+uv run pytest                  # backend
+cd frontend && npm test        # frontend
+```
+
 ## Troubleshooting
+
+**The page says the UI is not built?**
+- Run `cd frontend && npm ci && npm run build`, then reload
+
 
 **The model server fails to start after an interrupted first run?**
 - Delete `models/zimage-q4/` and start the server again to rebuild it
@@ -185,7 +218,7 @@ z-image-inference/
 - [OpenMOSS](https://huggingface.co/OpenMOSS-Team) for MOSS-Image, and axiomofmind for the NSFW LoRA
 - [mflux](https://github.com/filipstrand/mflux) for MLX inference
 - [Hugging Face](https://huggingface.co/docs/diffusers) for the diffusers library
-- [Gradio](https://gradio.app/) for the web interface framework
+- [React](https://react.dev/), [Vite](https://vite.dev/) and [Tailwind CSS](https://tailwindcss.com/) for the web interface
 - [z-image-mps](https://github.com/ivanfioravanti/z-image-mps) for MPS optimisation inspiration
 
 ## Licence
