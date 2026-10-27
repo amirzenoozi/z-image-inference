@@ -1,143 +1,74 @@
 import io
 import base64
 import random
-import sqlite3
-from pathlib import Path
+import textwrap
+from collections.abc import Iterator
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 load_dotenv()
 
+import openai
 import requests
 import gradio as gr
 from PIL import Image
 
+import history_store
 from grok_client import GrokClient
+from model_catalog import DEFAULT_MODEL, MODELS, ModelSpec
 
-DB_PATH = Path(__file__).parent / "history.db"
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
+# Long enough for a first-time model download or a switch between models
+REQUEST_TIMEOUT = 900
+MAX_SEED = 2**32 - 1
+HISTORY_PAGE_SIZE = 30
 
-history_detail = []  # for history tab: [(image, prompt, seed, width, height, steps), ...]
+CSS = """
+.bubble-wrap .message-row.bubble,
+.bubble-wrap .message,
+.bubble-wrap .flex-wrap {
+    max-width: 100% !important;
+}
+.history-gallery .thumbnail-item.selected {
+    border-color: transparent !important;
+    outline: none !important;
+}
+.history-gallery .thumbnail-item:focus {
+    outline: none !important;
+}
+"""
+
 grok_client = GrokClient()
 
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS images (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            image_data BLOB NOT NULL,
-            prompt TEXT,
-            seed INTEGER,
-            width INTEGER,
-            height INTEGER,
-            steps INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-
-def load_history():
-    global history_detail
-    conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute(
-        "SELECT image_data, prompt, seed, width, height, steps FROM images ORDER BY created_at DESC"
-    ).fetchall()
-    conn.close()
-
-    history_detail = []
-    for row in rows:
-        img = Image.open(io.BytesIO(row[0]))
-        history_detail.append({
-            "image": img,
-            "prompt": row[1] or "",
-            "seed": row[2],
-            "width": row[3],
-            "height": row[4],
-            "steps": row[5],
-        })
-
-
-def save_to_db(image, prompt, seed, width, height, steps):
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    image_data = buffer.getvalue()
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT INTO images (image_data, prompt, seed, width, height, steps) VALUES (?, ?, ?, ?, ?, ?)",
-        (image_data, prompt, seed, width, height, steps)
-    )
-    conn.commit()
-    conn.close()
-
-
-def delete_from_db_by_index(index: int):
-    """Delete one image by its position in history_detail."""
-    global history_detail
-    if index < 0 or index >= len(history_detail):
-        return False
-
-    conn = sqlite3.connect(DB_PATH)
-    # history_detail uses the same created_at DESC order
-    rows = conn.execute("SELECT id FROM images ORDER BY created_at DESC").fetchall()
-    if index < len(rows):
-        image_id = rows[index][0]
-        conn.execute("DELETE FROM images WHERE id = ?", (image_id,))
-        conn.commit()
-    conn.close()
-
-    history_detail.pop(index)
-    return True
-
-
-def clear_all_history():
-    global history_detail
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("DELETE FROM images")
-    conn.commit()
-    conn.close()
-    history_detail = []
-
-
-RESOLUTION_OPTIONS = {
-    "512": {
-        "512x512 (1:1)": (512, 512),
-        "640x384 (5:3)": (640, 384),
-        "384x640 (3:5)": (384, 640),
-        "512x384 (4:3)": (512, 384),
-        "384x512 (3:4)": (384, 512),
-        "640x368 (16:9)": (640, 368),
-        "368x640 (9:16)": (368, 640),
-    },
-    "768": {
-        "768x768 (1:1)": (768, 768),
-        "960x576 (5:3)": (960, 576),
-        "576x960 (3:5)": (576, 960),
-        "768x576 (4:3)": (768, 576),
-        "576x768 (3:4)": (576, 768),
-        "960x544 (16:9)": (960, 544),
-        "544x960 (9:16)": (544, 960),
-    },
-    "1024": {
-        "1024x1024 (1:1)": (1024, 1024),
-        "1280x768 (5:3)": (1280, 768),
-        "768x1280 (3:5)": (768, 1280),
-        "1024x768 (4:3)": (1024, 768),
-        "768x1024 (3:4)": (768, 1024),
-        "1280x720 (16:9)": (1280, 720),
-        "720x1280 (9:16)": (720, 1280),
-        "1024x576 (16:9)": (1024, 576),
-        "576x1024 (9:16)": (576, 1024),
-    },
-    "1280": {
-        "1280x1280 (1:1)": (1280, 1280),
-        "1536x1024 (3:2)": (1536, 1024),
-        "1024x1536 (2:3)": (1024, 1536),
-        "1536x864 (16:9)": (1536, 864),
-        "864x1536 (9:16)": (864, 1536),
-    },
+RESOLUTIONS: dict[str, tuple[int, int]] = {
+    "512x512 (1:1)": (512, 512),
+    "640x384 (5:3)": (640, 384),
+    "384x640 (3:5)": (384, 640),
+    "512x384 (4:3)": (512, 384),
+    "384x512 (3:4)": (384, 512),
+    "640x368 (16:9)": (640, 368),
+    "368x640 (9:16)": (368, 640),
+    "768x768 (1:1)": (768, 768),
+    "960x576 (5:3)": (960, 576),
+    "576x960 (3:5)": (576, 960),
+    "768x576 (4:3)": (768, 576),
+    "576x768 (3:4)": (576, 768),
+    "960x544 (16:9)": (960, 544),
+    "544x960 (9:16)": (544, 960),
+    "1024x1024 (1:1)": (1024, 1024),
+    "1280x768 (5:3)": (1280, 768),
+    "768x1280 (3:5)": (768, 1280),
+    "1024x768 (4:3)": (1024, 768),
+    "768x1024 (3:4)": (768, 1024),
+    "1280x720 (16:9)": (1280, 720),
+    "720x1280 (9:16)": (720, 1280),
+    "1024x576 (16:9)": (1024, 576),
+    "576x1024 (9:16)": (576, 1024),
+    "1280x1280 (1:1)": (1280, 1280),
+    "1536x1024 (3:2)": (1536, 1024),
+    "1024x1536 (2:3)": (1024, 1536),
+    "1536x864 (16:9)": (1536, 864),
+    "864x1536 (9:16)": (864, 1536),
 }
 
 EXAMPLE_PROMPTS = [
@@ -150,376 +81,400 @@ EXAMPLE_PROMPTS = [
     """,
 ]
 
+ChatMessage = dict[str, object]
+ChatUpdate = tuple[list[ChatMessage], Image.Image | None, str]
+GalleryItem = tuple[Image.Image, str]
+Preview = tuple[Image.Image | None, str, str, int | None]
+SettingValue = str | float | bool | None
 
-def update_resolution_choices(category):
-    choices = list(RESOLUTION_OPTIONS.get(category, {}).keys())
-    return gr.update(choices=choices, value=choices[0] if choices else None)
+EMPTY_PREVIEW: Preview = (None, "", "", None)
 
 
-def generate_image_internal(prompt, res_category, resolution, seed, random_seed, steps):
-    if random_seed:
-        seed = random.randint(0, 2147483647)
-    else:
-        seed = int(seed)
+@dataclass(frozen=True)
+class GenerationSettings:
+    """Values of the settings controls, in the order of SettingsControls.as_inputs()."""
 
-    width, height = RESOLUTION_OPTIONS.get(res_category, {}).get(resolution, (1024, 1024))
+    model_id: str
+    resolution: str
+    seed: float | None
+    random_seed: bool
+    steps: float
+    guidance: float
+    negative_prompt: str
 
+
+def resolutions_for(spec: ModelSpec) -> list[str]:
+    return [label for label, (width, height) in RESOLUTIONS.items() if max(width, height) <= spec.max_side]
+
+
+def resolve_seed(settings: GenerationSettings) -> int:
+    if settings.random_seed or settings.seed is None:
+        return random.randint(0, MAX_SEED)
+    return int(settings.seed)
+
+
+def post_generate(payload: dict[str, str | int | float]) -> dict[str, str | int]:
     try:
-        resp = requests.post(
-            f"{MODEL_SERVER_URL}/generate",
-            json={
-                "prompt": prompt,
-                "width": width,
-                "height": height,
-                "steps": int(steps),
-                "seed": seed,
-            },
-            timeout=300,
-        )
+        resp = requests.post(f"{MODEL_SERVER_URL}/generate", json=payload, timeout=REQUEST_TIMEOUT)
         resp.raise_for_status()
     except requests.exceptions.ConnectionError:
         raise gr.Error("Model server not started. Please run: uv run python model_server.py")
     except requests.exceptions.RequestException as e:
         raise gr.Error(f"Request failed: {e}")
+    return resp.json()
 
-    data = resp.json()
-    image_bytes = base64.b64decode(data["image_base64"])
-    image = Image.open(io.BytesIO(image_bytes))
 
-    save_to_db(image, prompt, seed, width, height, int(steps))
-
-    history_detail.insert(0, {
-        "image": image,
+def request_image(prompt: str, settings: GenerationSettings) -> tuple[Image.Image, str]:
+    seed = resolve_seed(settings)
+    width, height = RESOLUTIONS[settings.resolution]
+    steps = int(settings.steps)
+    data = post_generate({
+        "model": settings.model_id,
         "prompt": prompt,
-        "seed": seed,
+        "negative_prompt": settings.negative_prompt,
         "width": width,
         "height": height,
-        "steps": int(steps),
+        "steps": steps,
+        "guidance": float(settings.guidance),
+        "seed": seed,
     })
-
+    image = Image.open(io.BytesIO(base64.b64decode(str(data["image_base64"]))))
+    history_store.add(image, prompt, seed, width, height, steps, settings.model_id)
     return image, str(seed)
 
 
-def chat_and_generate(user_message, chat_history, res_category, resolution, seed, random_seed, steps):
-    """Stream the Grok-written prompt, then generate the image from it."""
-    if not user_message.strip():
-        yield chat_history, None, "", user_message
-        return
+def direct_generate(prompt: str, *settings: SettingValue) -> tuple[Image.Image | None, str]:
+    if not prompt.strip():
+        return None, ""
+    return request_image(prompt, GenerationSettings(*settings))
 
-    if chat_history is None:
-        chat_history = []
 
-    chat_history.append({"role": "user", "content": user_message})
-    chat_history.append({"role": "assistant", "content": ""})
+def message_text(message: ChatMessage) -> str:
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+    return ""
 
-    generated_prompt = ""
+
+def prompt_then_image(chat_history: list[ChatMessage], settings: GenerationSettings) -> Iterator[ChatUpdate]:
+    """Stream Grok's prompt for a chat that ends with a user message, then generate the image from it."""
+    messages = [{"role": str(message["role"]), "content": message_text(message)} for message in chat_history]
+    reply: ChatMessage = {"role": "assistant", "content": ""}
+    chat_history = [*chat_history, reply]
+
+    prompt = ""
     try:
-        for chunk in grok_client.chat_stream(user_message):
-            generated_prompt += chunk
-            chat_history[-1]["content"] = generated_prompt
-            yield chat_history, None, "Generating prompt...", ""
-    except Exception as e:
-        chat_history[-1]["content"] = f"Grok API error: {e}"
-        yield chat_history, None, "", ""
-        return
-
-    yield chat_history, None, "Generating image...", ""
-
-    try:
-        image, seed_used = generate_image_internal(
-            generated_prompt, res_category, resolution, seed, random_seed, steps
-        )
-    except gr.Error as e:
-        yield chat_history, None, str(e), ""
-        return
-
-    yield chat_history, image, seed_used, ""
-
-
-def clear_chat():
-    grok_client.clear_history()
-    return [], None, ""
-
-
-def regenerate_after_edit(chat_history, res_category, resolution, seed, random_seed, steps):
-    if not chat_history:
-        yield chat_history, None, ""
-        return
-
-    last_user_idx = None
-    for i in range(len(chat_history) - 1, -1, -1):
-        if chat_history[i].get("role") == "user":
-            last_user_idx = i
-            break
-
-    if last_user_idx is None:
-        yield chat_history, None, ""
-        return
-
-    user_message = chat_history[last_user_idx]["content"]
-
-    chat_history.append({"role": "assistant", "content": ""})
-
-    generated_prompt = ""
-    try:
-        for chunk in grok_client.chat_stream(user_message):
-            generated_prompt += chunk
-            chat_history[-1]["content"] = generated_prompt
+        for chunk in grok_client.chat_stream(messages):
+            prompt += chunk
+            reply["content"] = prompt
             yield chat_history, None, "Generating prompt..."
-    except Exception as e:
-        chat_history[-1]["content"] = f"Grok API error: {e}"
-        yield chat_history, None, ""
+    except (openai.OpenAIError, ValueError) as e:
+        gr.Warning(f"Grok API error: {e}")
+        yield chat_history[:-1], None, ""
         return
 
     yield chat_history, None, "Generating image..."
+    image, seed = request_image(prompt, settings)
+    yield chat_history, image, seed
 
-    try:
-        image, seed_used = generate_image_internal(
-            generated_prompt, res_category, resolution, seed, random_seed, steps
-        )
-    except gr.Error as e:
-        yield chat_history, None, str(e)
+
+def chat_and_generate(
+    user_message: str, chat_history: list[ChatMessage] | None, *settings: SettingValue
+) -> Iterator[tuple[list[ChatMessage], Image.Image | None, str, str]]:
+    if not user_message.strip():
+        yield chat_history or [], None, "", user_message
         return
 
-    yield chat_history, image, seed_used
+    chat_history = [*(chat_history or []), {"role": "user", "content": user_message}]
+    for chat, image, status in prompt_then_image(chat_history, GenerationSettings(*settings)):
+        yield chat, image, status, ""
 
 
-def direct_generate(prompt, res_category, resolution, seed, random_seed, steps):
-    if not prompt.strip():
-        return None, ""
+def truncate_at_edit(chat_history: list[ChatMessage], evt: gr.EditData) -> list[ChatMessage]:
+    row = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
+    if row >= len(chat_history) or chat_history[row].get("role") != "user":
+        return chat_history
 
-    try:
-        image, seed_used = generate_image_internal(
-            prompt, res_category, resolution, seed, random_seed, steps
-        )
-        return image, seed_used
-    except gr.Error as e:
-        raise e
+    truncated = chat_history[:row + 1]
+    truncated[row]["content"] = evt.value
+    return truncated
 
 
-def fill_example(example_text):
-    return example_text
+def regenerate_after_edit(chat_history: list[ChatMessage], *settings: SettingValue) -> Iterator[ChatUpdate]:
+    if not chat_history or chat_history[-1].get("role") != "user":
+        yield chat_history, None, ""
+        return
+    yield from prompt_then_image(chat_history, GenerationSettings(*settings))
 
 
-def get_history_gallery():
-    return [(d["image"], f"seed: {d['seed']}") for d in history_detail]
+def clear_chat() -> tuple[list[ChatMessage], None, str]:
+    return [], None, ""
 
 
-def on_history_select(evt: gr.SelectData):
-    if evt.index < len(history_detail):
-        item = history_detail[evt.index]
-        info = f"Seed: {item['seed']}  |  {item['width']}x{item['height']}  |  Steps: {item['steps']}"
-        return item["image"], item["prompt"], info, evt.index
-    return None, "", "", -1
+def reuse_seed(seed_used: str) -> tuple[int | dict, bool | dict]:
+    if not seed_used.isdigit():
+        return gr.skip(), gr.skip()
+    return int(seed_used), False
 
 
-def on_delete_selected(selected_index: int):
-    if selected_index < 0:
+def on_model_change(model_id: str) -> tuple[dict, dict, dict, dict]:
+    spec = MODELS[model_id]
+    return (
+        gr.update(choices=resolutions_for(spec), value=spec.default_resolution),
+        gr.update(value=spec.default_steps, maximum=spec.max_steps),
+        gr.update(value=spec.default_guidance, visible=spec.uses_guidance),
+        gr.update(value=spec.default_negative_prompt, visible=spec.uses_guidance),
+    )
+
+
+def history_page(count: int) -> tuple[list[GalleryItem], list[int]]:
+    items = history_store.recent(count)
+    return [(item.image, f"seed: {item.seed}") for item in items], [item.id for item in items]
+
+
+def show_history() -> tuple[list[GalleryItem], list[int]]:
+    return history_page(HISTORY_PAGE_SIZE)
+
+
+def load_more_history(shown_ids: list[int]) -> tuple[list[GalleryItem], list[int]]:
+    return history_page(len(shown_ids) + HISTORY_PAGE_SIZE)
+
+
+def describe(item: history_store.HistoryItem) -> str:
+    spec = MODELS.get(item.model)
+    model = spec.label if spec else item.model
+    return f"{model}  |  Seed: {item.seed}  |  {item.width}x{item.height}  |  Steps: {item.steps}"
+
+
+def on_history_select(shown_ids: list[int], evt: gr.SelectData) -> Preview:
+    item = history_store.get(shown_ids[evt.index]) if evt.index < len(shown_ids) else None
+    if item is None:
+        return EMPTY_PREVIEW
+    return item.image, item.prompt, describe(item), item.id
+
+
+def delete_selected(
+    selected_id: int | None, shown_ids: list[int]
+) -> tuple[list[GalleryItem], list[int], *Preview]:
+    if selected_id is None:
         gr.Warning("Please select an image to delete first")
-        return get_history_gallery(), None, "", "", -1
-
-    if delete_from_db_by_index(selected_index):
+    else:
+        history_store.delete(selected_id)
         gr.Info("Image deleted")
-    return get_history_gallery(), None, "", "", -1
+    return *history_page(max(len(shown_ids), HISTORY_PAGE_SIZE)), *EMPTY_PREVIEW
 
 
-def on_clear_all_history():
-    clear_all_history()
+def clear_history() -> tuple[list[GalleryItem], list[int], *Preview]:
+    history_store.clear()
     gr.Info("All history cleared")
-    return get_history_gallery(), None, "", "", -1
+    return [], [], *EMPTY_PREVIEW
 
 
-with gr.Blocks(title="Z-Image-Turbo") as demo:
-    gr.HTML("""
-    <style>
-    /* Gradio 6.x chatbot bubbles: full width */
-    .bubble-wrap .message-row.bubble {
-        max-width: 100% !important;
-    }
-    .bubble-wrap .message {
-        max-width: 100% !important;
-    }
-    .bubble-wrap .flex-wrap {
-        max-width: 100% !important;
-    }
-    /* Hide the history gallery selection highlight */
-    .history-gallery .thumbnail-item.selected {
-        border-color: transparent !important;
-        outline: none !important;
-    }
-    .history-gallery .thumbnail-item:focus {
-        outline: none !important;
-    }
-    </style>
-    """)
+@dataclass
+class ChatControls:
+    chatbot: gr.Chatbot
+    message: gr.Textbox
+    send: gr.Button
+    clear: gr.Button
 
-    gr.Markdown("# Z-Image-Turbo")
 
-    gr.Markdown("*An Efficient Image Generation Foundation Model with Single-Stream Diffusion Transformer*")
+@dataclass
+class SettingsControls:
+    model: gr.Dropdown
+    resolution: gr.Dropdown
+    seed: gr.Number
+    random_seed: gr.Checkbox
+    steps: gr.Slider
+    guidance: gr.Slider
+    negative_prompt: gr.Textbox
 
-    with gr.Tabs():
-        with gr.TabItem("Generate"):
-            with gr.Row():
-                with gr.Column(scale=1):
-                    with gr.Tabs(selected="direct_tab" if not grok_client.available else "chat_tab") as input_tabs:
-                        with gr.TabItem(
-                            "Chat Mode" if grok_client.available else "Chat Mode (API Key not configured)",
-                            id="chat_tab",
-                            interactive=grok_client.available,
-                        ):
-                            chatbot = gr.Chatbot(
-                                label="Chat (double-click user message to edit)",
-                                height=300,
-                                editable="user",
-                                layout="panel",
-                            )
-                            user_input = gr.Textbox(
-                                placeholder="Describe the image you want...",
-                                lines=2,
-                                show_label=False,
-                            )
-                            with gr.Row():
-                                send_btn = gr.Button("Send", variant="primary", scale=1)
-                                clear_btn = gr.Button("Clear Chat", scale=1)
+    def as_inputs(self) -> list[gr.components.Component]:
+        """Inputs in GenerationSettings field order."""
+        return [
+            self.model, self.resolution, self.seed, self.random_seed,
+            self.steps, self.guidance, self.negative_prompt,
+        ]
 
-                        with gr.TabItem("Direct Input Prompt", id="direct_tab"):
-                            direct_prompt = gr.Textbox(
-                                label="Prompt",
-                                placeholder="Enter complete image generation prompt...",
-                                lines=10,
-                            )
-                            direct_generate_btn = gr.Button("Generate Image", variant="primary")
 
-                    with gr.Row():
-                        res_category = gr.Dropdown(
-                            label="Resolution Category",
-                            choices=["512", "768", "1024", "1280"],
-                            value="512",
-                        )
-                        resolution = gr.Dropdown(
-                            label="Resolution",
-                            choices=list(RESOLUTION_OPTIONS["512"].keys()),
-                            value="368x640 (9:16)",
-                        )
+@dataclass
+class OutputControls:
+    image: gr.Image
+    seed_used: gr.Textbox
+    reuse_seed: gr.Button
 
-                    with gr.Row():
-                        seed_input = gr.Number(label="Seed", value=-1)
-                        random_seed = gr.Checkbox(label="Random Seed", value=True)
 
-                    steps = gr.Slider(
-                        minimum=1,
-                        maximum=20,
-                        value=8,
-                        step=1,
-                        label="Steps",
-                    )
+@dataclass
+class HistoryControls:
+    tab: gr.Tab
+    gallery: gr.Gallery
+    load_more: gr.Button
+    clear_all: gr.Button
+    preview: gr.Image
+    info: gr.Textbox
+    prompt: gr.Textbox
+    delete: gr.Button
+    shown_ids: gr.State
+    selected_id: gr.State
 
-                    gr.Markdown("### Examples (click to fill input)")
-                    example_buttons = []
-                    with gr.Row():
-                        for i, example in enumerate(EXAMPLE_PROMPTS):
-                            short_label = example[:20] + "..." if len(example) > 20 else example
-                            btn = gr.Button(short_label, size="sm")
-                            example_buttons.append((btn, example))
+    def preview_outputs(self) -> list[gr.components.Component]:
+        return [self.preview, self.prompt, self.info, self.selected_id]
 
-                with gr.Column(scale=1):
-                    output_image = gr.Image(label="Generated Image", type="pil")
-                    seed_used = gr.Textbox(label="Seed Used", interactive=False)
 
-        with gr.TabItem("History") as history_tab:
-            with gr.Row():
-                clear_all_btn = gr.Button("Clear All History", variant="stop", size="sm")
-            with gr.Row():
-                with gr.Column(scale=1):
-                    history_gallery = gr.Gallery(label="History", columns=3, height=400, preview=False, allow_preview=False)
-                with gr.Column(scale=1):
-                    preview_image = gr.Image(label="Preview", type="pil")
-                    preview_info = gr.Textbox(label="Info", interactive=False)
-                    preview_prompt = gr.Textbox(label="Prompt", lines=5, interactive=False)
-                    delete_btn = gr.Button("Delete This Image", variant="secondary")
-                    selected_index = gr.State(value=-1)
+def build_chat_tab() -> ChatControls:
+    with gr.Tab("Chat Mode", id="chat_tab", visible=grok_client.available):
+        chatbot = gr.Chatbot(
+            label="Chat (double-click user message to edit)",
+            height=300,
+            editable="user",
+            layout="panel",
+        )
+        message = gr.Textbox(placeholder="Describe the image you want...", lines=2, show_label=False)
+        with gr.Row():
+            send = gr.Button("Send", variant="primary")
+            clear = gr.Button("Clear Chat")
+    return ChatControls(chatbot, message, send, clear)
 
-    for btn, example in example_buttons:
-        btn.click(fn=lambda e=example: (e, e), outputs=[user_input, direct_prompt])
 
-    res_category.change(
-        fn=update_resolution_choices,
-        inputs=[res_category],
-        outputs=[resolution],
+def build_direct_tab() -> tuple[gr.Textbox, gr.Button]:
+    with gr.Tab("Direct Input Prompt", id="direct_tab"):
+        prompt = gr.Textbox(label="Prompt", placeholder="Enter complete image generation prompt...", lines=10)
+        generate = gr.Button("Generate Image", variant="primary")
+    return prompt, generate
+
+
+def build_examples(chat: ChatControls, direct_prompt: gr.Textbox) -> None:
+    gr.Examples(
+        examples=[[prompt] for prompt in EXAMPLE_PROMPTS],
+        example_labels=[textwrap.shorten(" ".join(prompt.split()), 90) for prompt in EXAMPLE_PROMPTS],
+        inputs=[direct_prompt],
+        outputs=[chat.message, direct_prompt],
+        fn=lambda prompt: (prompt, prompt),
+        run_on_click=True,
+        cache_examples=False,
+        label="Examples (click to fill the prompt)",
     )
 
-    send_btn.click(
-        fn=chat_and_generate,
-        inputs=[user_input, chatbot, res_category, resolution, seed_input, random_seed, steps],
-        outputs=[chatbot, output_image, seed_used, user_input],
+
+def build_settings(model: gr.Dropdown) -> SettingsControls:
+    spec = DEFAULT_MODEL
+    resolution = gr.Dropdown(label="Resolution", choices=resolutions_for(spec), value=spec.default_resolution)
+    with gr.Row():
+        seed = gr.Number(label="Seed", value=0, minimum=0, maximum=MAX_SEED, precision=0)
+        random_seed = gr.Checkbox(label="Random Seed", value=True)
+    steps = gr.Slider(minimum=1, maximum=spec.max_steps, value=spec.default_steps, step=1, label="Steps")
+    guidance = gr.Slider(
+        minimum=0, maximum=20, value=spec.default_guidance, step=0.1,
+        label="Guidance (CFG)", visible=spec.uses_guidance,
+    )
+    negative_prompt = gr.Textbox(
+        label="Negative Prompt", value=spec.default_negative_prompt, lines=2, visible=spec.uses_guidance,
+    )
+    return SettingsControls(model, resolution, seed, random_seed, steps, guidance, negative_prompt)
+
+
+def build_output() -> OutputControls:
+    image = gr.Image(label="Generated Image", type="pil", format="png")
+    with gr.Row():
+        seed_used = gr.Textbox(label="Seed Used", interactive=False, scale=3)
+        reuse = gr.Button("Reuse Seed", scale=1)
+    return OutputControls(image, seed_used, reuse)
+
+
+def build_history_tab() -> HistoryControls:
+    with gr.Tab("History") as tab:
+        with gr.Row():
+            clear_all = gr.Button("Clear All History", variant="stop", size="sm")
+        with gr.Row():
+            with gr.Column(scale=1):
+                gallery = gr.Gallery(
+                    label="History", columns=3, height=400, preview=False,
+                    allow_preview=False, elem_classes="history-gallery",
+                )
+                load_more = gr.Button("Load More", size="sm")
+            with gr.Column(scale=1):
+                preview = gr.Image(label="Preview", type="pil", format="png")
+                info = gr.Textbox(label="Info", interactive=False)
+                prompt = gr.Textbox(label="Prompt", lines=5, interactive=False)
+                delete = gr.Button("Delete This Image", variant="secondary")
+    return HistoryControls(
+        tab, gallery, load_more, clear_all, preview, info, prompt, delete,
+        shown_ids=gr.State([]), selected_id=gr.State(None),
     )
 
-    user_input.submit(
-        fn=chat_and_generate,
-        inputs=[user_input, chatbot, res_category, resolution, seed_input, random_seed, steps],
-        outputs=[chatbot, output_image, seed_used, user_input],
+
+def wire_chat(chat: ChatControls, settings: SettingsControls, output: OutputControls) -> None:
+    inputs = settings.as_inputs()
+    for trigger in (chat.send.click, chat.message.submit):
+        trigger(
+            chat_and_generate,
+            inputs=[chat.message, chat.chatbot, *inputs],
+            outputs=[chat.chatbot, output.image, output.seed_used, chat.message],
+        )
+    chat.clear.click(clear_chat, outputs=[chat.chatbot, output.image, output.seed_used])
+    chat.chatbot.edit(truncate_at_edit, inputs=[chat.chatbot], outputs=[chat.chatbot]).then(
+        regenerate_after_edit,
+        inputs=[chat.chatbot, *inputs],
+        outputs=[chat.chatbot, output.image, output.seed_used],
     )
 
-    clear_btn.click(
-        fn=clear_chat,
-        outputs=[chatbot, output_image, seed_used],
+
+def wire_generate(
+    direct_prompt: gr.Textbox, generate: gr.Button, settings: SettingsControls, output: OutputControls
+) -> None:
+    for trigger in (generate.click, direct_prompt.submit):
+        trigger(direct_generate, inputs=[direct_prompt, *settings.as_inputs()], outputs=[output.image, output.seed_used])
+    output.reuse_seed.click(reuse_seed, inputs=[output.seed_used], outputs=[settings.seed, settings.random_seed])
+    settings.model.change(
+        on_model_change,
+        inputs=[settings.model],
+        outputs=[settings.resolution, settings.steps, settings.guidance, settings.negative_prompt],
     )
 
-    direct_generate_btn.click(
-        fn=direct_generate,
-        inputs=[direct_prompt, res_category, resolution, seed_input, random_seed, steps],
-        outputs=[output_image, seed_used],
-    )
 
-    direct_prompt.submit(
-        fn=direct_generate,
-        inputs=[direct_prompt, res_category, resolution, seed_input, random_seed, steps],
-        outputs=[output_image, seed_used],
-    )
+def wire_history(history: HistoryControls) -> None:
+    page_outputs = [history.gallery, history.shown_ids]
+    all_outputs = [*page_outputs, *history.preview_outputs()]
+    history.tab.select(show_history, outputs=page_outputs)
+    history.load_more.click(load_more_history, inputs=[history.shown_ids], outputs=page_outputs)
+    history.gallery.select(on_history_select, inputs=[history.shown_ids], outputs=history.preview_outputs())
+    history.delete.click(delete_selected, inputs=[history.selected_id, history.shown_ids], outputs=all_outputs)
+    history.clear_all.click(clear_history, outputs=all_outputs)
 
-    def on_edit(chat_history, evt: gr.EditData):
-        """Truncate the chat at the edited user message."""
-        row_idx = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
 
-        if row_idx >= len(chat_history) or chat_history[row_idx].get("role") != "user":
-            return chat_history
+def build_generate_tab() -> None:
+    with gr.Tab("Generate"):
+        with gr.Row():
+            with gr.Column(scale=1):
+                model = gr.Dropdown(
+                    label="Model",
+                    choices=[(spec.label, spec.id) for spec in MODELS.values()],
+                    value=DEFAULT_MODEL.id,
+                )
+                with gr.Tabs(selected="chat_tab" if grok_client.available else "direct_tab"):
+                    chat = build_chat_tab()
+                    direct_prompt, generate = build_direct_tab()
+                settings = build_settings(model)
+                build_examples(chat, direct_prompt)
+            with gr.Column(scale=1):
+                output = build_output()
+    wire_chat(chat, settings, output)
+    wire_generate(direct_prompt, generate, settings, output)
 
-        truncated = chat_history[:row_idx + 1]
-        truncated[row_idx]["content"] = evt.value
 
-        grok_client.history = grok_client.history[:row_idx]
+def build_app() -> gr.Blocks:
+    with gr.Blocks(title="Z-Image-Turbo") as demo:
+        gr.Markdown("# Z-Image-Turbo")
+        gr.Markdown("*An Efficient Image Generation Foundation Model with Single-Stream Diffusion Transformer*")
+        with gr.Tabs():
+            build_generate_tab()
+            wire_history(build_history_tab())
+    return demo
 
-        return truncated
 
-    chatbot.edit(
-        fn=on_edit,
-        inputs=[chatbot],
-        outputs=[chatbot],
-    ).then(
-        fn=regenerate_after_edit,
-        inputs=[chatbot, res_category, resolution, seed_input, random_seed, steps],
-        outputs=[chatbot, output_image, seed_used],
-    )
-
-    history_tab.select(fn=get_history_gallery, outputs=[history_gallery])
-
-    history_gallery.select(
-        fn=on_history_select,
-        outputs=[preview_image, preview_prompt, preview_info, selected_index],
-    )
-
-    delete_btn.click(
-        fn=on_delete_selected,
-        inputs=[selected_index],
-        outputs=[history_gallery, preview_image, preview_prompt, preview_info, selected_index],
-    )
-
-    clear_all_btn.click(
-        fn=on_clear_all_history,
-        outputs=[history_gallery, preview_image, preview_prompt, preview_info, selected_index],
-    )
+demo = build_app()
 
 if __name__ == "__main__":
-    init_db()
-    load_history()
-    demo.launch()
+    history_store.init_db()
+    demo.launch(css=CSS)
