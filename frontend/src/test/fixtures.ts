@@ -78,6 +78,7 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     created_at: '2026-10-28 10:00:00',
     duration_seconds: 52.3,
     favourite: false,
+    edited_from: null,
     ...overrides,
   }
 }

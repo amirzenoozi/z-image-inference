@@ -22,6 +22,13 @@ body {
   }
 }
 
+/* The image editor's crop frame, in the app's colours */
+.image-crop {
+  --rc-border-color: rgb(255 255 255 / 0.9);
+  --rc-focus-color: var(--color-violet-500);
+  --rc-drag-handle-bg-colour: var(--color-violet-500);
+}
+
 /* Native parts the field components replace with their own */
 @layer components {
   .no-native-spinner {

@@ -1,7 +1,13 @@
 import { useEffect, type ReactNode } from 'react'
 import { IconButton } from './IconButton'
 
-const SIZES = { md: 'max-w-md', lg: 'max-w-5xl', xl: 'max-w-7xl' } as const
+const SIZES = {
+  md: 'max-h-[92vh] max-w-md',
+  lg: 'max-h-[92vh] max-w-5xl',
+  xl: 'max-h-[92vh] max-w-7xl',
+  // Nearly the whole window, for the image view and its editor
+  full: 'h-[94vh] max-w-[96vw]',
+} as const
 
 interface Props {
   title: string
@@ -32,7 +38,7 @@ export function Modal({ title, onClose, children, actions, actionsNote, size = '
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
-        className={`flex max-h-[92vh] w-full flex-col rounded-2xl bg-white shadow-2xl dark:bg-zinc-900 ${SIZES[size]}`}
+        className={`flex w-full flex-col rounded-2xl bg-white shadow-2xl dark:bg-zinc-900 ${SIZES[size]}`}
       >
         <div className="flex shrink-0 items-center justify-between gap-4 px-5 pt-5 pb-4">
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>

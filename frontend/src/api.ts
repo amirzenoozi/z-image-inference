@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
+import type { Catalog, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -131,6 +131,11 @@ export function historyExportUrl(filters: HistoryFilters): string {
 /** Worked out on the server the first time an image is opened, then saved with it. */
 export async function fetchPalette(id: number, signal?: AbortSignal): Promise<PaletteColour[]> {
   return (await request(`/api/history/${id}/palette`, { signal })).json() as Promise<PaletteColour[]>
+}
+
+/** Saves the edited image as a new History image; the original is not changed. */
+export async function saveEdit(id: number, recipe: EditRecipe): Promise<HistoryItem> {
+  return (await postJson(`/api/history/${id}/edits`, recipe)).json() as Promise<HistoryItem>
 }
 
 export async function setFavourite(id: number, favourite: boolean): Promise<HistoryItem> {

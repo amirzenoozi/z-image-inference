@@ -84,6 +84,14 @@ export function HistoryPanel({ models, onReuse }: Props) {
     if (selection?.length === 2) setComparing([selection[0], selection[1]])
   }
   // The page behind the viewer follows it, so closing the viewer shows where it ended
+  // A saved edit is the newest image: filters are cleared so it is in the list, and the viewer opens on it
+  const openEdited = async (item: HistoryItem) => {
+    setListVersion((n) => n + 1)
+    const newest = await fetchHistory(0, 1, NO_FILTERS).catch(() => null)
+    go({ filters: NO_FILTERS, page: 1 })
+    setFiltersVersion((n) => n + 1)
+    setViewing({ index: 0, item, total: newest?.total ?? 1, filtersKey: JSON.stringify(NO_FILTERS) })
+  }
   const followViewer = (index: number) => {
     const pageOfImage = Math.floor(index / PAGE_SIZE) + 1
     if (pageOfImage !== page) go({ filters, page: pageOfImage })
@@ -116,12 +124,14 @@ export function HistoryPanel({ models, onReuse }: Props) {
       {comparing && <CompareDialog items={comparing} labelOf={labelOf} onClose={() => setComparing(null)} />}
       {viewing?.filtersKey === filtersKey && (
         <HistoryViewer
+          key={`${viewing.filtersKey}-${viewing.item.id}`}
           filters={filters}
           start={viewing}
           labelOf={labelOf}
           onIndexChange={followViewer}
           onListChanged={() => setListVersion((n) => n + 1)}
           onReuse={onReuse}
+          onEdited={(item) => void openEdited(item)}
           onClose={() => setViewing(null)}
         />
       )}

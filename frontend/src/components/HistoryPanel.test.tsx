@@ -18,6 +18,7 @@ vi.mock('../api', async (importOriginal) => ({
   deleteHistoryOlderThan: vi.fn(),
   setFavourite: vi.fn(),
   fetchPalette: vi.fn(),
+  saveEdit: vi.fn(),
 }))
 
 const fetchHistory = vi.mocked(api.fetchHistory)
@@ -659,7 +660,7 @@ it('puts each History dialog\'s buttons in its actions footer, and the image vie
   // The image view has two columns, so its actions sit at the bottom of the details column instead
   expect(screen.queryByRole('group', { name: 'Dialog actions' })).not.toBeInTheDocument()
   const imageActions = within(screen.getByRole('group', { name: 'Image actions' }))
-  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Delete', 'Reuse settings'])
+  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Edit', 'Delete', 'Reuse settings'])
   expect(imageActions.getByRole('link', { name: 'Download' })).toBeInTheDocument()
 })
 
@@ -687,4 +688,109 @@ it('shows tooltips with their keys on the image view\'s icon buttons', async () 
   expect(document.querySelector('[data-tooltip]')).toHaveTextContent('Next image→')
   await userEvent.keyboard('{ArrowRight}')
   expect(shownImage()).toHaveAccessibleName('image 1')
+})
+
+async function openEditor() {
+  await userEvent.click(within(viewer()).getByRole('button', { name: 'Edit' }))
+  return screen.getByRole('dialog', { name: 'Edit image' })
+}
+
+it('edits an image and saves it as a new one, then opens the new image with the filters cleared', async () => {
+  const images = serveHistory(2)
+  const saved = historyItem({ id: 3, prompt: 'image 2', edited_from: 2 })
+  vi.mocked(api.saveEdit).mockImplementation(async () => {
+    images.unshift(saved)
+    return saved
+  })
+  window.history.replaceState(null, '', '/?q=image')
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+
+  const editor = await openEditor()
+  expect(within(editor).getByRole('button', { name: 'Save as new image' })).toBeDisabled()
+  await userEvent.click(within(editor).getByRole('button', { name: 'Rotate right' }))
+  await userEvent.click(within(editor).getByRole('radio', { name: '16:9' }))
+  expect(within(editor).getByLabelText('Edits')).toHaveTextContent('Rotated 90° right · Cropped to 512 × 288')
+  await userEvent.click(within(editor).getByRole('button', { name: 'Save as new image' }))
+
+  expect(api.saveEdit).toHaveBeenCalledExactlyOnceWith(2, { quarter_turns: 1, flip_horizontal: false, flip_vertical: false, crop: { x: 0, y: 112, width: 512, height: 288 } })
+  expect(await screen.findByRole('dialog', { name: 'Image details' })).toBeInTheDocument()
+  expect(await screen.findByText(/Edited from image #2/)).toBeInTheDocument()
+  expect(window.location.search).toBe('')
+  expect(screen.getByLabelText('Search prompts')).toHaveValue('')
+})
+
+it('undoes and redoes edits with the buttons and the keyboard', async () => {
+  serveHistory(1)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  const editor = await openEditor()
+  const edits = () => within(editor).getByLabelText('Edits')
+
+  await userEvent.click(within(editor).getByRole('button', { name: 'Flip horizontally' }))
+  await userEvent.click(within(editor).getByRole('button', { name: 'Flip vertically' }))
+  expect(edits()).toHaveTextContent('Flipped horizontally · Flipped vertically')
+
+  await userEvent.click(within(editor).getByRole('button', { name: 'Undo' }))
+  expect(edits()).toHaveTextContent(/^Flipped horizontally$/)
+  await userEvent.keyboard('{Meta>}z{/Meta}')
+  expect(edits()).toHaveTextContent('No edits yet')
+  await userEvent.keyboard('{Meta>}{Shift>}z{/Shift}{/Meta}')
+  expect(edits()).toHaveTextContent(/^Flipped horizontally$/)
+  await userEvent.click(within(editor).getByRole('button', { name: 'Redo' }))
+  expect(edits()).toHaveTextContent('Flipped horizontally · Flipped vertically')
+
+  await userEvent.click(within(editor).getByRole('button', { name: 'Reset' }))
+  expect(edits()).toHaveTextContent('No edits yet')
+})
+
+it('pauses the viewer\'s keys while editing', async () => {
+  serveHistory(2)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+  await openEditor()
+
+  await userEvent.keyboard('{ArrowRight}f{Delete}{Delete}')
+
+  expect(api.setFavourite).not.toHaveBeenCalled()
+  expect(api.deleteHistoryItem).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Edit image' })).toBeInTheDocument()
+})
+
+it('asks before closing over unsaved edits, and closes at once without them', async () => {
+  serveHistory(1)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  let editor = await openEditor()
+
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Open: image 1' }))
+  editor = await openEditor()
+  await userEvent.click(within(editor).getByRole('button', { name: 'Rotate left' }))
+  await userEvent.keyboard('{Escape}')
+  expect(within(editor).getByRole('status')).toHaveTextContent('Close and discard your edits?')
+  await userEvent.click(within(editor).getByRole('button', { name: 'Keep editing' }))
+  expect(within(editor).getByLabelText('Edits')).toHaveTextContent('Rotated 90° left')
+
+  await userEvent.click(within(editor).getByRole('button', { name: 'Close' }))
+  await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(api.saveEdit).not.toHaveBeenCalled()
+})
+
+it('keeps editing with an error when saving fails, and Cancel goes back to the image', async () => {
+  serveHistory(1)
+  vi.mocked(api.saveEdit).mockRejectedValue(new Error('Could not reach the app server'))
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  const editor = await openEditor()
+  await userEvent.click(within(editor).getByRole('button', { name: 'Rotate right' }))
+
+  await userEvent.click(within(editor).getByRole('button', { name: 'Save as new image' }))
+  expect(await within(editor).findByRole('alert')).toHaveTextContent('Could not reach the app server')
+
+  await userEvent.click(within(editor).getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('dialog', { name: 'Image details' })).toBeInTheDocument()
 })
