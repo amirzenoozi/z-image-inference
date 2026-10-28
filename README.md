@@ -125,6 +125,8 @@ Requires an [xAI API key](https://x.ai/). The tab is disabled when no key is set
 
 The **History** tab shows every image, newest first. Open one to see its prompt and settings, **Reuse settings** to load them into the panel with the same seed, download it or delete it.
 
+Each image's facts include how long it took to render (images made before this was recorded show no time). The header shows how much space History uses; **Clean up** deletes the images older than 7, 30 or 90 days, showing how many first, and **Delete all** removes everything. Both shrink `history.db` afterwards.
+
 ### Switching models
 
 Only the default model, Z-Image-Turbo, downloads by itself. You choose which other models to keep, to save disk space: in the model dialog, **Download** fetches a model in the background with a progress bar (one download at a time; the rest wait as **Queued**), and **Remove** deletes a downloaded model to free its space. The dialog shows how much space the models use and how much is free, and a download is refused with a clear message if there is not enough room for it and its one-time setup. A model can only be selected once it is downloaded, the model in use cannot be removed, and no restart is needed. Each card also links to the model's page on **Hugging Face**.
