@@ -48,6 +48,14 @@ def test_a_character_is_listed_with_its_traits(client: TestClient) -> None:
     assert (created["cover_id"], created["seed"], created["image_count"]) == (None, None, 0)
 
 
+def test_a_character_keeps_several_makeup_and_facial_hair_picks_and_defaults_to_none(client: TestClient) -> None:
+    traits = {"who": "man", "age": "30s", "facialHair": "moustache", "facialHairMore": ["stubble"]}
+    created = client.post("/api/characters", json={"name": "Kai", "traits": traits}).json()
+
+    assert (created["traits"]["facialHair"], created["traits"]["facialHairMore"]) == ("moustache", ["stubble"])
+    assert create(client).json()["traits"]["makeupMore"] == []
+
+
 @pytest.mark.parametrize(
     "overrides",
     [{"name": ""}, {"name": "x" * 41}, {"traits": {"wings": "yes"}}, {"seed": -1}, {"cover_id": 99}],
