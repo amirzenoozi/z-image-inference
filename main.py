@@ -12,14 +12,14 @@ load_dotenv()
 import openai
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Path as PathParam, Query, Response
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_validator
 
 import history_store
-from generation_request import MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
+from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
 from history_store import HistoryItem, NewImage
 from model_catalog import MODEL_CATEGORIES, MODELS, ModelSpec, kept_gb, speed_hint
@@ -108,6 +108,12 @@ class Catalog(BaseModel):
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
 
 
+class JobState(BaseModel):
+    phase: Literal["waiting", "loading", "encoding", "generating", "finishing"]
+    step: int
+    total: int
+
+
 class ModelState(BaseModel):
     status: ModelStatus
     size_bytes: int
@@ -187,8 +193,8 @@ def request_image(req: GenerateRequest) -> tuple[bytes, int]:
         raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
     except requests.Timeout:
         raise HTTPException(504, "The model server took too long. A first-time model download may still be running.")
-    if resp.status_code in (422, 503):
-        # 503 means the model is still downloading; its message says so
+    if resp.status_code in (409, 422, 503):
+        # 409 means the user cancelled it; 503 that the model is still downloading, which its message says
         raise HTTPException(resp.status_code, model_server_detail(resp))
     if not resp.ok:
         raise HTTPException(502, f"The model server failed ({resp.status_code}). Check its terminal for details.")
@@ -244,6 +250,29 @@ def download_model(model_id: str) -> ModelState:
 @app.delete("/api/models/{model_id}", status_code=204)
 def remove_model(model_id: str) -> None:
     model_server_call("DELETE", model_id)
+
+
+JobId = Annotated[str, PathParam(pattern=JOB_ID_PATTERN)]
+
+
+def job_call(method: str, job_id: str, path: str = "") -> requests.Response:
+    try:
+        resp = requests.request(method, f"{MODEL_SERVER_URL}/jobs/{job_id}{path}", timeout=5)
+    except requests.RequestException:
+        raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
+    if not resp.ok:
+        raise HTTPException(resp.status_code, model_server_detail(resp))
+    return resp
+
+
+@app.get("/api/jobs/{job_id}/progress")
+def job_progress(job_id: JobId) -> JobState:
+    return JobState(**job_call("GET", job_id).json())
+
+
+@app.post("/api/jobs/{job_id}/cancel", status_code=204)
+def cancel_job(job_id: JobId) -> None:
+    job_call("POST", job_id, "/cancel")
 
 
 @app.get("/api/history")
