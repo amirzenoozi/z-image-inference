@@ -170,6 +170,8 @@ def init_db() -> None:
             )
         """)
         add_missing_columns(conn, "characters", ADDED_CHARACTER_COLUMNS)
+        # One-time steps already done for this database, such as adding the sample characters
+        conn.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
 
 
 def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:

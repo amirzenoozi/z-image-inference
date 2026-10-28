@@ -188,6 +188,7 @@ class ChatRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     history_store.init_db()
+    character_store.add_samples_once()
     yield
 
 

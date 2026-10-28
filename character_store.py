@@ -1,8 +1,9 @@
 import json
 import sqlite3
+from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter
 
 from generation_request import MAX_FACE_STRENGTH, MAX_SEED, MIN_FACE_STRENGTH
 from history_store import connection
@@ -76,6 +77,19 @@ class Character(BaseModel):
     # The History image whose face SDXL renders keep (IP-Adapter); null for none, or once that image is deleted
     face_id: int | None
     face_strength: float
+
+
+class SampleCharacter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Name
+    traits: CharacterTraits
+
+
+# Added once to every database, so a first run starts with characters to try; deleted ones do not come back
+SAMPLE_CHARACTERS_FILE = Path(__file__).parent / "sample_characters.json"
+SAMPLE_CHARACTERS = TypeAdapter(list[SampleCharacter])
+SAMPLES_ADDED = "sample_characters_added"
 
 
 class DuplicateName(ValueError):
@@ -172,3 +186,24 @@ def delete(character_id: int) -> bool:
     with connection() as conn:
         conn.execute("UPDATE images SET character_id = NULL WHERE character_id = ?", (character_id,))
         return conn.execute("DELETE FROM characters WHERE id = ?", (character_id,)).rowcount > 0
+
+
+def sample_characters() -> list[SampleCharacter]:
+    samples = SAMPLE_CHARACTERS.validate_json(SAMPLE_CHARACTERS_FILE.read_bytes())
+    names = [sample.name.casefold() for sample in samples]
+    if len(set(names)) != len(names):
+        raise ValueError(f"{SAMPLE_CHARACTERS_FILE.name} gives two characters the same name")
+    return samples
+
+
+def add_samples_once() -> None:
+    """Adds the sample characters the first time this database starts; a name already taken is skipped."""
+    samples = sample_characters()
+    with connection() as conn:
+        if conn.execute("SELECT 1 FROM app_state WHERE key = ?", (SAMPLES_ADDED,)).fetchone():
+            return
+        conn.executemany(
+            "INSERT OR IGNORE INTO characters (name, traits) VALUES (?, ?)",
+            [(sample.name, sample.traits.model_dump_json()) for sample in samples],
+        )
+        conn.execute("INSERT INTO app_state (key, value) VALUES (?, '1')", (SAMPLES_ADDED,))
