@@ -1,5 +1,9 @@
 import io
 import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
 import gc
 import json
 import shutil
@@ -28,7 +32,7 @@ from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
-from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
+from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, compression_enabled, kept_gb
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
 
@@ -41,6 +45,8 @@ WAI_ILLUSTRIOUS_PATH = MODELS_DIR / "waiNSFWIllustrious_v120"
 WAI_ILLUSTRIOUS_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
 # Stored as float32 upstream but run in float16; the VAE stays float32 because it decodes in float32
 WAI_FLOAT16_COMPONENTS = ["unet", "text_encoder", "text_encoder_2"]
+# Its original weights are float32; once rewritten as float16 they no longer count as the originals
+WAI_UNET_FILE = Path("unet") / "diffusion_pytorch_model.fp16.safetensors"
 ANIME_DESIRE_PATH = MODELS_DIR / "anime-desire-illustrious"
 ANIME_DESIRE_FILE = "anime-2d-ill_v3.fp16.safetensors"
 # A single-file checkpoint needs the standard SDXL configs to load; kept in models/ like everything else
@@ -123,9 +129,12 @@ def build_z_image_q4() -> None:
 
 
 def load_z_image() -> ImageGenerator:
-    if not Z_IMAGE_Q4_PATH.exists():
-        build_z_image_q4()
-    model = ZImage(model_path=str(Z_IMAGE_Q4_PATH))
+    if compression_enabled():
+        if not Z_IMAGE_Q4_PATH.exists():
+            build_z_image_q4()
+        model = ZImage(model_path=str(Z_IMAGE_Q4_PATH))
+    else:
+        model = ZImage(model_path=str(Z_IMAGE_PATH))
 
     def generate(job: Job) -> Image.Image:
         return model.generate_image(
@@ -144,6 +153,11 @@ def has_float32(file: Path) -> bool:
         return any(weights.get_slice(name).get_dtype() == "F32" for name in weights.keys())
 
 
+def wai_has_original_weights() -> bool:
+    unet = WAI_ILLUSTRIOUS_PATH / WAI_UNET_FILE
+    return unet.exists() and has_float32(unet)
+
+
 def store_as_float16(path: Path, components: list[str]) -> None:
     """Rewrite float32 weights as float16 once, halving their size without changing what the model computes."""
     for file in (f for name in components for f in (path / name).glob("*.safetensors")):
@@ -158,7 +172,9 @@ def store_as_float16(path: Path, components: list[str]) -> None:
 
 def load_wai_illustrious() -> ImageGenerator:
     ensure_downloaded(WAI_ILLUSTRIOUS.repo_id, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES)
-    store_as_float16(WAI_ILLUSTRIOUS_PATH, WAI_FLOAT16_COMPONENTS)
+    if compression_enabled():
+        store_as_float16(WAI_ILLUSTRIOUS_PATH, WAI_FLOAT16_COMPONENTS)
+    # Runs in float16 either way; the original files are float32
     pipe = StableDiffusionXLPipeline.from_pretrained(
         WAI_ILLUSTRIOUS_PATH,
         torch_dtype=torch.float16,
@@ -242,6 +258,8 @@ def build_moss_text_encoder_q8() -> None:
 
 
 def load_moss_text_encoder() -> torch.nn.Module:
+    if not compression_enabled():
+        return AutoModel.from_pretrained(MOSS_IMAGE_MODEL_PATH / "text_encoder", dtype=torch.bfloat16).eval()
     if not MOSS_TEXT_ENCODER_Q8_PATH.exists():
         build_moss_text_encoder_q8()
     with torch.device("meta"):
@@ -317,10 +335,44 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     ANIME_DESIRE.id: load_anime_desire,
 }
 
+def download_z_image() -> None:
+    ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH)
+    if not compression_enabled():
+        # The originals are used now; the 4-bit copy can be rebuilt from them if compression is turned on
+        shutil.rmtree(Z_IMAGE_Q4_PATH, ignore_errors=True)
+
+
+def download_wai_illustrious() -> None:
+    downloaded = download_marker(WAI_ILLUSTRIOUS_PATH).exists()
+    if not compression_enabled() and downloaded and not wai_has_original_weights():
+        # The float16 copies replaced the originals in place, so fetch the originals again
+        shutil.rmtree(WAI_ILLUSTRIOUS_PATH)
+    ensure_downloaded(WAI_ILLUSTRIOUS.repo_id, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES)
+
+
+def moss_text_encoder_complete() -> bool:
+    """Every weight file the original text encoder's index lists is present."""
+    index = MOSS_IMAGE_MODEL_PATH / "text_encoder" / "model.safetensors.index.json"
+    if not index.exists():
+        return False
+    shards = set(json.loads(index.read_text())["weight_map"].values())
+    return all((index.parent / shard).exists() for shard in shards)
+
+
+def download_moss_image() -> None:
+    ensure_downloaded(MOSS_IMAGE.repo_id, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES)
+    if compression_enabled():
+        return
+    if not moss_text_encoder_complete():
+        # Fetches only the 16 GB original text encoder that the 8-bit copy replaced
+        snapshot_download(MOSS_IMAGE.repo_id, local_dir=MOSS_IMAGE_PATH, cache_dir=HF_CACHE_DIR, allow_patterns=["merged-model/text_encoder/*"])
+    shutil.rmtree(MOSS_TEXT_ENCODER_Q8_PATH, ignore_errors=True)
+
+
 DOWNLOADERS: dict[str, Callable[[], None]] = {
-    Z_IMAGE.id: lambda: ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH),
-    WAI_ILLUSTRIOUS.id: lambda: ensure_downloaded(WAI_ILLUSTRIOUS.repo_id, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES),
-    MOSS_IMAGE.id: lambda: ensure_downloaded(MOSS_IMAGE.repo_id, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES),
+    Z_IMAGE.id: download_z_image,
+    WAI_ILLUSTRIOUS.id: download_wai_illustrious,
+    MOSS_IMAGE.id: download_moss_image,
     ANIME_DESIRE.id: download_anime_desire,
 }
 GB = 1_000_000_000
@@ -348,22 +400,31 @@ downloads: dict[str, Future[None]] = {}
 
 
 def is_downloaded(model_id: str) -> bool:
-    # Z-Image's 4-bit copy replaces its download, which is deleted once the copy is built
-    if model_id == Z_IMAGE.id and Z_IMAGE_Q4_PATH.exists():
-        return True
-    return download_marker(DOWNLOAD_PATHS[model_id]).exists()
+    """Whether the files the current mode needs are on disk (compressed copies, or the originals)."""
+    if compression_enabled():
+        # Z-Image's 4-bit copy replaces its download, which is deleted once the copy is built
+        return (model_id == Z_IMAGE.id and Z_IMAGE_Q4_PATH.exists()) or download_marker(DOWNLOAD_PATHS[model_id]).exists()
+    return download_marker(DOWNLOAD_PATHS[model_id]).exists() and not missing_original_parts(model_id)
+
+
+def missing_original_parts(model_id: str) -> bool:
+    """True when compression replaced part of a model's original files."""
+    if model_id == WAI_ILLUSTRIOUS.id:
+        return not wai_has_original_weights()
+    if model_id == MOSS_IMAGE.id:
+        return not moss_text_encoder_complete()
+    return False
 
 
 def model_status(model_id: str) -> ModelStatus:
+    download = downloads.get(model_id)
+    # A running download wins over files already on disk, which may still be incomplete
+    if download is not None and not download.done():
+        # Downloads run one at a time; the others wait their turn
+        return "downloading" if download.running() else "queued"
     if is_downloaded(model_id):
         return "ready"
-    download = downloads.get(model_id)
-    if download is None:
-        return "missing"
-    if download.done():
-        return "failed"
-    # Downloads run one at a time; the others wait their turn
-    return "downloading" if download.running() else "queued"
+    return "missing" if download is None else "failed"
 
 
 def start_download(model_id: str) -> None:
@@ -393,7 +454,8 @@ def free_bytes() -> int:
 def space_needed_bytes(model_id: str) -> int:
     # The download plus room for the one-time setup, which writes the kept copy before deleting originals
     spec = MODELS[model_id]
-    return int((spec.download_gb + spec.kept_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
+    setup_gb = kept_gb(spec) if compression_enabled() else 0
+    return int((spec.download_gb + setup_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
 
 
 loaded_model_id: str | None = None

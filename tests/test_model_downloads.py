@@ -1,9 +1,12 @@
+import json
 import time
 import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+import torch
+from safetensors.torch import save_file
 from fastapi.testclient import TestClient
 
 import model_server
@@ -30,7 +33,19 @@ class FakeDownload:
             raise RuntimeError("network down")
         self.path.mkdir(parents=True, exist_ok=True)
         (self.path / "weights.safetensors").write_bytes(b"0" * 1000)
+        # The original-file checks look for MOSS-Image's complete text encoder and a float32 WAI unet
+        write_moss_text_encoder(self.path / "merged-model" / "text_encoder")
+        unet = self.path / model_server.WAI_UNET_FILE
+        unet.parent.mkdir(parents=True, exist_ok=True)
+        save_file({"weight": torch.zeros(2, dtype=torch.float32)}, unet)
         model_server.download_marker(self.path).touch()
+
+
+def write_moss_text_encoder(folder: Path, shards: tuple[str, ...] = ("model-1.safetensors", "model-2.safetensors"), present: int = 2) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {f"layer{n}": shard for n, shard in enumerate(shards)}}))
+    for shard in shards[:present]:
+        (folder / shard).write_bytes(b"0")
 
 
 @pytest.fixture
@@ -39,7 +54,13 @@ def download(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeDo
     paths = {model_id: tmp_path / model_id for model_id in model_server.MODELS}
     monkeypatch.setattr(model_server, "DOWNLOAD_PATHS", paths)
     monkeypatch.setattr(model_server, "MODEL_FOLDERS", {model_id: [path] for model_id, path in paths.items()})
+    monkeypatch.setattr(model_server, "Z_IMAGE_PATH", paths["z-image-turbo"])
     monkeypatch.setattr(model_server, "Z_IMAGE_Q4_PATH", tmp_path / "zimage-q4")
+    monkeypatch.setattr(model_server, "WAI_ILLUSTRIOUS_PATH", paths[WAI])
+    monkeypatch.setattr(model_server, "MOSS_IMAGE_PATH", paths[MOSS])
+    monkeypatch.setattr(model_server, "MOSS_IMAGE_MODEL_PATH", paths[MOSS] / "merged-model")
+    monkeypatch.setattr(model_server, "MOSS_TEXT_ENCODER_Q8_PATH", paths[MOSS] / "text_encoder-q8")
+    monkeypatch.delenv("MODEL_COMPRESSION", raising=False)
     monkeypatch.setattr(model_server, "DOWNLOADERS", {**model_server.DOWNLOADERS, WAI: fake})
     monkeypatch.setattr(model_server, "downloads", {})
     monkeypatch.setattr(model_server, "free_bytes", lambda: PLENTY)
@@ -85,7 +106,8 @@ def test_the_download_endpoint_starts_one_download_and_reports_progress(download
     finish(WAI)
     assert download.calls == 1
     report = client.get("/models/status").json()
-    assert report["models"][WAI] == {"status": "ready", "size_bytes": 1000}
+    assert report["models"][WAI]["status"] == "ready"
+    assert report["models"][WAI]["size_bytes"] > 1000
     assert report["free_bytes"] == PLENTY
 
 
@@ -105,9 +127,12 @@ def test_a_failed_download_can_be_retried(download: FakeDownload) -> None:
     assert status_of(client, WAI) == "ready"
 
 
-def test_a_download_needs_room_for_the_files_and_their_setup(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("compression", ["off", "on"])
+def test_a_download_needs_room_for_the_files_and_any_compression_setup(download: FakeDownload, monkeypatch: pytest.MonkeyPatch, compression: str) -> None:
+    monkeypatch.setenv("MODEL_COMPRESSION", compression)
     spec = model_server.MODELS[WAI]
-    needed = int((spec.download_gb + spec.kept_gb) * model_server.GB)
+    setup_gb = spec.compressed_gb if compression == "on" else 0
+    needed = int((spec.download_gb + setup_gb) * model_server.GB)
     monkeypatch.setattr(model_server, "free_bytes", lambda: needed - 2 * model_server.GB)
     client = TestClient(model_server.app)
 
@@ -189,3 +214,89 @@ def test_startup_loads_a_downloaded_default_model(download: FakeDownload, monkey
 
     assert model_server.downloads == {}
     assert loaded == [model_server.DEFAULT_MODEL.id]
+
+
+def mark_downloaded(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    model_server.download_marker(path).touch()
+
+
+def write_wai_unet(dtype: torch.dtype) -> None:
+    """A tiny stand-in for WAI's unet file: float32 as downloaded, float16 once compressed."""
+    unet = model_server.WAI_ILLUSTRIOUS_PATH / model_server.WAI_UNET_FILE
+    unet.parent.mkdir(parents=True, exist_ok=True)
+    save_file({"weight": torch.zeros(2, dtype=dtype)}, unet)
+
+
+@pytest.mark.parametrize(("compression", "ready"), [("off", False), ("on", True)])
+def test_compressed_copies_only_count_when_compression_is_on(download: FakeDownload, monkeypatch: pytest.MonkeyPatch, compression: str, ready: bool) -> None:
+    monkeypatch.setenv("MODEL_COMPRESSION", compression)
+    model_server.Z_IMAGE_Q4_PATH.mkdir()
+    mark_downloaded(model_server.WAI_ILLUSTRIOUS_PATH)
+    write_wai_unet(torch.float16)
+    mark_downloaded(model_server.MOSS_IMAGE_PATH)
+    model_server.MOSS_TEXT_ENCODER_Q8_PATH.mkdir()
+
+    for model_id in ("z-image-turbo", WAI, MOSS):
+        assert model_server.is_downloaded(model_id) is ready, model_id
+
+
+def test_originals_count_as_downloaded_without_compression(download: FakeDownload) -> None:
+    mark_downloaded(model_server.Z_IMAGE_PATH)
+    mark_downloaded(model_server.WAI_ILLUSTRIOUS_PATH)
+    write_wai_unet(torch.float32)
+    mark_downloaded(model_server.MOSS_IMAGE_PATH)
+    write_moss_text_encoder(model_server.MOSS_IMAGE_MODEL_PATH / "text_encoder")
+
+    for model_id in ("z-image-turbo", WAI, MOSS):
+        assert model_server.is_downloaded(model_id), model_id
+
+
+def test_downloading_originals_fetches_what_compression_replaced_and_drops_the_copies(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    fetched: list[tuple[str, list[str] | None]] = []
+
+    def fake_snapshot(repo_id: str, local_dir: Path, cache_dir: Path, allow_patterns: list[str] | None = None) -> None:
+        fetched.append((repo_id, allow_patterns))
+        write_moss_text_encoder(Path(local_dir) / "merged-model" / "text_encoder")
+        if repo_id == model_server.WAI_ILLUSTRIOUS.repo_id:
+            write_wai_unet(torch.float32)
+
+    monkeypatch.setattr(model_server, "snapshot_download", fake_snapshot)
+    model_server.Z_IMAGE_Q4_PATH.mkdir()
+    mark_downloaded(model_server.Z_IMAGE_PATH)
+    mark_downloaded(model_server.WAI_ILLUSTRIOUS_PATH)
+    write_wai_unet(torch.float16)
+    mark_downloaded(model_server.MOSS_IMAGE_PATH)
+    model_server.MOSS_TEXT_ENCODER_Q8_PATH.mkdir()
+
+    model_server.download_z_image()
+    model_server.download_wai_illustrious()
+    model_server.download_moss_image()
+
+    assert not model_server.Z_IMAGE_Q4_PATH.exists()
+    assert model_server.wai_has_original_weights()
+    assert not model_server.MOSS_TEXT_ENCODER_Q8_PATH.exists()
+    assert fetched == [
+        (model_server.WAI_ILLUSTRIOUS.repo_id, model_server.WAI_ILLUSTRIOUS_FILES),
+        (model_server.MOSS_IMAGE.repo_id, ["merged-model/text_encoder/*"]),
+    ]
+    for model_id in ("z-image-turbo", WAI, MOSS):
+        assert model_server.is_downloaded(model_id), model_id
+
+
+def test_a_partly_downloaded_text_encoder_is_not_the_original(download: FakeDownload) -> None:
+    mark_downloaded(model_server.MOSS_IMAGE_PATH)
+    write_moss_text_encoder(model_server.MOSS_IMAGE_MODEL_PATH / "text_encoder", present=1)
+    assert not model_server.is_downloaded(MOSS)
+
+
+def test_a_running_download_is_never_reported_ready(download: FakeDownload) -> None:
+    mark_downloaded(model_server.WAI_ILLUSTRIOUS_PATH)
+    write_wai_unet(torch.float32)
+    assert model_server.model_status(WAI) == "ready"
+
+    model_server.downloads[WAI] = model_server.download_thread.submit(download)
+    wait_until(lambda: model_server.model_status(WAI) == "downloading")
+    download.release.set()
+    finish(WAI)
+    assert model_server.model_status(WAI) == "ready"
