@@ -80,8 +80,8 @@ it('moves between pages, showing a placeholder while the next one loads', async 
   renderHistory()
 
   expect(await screen.findByText(`Showing 1–${PAGE_SIZE} of ${PAGE_SIZE + 1} images`)).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '‹ Previous' })).toBeDisabled()
-  await userEvent.click(screen.getByRole('button', { name: 'Next ›' }))
+  expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Next' }))
 
   expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
   expect(screen.getByLabelText('Loading history')).toBeInTheDocument()
@@ -91,7 +91,7 @@ it('moves between pages, showing a placeholder while the next one loads', async 
   expect(screen.getByRole('button', { name: 'Open: image 99' })).toBeInTheDocument()
   expect(screen.getByText(`Showing ${PAGE_SIZE + 1}–${PAGE_SIZE + 1} of ${PAGE_SIZE + 1} images`)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page')
-  expect(screen.getByRole('button', { name: 'Next ›' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 })
 
 it('shows no page buttons when everything fits on one page', async () => {
@@ -124,7 +124,7 @@ it('starts from the first page again when a filter changes', async () => {
   await userEvent.click(await screen.findByRole('button', { name: 'Page 3' }))
   await screen.findByRole('button', { name: 'Page 3', current: 'page' })
 
-  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Favourites' }))
 
   expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, favouritesOnly: true }, expect.any(AbortSignal))
   expect(await screen.findByRole('button', { name: 'Page 1', current: 'page' })).toBeInTheDocument()
@@ -309,14 +309,14 @@ it('tells "no matches" apart from an empty History, and clears the filters', asy
   renderHistory()
   await screen.findByText('2 images')
 
-  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Favourites' }))
   expect(await screen.findByText('No images match.')).toBeInTheDocument()
   expect(screen.queryByText(/No images yet/)).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Delete all' })).not.toBeInTheDocument()
 
   await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
   expect(await screen.findByText('2 images')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '★ Favourites' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByRole('button', { name: 'Favourites' })).toHaveAttribute('aria-pressed', 'false')
   expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
 })
 
@@ -351,7 +351,7 @@ it('drops an unstarred image from the Favourites view', async () => {
   renderHistory()
   await screen.findByText('3 images')
 
-  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Favourites' }))
   await screen.findByText('2 matching')
   await userEvent.click(screen.getAllByRole('button', { name: 'Remove from favourites' })[0])
 
@@ -436,7 +436,7 @@ it('opens the page and filters named in the address, and fills the controls', as
   expect(screen.getByLabelText('Search prompts')).toHaveValue('fox')
   expect(screen.getByLabelText('Model')).toHaveTextContent('WAI-Illustrious')
   expect(screen.getByLabelText('Ratio')).toHaveTextContent('Portrait')
-  expect(screen.getByRole('button', { name: '★ Favourites' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Favourites' })).toHaveAttribute('aria-pressed', 'true')
 })
 
 it('writes changes to the address: a Back entry for pages and filters, the current entry for a search', async () => {
@@ -447,7 +447,7 @@ it('writes changes to the address: a Back entry for pages and filters, the curre
 
   await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }))
   expect(window.location.search).toBe('?page=2')
-  await userEvent.click(await screen.findByRole('button', { name: '★ Favourites' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Favourites' }))
   expect(window.location.search).toBe('?favourites=1')
   expect(push).toHaveBeenCalledTimes(2)
 
@@ -461,11 +461,11 @@ it('follows Back and Forward, refilling the search box', async () => {
   fetchHistory.mockResolvedValue(page(2))
   renderHistory()
   await screen.findByText('2 images')
-  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Favourites' }))
 
   await act(async () => window.history.back())
 
-  await waitFor(() => expect(screen.getByRole('button', { name: '★ Favourites' })).toHaveAttribute('aria-pressed', 'false'))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Favourites' })).toHaveAttribute('aria-pressed', 'false'))
   expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
 
   await act(async () => {
@@ -514,7 +514,7 @@ it('exports what the filters show', async () => {
   renderHistory()
   expect(await screen.findByRole('link', { name: 'Export' })).toHaveAttribute('href', '/api/history/export')
 
-  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Favourites' }))
   expect(await screen.findByRole('link', { name: 'Export these' })).toHaveAttribute('href', '/api/history/export?favourites=true')
 })
 
@@ -660,8 +660,12 @@ it('puts each History dialog\'s buttons in its actions footer, and the image vie
   // The image view has two columns, so its actions sit at the bottom of the details column instead
   expect(screen.queryByRole('group', { name: 'Dialog actions' })).not.toBeInTheDocument()
   const imageActions = within(screen.getByRole('group', { name: 'Image actions' }))
-  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Edit', 'Make variations', 'Delete', 'Reuse settings'])
-  expect(imageActions.getByRole('link', { name: 'Download' })).toBeInTheDocument()
+  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Make variations', 'Reuse settings'])
+  // Download, Edit and Delete are icons on the image, beside zoom, full screen and the star
+  expect(within(viewer()).getByRole('link', { name: 'Download' })).toHaveAttribute('download', 'z-image-2-42.png')
+  expect(within(viewer()).getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+  expect(within(viewer()).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  expect(imageActions.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
 })
 
 it('keeps the Clean up delete button neutral while the counts load', async () => {

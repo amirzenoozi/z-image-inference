@@ -11,6 +11,7 @@ import { loadSettings, saveSettings, settingsFromItem, variationSettings } from 
 import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
+import { Sparkles } from 'lucide-react'
 
 
 export default function App() {
@@ -105,7 +106,7 @@ function Header({ view, onViewChange }: { view: View; onViewChange: (view: View)
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950">
       <h1 className="flex items-center gap-2 text-sm font-bold tracking-tight">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">✦</span>
+        <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"><Sparkles /></span>
         Z-Image Studio
       </h1>
       <nav aria-label="Views" className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm dark:bg-zinc-800/70">

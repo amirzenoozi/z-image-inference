@@ -5,6 +5,7 @@ import { CATEGORY_LABELS } from '../lib/categories'
 import { fitsModel, snapSide } from '../lib/settings'
 import { chipClass, fieldButtonClass, fieldLabelClass, tabClass } from '../lib/styles'
 import { NumberInput } from './form/NumberInput'
+import { ArrowLeftRight } from 'lucide-react'
 
 type Tab = Category | 'custom'
 
@@ -163,7 +164,7 @@ function CustomSize({ width, height, model, limits, onChange }: CustomSizeProps)
       <div className="flex items-end gap-2">
         <SideInput label="Width" value={width} limits={limits} maxSide={model.max_side} onCommit={(w) => commit(w, height)} />
         <IconButton label="Swap width and height" onClick={() => commit(height, width)} className={fieldButtonClass}>
-          ⇄
+          <ArrowLeftRight />
         </IconButton>
         <SideInput label="Height" value={height} limits={limits} maxSide={model.max_side} onCommit={(h) => commit(width, h)} />
       </div>

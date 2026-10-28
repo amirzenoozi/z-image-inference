@@ -5,6 +5,7 @@ import { secondaryButtonClass } from '../../lib/styles'
 import type { ModelInfo } from '../../types'
 import { Modal } from '../Modal'
 import { AppearanceStep, BodyStep, CameraStep, FinishStep, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
+import { Dices } from 'lucide-react'
 
 export type InsertMode = 'replace' | 'append'
 
@@ -126,9 +127,9 @@ function PreviewPane({ result, model, maxPromptLength, canReroll, onSurprise, on
       <button
         type="button"
         onClick={onSurprise}
-        className="rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+        className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
       >
-        🎲 Surprise me
+        <Dices /> Surprise me
       </button>
       <div className="flex items-center justify-between text-xs">
         <h3 className="font-semibold text-zinc-700 dark:text-zinc-200">Preview</h3>

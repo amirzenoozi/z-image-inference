@@ -115,7 +115,7 @@ it('removes another downloaded model after confirming, but not the one in use', 
   await openDialog()
 
   expect(within(dialog()).queryByRole('button', { name: 'Remove Z-Image-Turbo' })).not.toBeInTheDocument()
-  expect(dialog()).toHaveTextContent('✓ In use')
+  expect(dialog()).toHaveTextContent('In use')
   await userEvent.click(within(dialog()).getByRole('button', { name: 'Remove WAI-Illustrious' }))
   expect(dialog()).toHaveTextContent('Frees 6.6 GB; downloading again takes ~13 GB')
   await userEvent.click(within(dialog()).getByRole('button', { name: 'Remove' }))

@@ -3,6 +3,7 @@ import { MAX_CHANGE, MIN_CHANGE } from '../lib/settings'
 import type { ModelInfo, StartImage } from '../types'
 import { Slider } from './form/Slider'
 import { IconButton } from './IconButton'
+import { X } from 'lucide-react'
 
 interface Props {
   startImage: StartImage
@@ -23,8 +24,8 @@ export function StartImageBlock({ startImage, model, onChange }: Props) {
           <span className="block font-semibold text-zinc-800 dark:text-zinc-100">Start image</span>
           Variation of image #{startImage.id}
         </p>
-        <IconButton label="Remove the start image" onClick={() => onChange(null)} className="flex size-8 items-center justify-center rounded-full text-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
-          ×
+        <IconButton label="Remove the start image" onClick={() => onChange(null)} className="flex size-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+          <X />
         </IconButton>
       </div>
       {model.supports_variations ? (

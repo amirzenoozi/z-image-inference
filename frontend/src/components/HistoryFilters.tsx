@@ -4,6 +4,7 @@ import { SearchInput } from './form/SearchInput'
 import { Select } from './form/Select'
 import { CATEGORY_LABELS, isCategory } from '../lib/categories'
 import type { HistoryFilters, ModelInfo } from '../types'
+import { Star } from 'lucide-react'
 
 export const SEARCH_DELAY_MS = 300
 
@@ -45,9 +46,9 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
         type="button"
         aria-pressed={filters.favouritesOnly}
         onClick={() => onChange({ ...filters, favouritesOnly: !filters.favouritesOnly })}
-        className={`rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
+        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
       >
-        ★ Favourites
+        <Star className={filters.favouritesOnly ? 'fill-current text-amber-500' : ''} /> Favourites
       </button>
       <CompareControls {...compare} />
     </div>

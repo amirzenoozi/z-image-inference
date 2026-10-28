@@ -1,5 +1,6 @@
 import { Field, Label, Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react'
 import { controlHeight, fieldFrameClass, fieldLabelClass } from '../../lib/styles'
+import { Check, ChevronDown } from 'lucide-react'
 
 export interface SelectOption {
   value: string
@@ -30,7 +31,7 @@ export function Select({ label, value, groups, onChange, hideLabel = false, clas
       <Listbox value={value} onChange={onChange}>
         <ListboxButton className={`${fieldFrameClass} ${controlHeight} flex w-full items-center justify-between gap-2 px-3 text-left data-open:border-violet-500 data-open:ring-2 data-open:ring-violet-500/30`}>
           <span className="truncate">{selected?.label ?? value}</span>
-          <Chevron />
+          <ChevronDown className="shrink-0 text-zinc-400" />
         </ListboxButton>
         <ListboxOptions
           anchor={{ to: 'bottom start', gap: 4 }}
@@ -64,18 +65,8 @@ function SelectItem({ option }: { option: SelectOption }) {
       value={option.value}
       className="group flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-zinc-700 select-none data-focus:bg-violet-50 data-focus:text-violet-900 data-selected:font-medium dark:text-zinc-200 dark:data-focus:bg-violet-950/60 dark:data-focus:text-violet-100"
     >
-      <span aria-hidden="true" className="invisible w-3.5 shrink-0 text-violet-600 group-data-selected:visible dark:text-violet-400">
-        ✓
-      </span>
+      <Check className="invisible size-4 shrink-0 text-violet-600 group-data-selected:visible dark:text-violet-400" />
       <span className="truncate">{option.label}</span>
     </ListboxOption>
-  )
-}
-
-function Chevron() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" className="size-4 shrink-0 text-zinc-400">
-      <path d="m6 8 4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   )
 }

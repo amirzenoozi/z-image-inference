@@ -26,7 +26,7 @@ interface ChoiceSelectProps {
 
 const SPECIAL_LABELS: Record<string, string> = {
   [NOT_SET]: 'Not set',
-  [RANDOM]: '🎲 Random',
+  [RANDOM]: 'Random',
   [REMOVE]: 'Remove (without)',
   [INHERIT_SCENE]: 'Match the scene',
 }

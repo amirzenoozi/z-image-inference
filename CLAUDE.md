@@ -56,6 +56,6 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 
 - Explicit, nudity and lingerie prompts in the prompt builder require "Who" and an adult age range, and are refused if any free text suggests a minor (`minorTermIn` in `build.ts`). Keep this when changing the builder.
 - Only one model is loaded at a time; switching models unloads the previous one first.
-- A button that shows only an icon uses `IconButton`, which gives it its accessible name and a tooltip (with its keyboard shortcut, if it has one).
+- Icons come from `lucide-react`, never hand-drawn SVGs or text symbols; their size and line weight are set once (`.lucide` in `index.css`). A button that shows only an icon uses `IconButton`, which gives it its accessible name and a tooltip (with its keyboard shortcut, if it has one).
 - Every dialog uses `Modal`: a header with the title and a close button, then the content, then its buttons passed as `actions`, under a divider, secondary action first and main action last. They are centred on their own, or on the right when a note (`actionsNote`) sits beside them on the left. A dialog with two columns (such as the image view) puts its actions at the bottom of the details column instead, under a divider, aligned right.
 - Device is Apple MPS/MLX; the code assumes Apple Silicon and does not run usefully in Docker or on CPU.

@@ -4,6 +4,7 @@ import { isModEnter } from '../lib/keyboard'
 import { Textarea } from './form/Textarea'
 import { withoutSafeForWorkTerms } from '../lib/promptBuilder/build'
 import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
+import { WandSparkles } from 'lucide-react'
 
 type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt'>>
 
@@ -37,7 +38,7 @@ export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Pr
         onClick={() => setBuilderOpen(true)}
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
       >
-        ✨ Prompt builder
+        <WandSparkles /> Prompt builder
       </button>
       {builderOpen && (
         <PromptBuilderDialog

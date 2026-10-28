@@ -1,6 +1,7 @@
 import { formatGb, gigabytes } from '../lib/format'
 import type { Loadable, ModelInfo, ModelStatusReport } from '../types'
 import { Spinner } from './ui'
+import { ExternalLink } from 'lucide-react'
 
 export function HuggingFaceLink({ model }: { model: ModelInfo }) {
   return (
@@ -9,9 +10,9 @@ export function HuggingFaceLink({ model }: { model: ModelInfo }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Open ${model.label} on Hugging Face`}
-      className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-200/70 hover:text-violet-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-200/70 hover:text-violet-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
     >
-      Hugging Face ↗
+      Hugging Face <ExternalLink className="size-3" />
     </a>
   )
 }
