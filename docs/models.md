@@ -6,22 +6,23 @@
 | [WAI-NSFW-Illustrious v12](https://huggingface.co/votepurchase/waiNSFWIllustrious_v120) (SDXL) | diffusers on MPS, float16 | Anime and illustration styles |
 | [Anime Desire](https://huggingface.co/AI-Porn/anime-desire-illustrious) (Illustrious SDXL) | diffusers on MPS, float16, single-file checkpoint | Anime and hentai styles, Danbooru tags |
 | [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) (MOSS-Image with a merged LoRA) | diffusers on MPS, bfloat16; pipeline vendored in `moss_pipeline.py` | Photorealistic adult content; slow |
+| [RealVisXL V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) (SDXL) | diffusers on MPS, float16 | Photorealistic people, and the face lock in photo style |
 
-All four are defined in one place, `model_catalog.py`, which both the web app and the model server read.
+All five are defined in one place, `model_catalog.py`, which both the web app and the model server read.
 
 ## Defaults
 
-| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image | Anime Desire |
-|---------|---------------|-----------------|------------|--------------|
-| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) | 30 (up to 50) |
-| Guidance (CFG) | not used | 7 | 3 | 4 |
-| Sampler | | Euler Ancestral | | DPM++ 3M SDE Karras |
-| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty | `(worst quality, low quality:1.2), lowres, bad anatomy, bad hands, extra fingers, watermark, signature, text, blurry, jpeg artifacts` |
-| Largest side | 1536 px | 1216 px | 1024 px | 1216 px |
-| Prompt style | sentences | tags | sentences | tags |
-| Prompt weights | no | yes | no | yes |
-| Variations | yes | yes | no | yes |
-| Face lock | no | yes | no | yes |
+| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image | Anime Desire | RealVisXL |
+|---------|---------------|-----------------|------------|--------------|-----------|
+| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) | 30 (up to 50) | 30 (up to 50) |
+| Guidance (CFG) | not used | 7 | 3 | 4 | 5 |
+| Sampler | | Euler Ancestral | | DPM++ 3M SDE Karras | DPM++ 2M SDE Karras |
+| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty | `(worst quality, low quality:1.2), lowres, bad anatomy, bad hands, extra fingers, watermark, signature, text, blurry, jpeg artifacts` | `bad hands, bad anatomy, ugly, deformed, (face asymmetry, eyes asymmetry, deformed eyes, deformed mouth, open mouth)` (the model card's) |
+| Largest side | 1536 px | 1216 px | 1024 px | 1216 px | 1216 px |
+| Prompt style | sentences | tags | sentences | tags | sentences |
+| Prompt weights | no | yes | no | yes | yes |
+| Variations | yes | yes | no | yes | yes |
+| Face lock | no | yes | no | yes | yes, in photo style |
 
 - WAI-Illustrious's default negative prompt starts with `nsfw` to keep results safe for work; the prompt builder removes it for explicit prompts.
 - MOSS-Image needs its trigger word `moss_xvstyle`; the server adds it to prompts that lack it.
@@ -47,6 +48,7 @@ Files go in `models/` (not in git). One-time builds (compressed copies) are writ
 | WAI-Illustrious | 13.9 GB | 7.1 GB |
 | MOSS-Image NSFW | 27.2 GB | 19.9 GB |
 | Anime Desire | 6.9 GB | 6.9 GB (already float16) |
+| RealVisXL | 6.9 GB (only its float16 files are fetched) | same |
 | Face lock (IP-Adapter, for the SDXL models) | 3.4 GB, downloaded on the first face-locked render, in `models/ip-adapter/` | same |
 
 ## Model compression

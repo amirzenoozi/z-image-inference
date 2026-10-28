@@ -28,7 +28,7 @@ The backend tests use fake models, so they run in seconds without any model down
 z-image-inference/
 ├── main.py                 # Web app: serves the UI and the /api endpoints
 ├── model_server.py         # Loads the models and generates images
-├── model_catalog.py        # The four models and their defaults, shared by both servers
+├── model_catalog.py        # The five models and their defaults, shared by both servers
 ├── generation_request.py   # Request checks shared by both servers
 ├── resolutions.py          # Resolution presets and their categories
 ├── history_store.py        # History database
