@@ -107,7 +107,13 @@ Press **✨ Prompt builder** above the Write box to open a focused dialog that a
 - **🎲 Surprise me** fills the main choices with random values you can then adjust; each choice can also be set to **Random**, and **Re-roll** picks new values for those
 - **Use this prompt** puts the prompt and negative prompt into the Write box (replacing what is there); **Append to prompt** adds to it instead
 - Explicit content, nudity and lingerie need "Who" and an adult age range, and the builder refuses details that suggest a minor
-- It writes full sentences, which suit Z-Image-Turbo and MOSS-Image; WAI-Illustrious reads tags best, so it follows builder prompts less closely
+- It writes for the selected model. For Z-Image-Turbo and MOSS-Image, one detailed paragraph: who and what is happening first, adult content included, then the person, outfit, setting, light and camera, each tied to the subject. For WAI-Illustrious and Anime Desire, a tag list: quality tags, who, then nudity and explicit actions weighted higher (for example `(completely nude:1.3)`), then the rest
+- The nudity level decides the outfit: topless leaves out tops and bras, fully nude and implied nudity leave only shoes and accessories, so the prompt never contradicts itself. Partner actions are offered only for a couple, and poses and actions about breasts or lingerie only when the subject includes a woman
+- With explicit content, terms such as `nsfw` are taken out of the negative prompt, since they would work against it
+
+### Prompt weights
+
+WAI-Illustrious and Anime Desire understand weights in the usual Automatic1111 / ComfyUI form: `(tag:1.3)` strengthens a tag, `(tag)` by 1.1 and `[tag]` weakens it by 0.9. Their prompts can also run past the 77 tokens their text encoder reads at once, so nothing at the end is cut off. Both come from [Compel](https://github.com/damian0815/compel). Z-Image-Turbo and MOSS-Image read prompts as natural language and have no weights; for them, put what matters most early and say it plainly.
 
 ### Chat with Grok (optional)
 
@@ -217,6 +223,7 @@ Switching models takes about 10 seconds. A MOSS-Image request with a new prompt 
 - **MOSS-Image**'s text encoder (16 GB) and image model (10 GB) take turns in memory. With compression on, the text encoder is kept in 8-bit with [optimum-quanto](https://github.com/huggingface/optimum-quanto): 9.4 GB, 10 GB of memory instead of 17 GB, three times faster to encode, and near-identical images. Its pipeline code is vendored in `moss_pipeline.py` with one fix for MPS, which has no float64.
 - All model work runs on one server thread, because MLX only works on the thread that created it. Requests are handled one at a time.
 - Seeds use a CPU generator for SDXL, so they are reproducible.
+- SDXL prompts (WAI-Illustrious, Anime Desire) are encoded with [Compel](https://github.com/damian0815/compel), which applies `(tag:1.3)` weights and encodes long prompts in 77-token chunks instead of cutting them off; `prompt_weights.py` rewrites the usual weight syntax into Compel's.
 
 ## Project Structure
 
@@ -276,7 +283,7 @@ cd frontend && npm test        # frontend
 - [WAI](https://civitai.com/) for the WAI-NSFW-Illustrious model
 - [OpenMOSS](https://huggingface.co/OpenMOSS-Team) for MOSS-Image, and axiomofmind for the NSFW LoRA
 - [mflux](https://github.com/filipstrand/mflux) for MLX inference
-- [ComfyUI Photoreal Prompt Builder](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder) and its [NSFW module](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder-NSFW) by artokun (MIT), which the prompt builder's options and wording are ported from
+- [ComfyUI Photoreal Prompt Builder](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder) and its [NSFW module](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder-NSFW) by artokun (MIT), which the prompt builder's options and their wording are ported from
 - [Hugging Face](https://huggingface.co/docs/diffusers) for the diffusers library
 - [React](https://react.dev/), [Vite](https://vite.dev/) and [Tailwind CSS](https://tailwindcss.com/) for the web interface
 - [z-image-mps](https://github.com/ivanfioravanti/z-image-mps) for MPS optimisation inspiration

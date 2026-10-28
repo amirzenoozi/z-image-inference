@@ -47,7 +47,8 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 - `example_prompts.json`: each model's example prompts, keyed by model id and read on every catalog request. Keep every person in them clearly adult.
 - `history_store.py`: SQLite history; images are stored as PNG data in the database.
 - `frontend/src/`: React + TypeScript + Tailwind v4. `lib/` holds logic (settings, API client, prompt builder), `components/` the UI.
-- `frontend/src/lib/promptBuilder/`: the prompt builder, ported from ComfyUI Photoreal Prompt Builder (see `THIRD_PARTY_NOTICES.md`). `data.ts` is generated from upstream; `parity.json` holds upstream outputs that the tests compare against.
+- `frontend/src/lib/promptBuilder/`: the prompt builder. Its option lists (`data.ts`) are generated from ComfyUI Photoreal Prompt Builder (see `THIRD_PARTY_NOTICES.md`); `build.ts` resolves the choices into facts (`facts.ts`), which `prose.ts` writes as a detailed paragraph (Z-Image, MOSS-Image) and `tags.ts` as a weighted tag list (WAI, Anime Desire), chosen by the model's `prompt_style`.
+- `prompt_weights.py`: rewrites `(tag:1.3)` weights for Compel, which encodes SDXL prompts with weights and past 77 tokens (`sdxl_conditioning` in `model_server.py`).
 
 ## Rules to keep
 
