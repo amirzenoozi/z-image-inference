@@ -12,9 +12,11 @@ import base64
 import random
 import time
 import uuid
+import tempfile
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -23,12 +25,13 @@ import mlx.core as mx
 import torch
 import uvicorn
 from compel import CompelForSDXL
-from diffusers import AutoencoderKLFlux2, DPMSolverMultistepScheduler, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
+from diffusers import AutoencoderKLFlux2, DPMSolverMultistepScheduler, EulerAncestralDiscreteScheduler, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLPipeline
 from fastapi import FastAPI, HTTPException, Response
 from huggingface_hub import snapshot_download
+from mflux.models.common.config.config import Config
 from mflux.models.z_image.variants.z_image import ZImage
 from optimum.quanto import freeze, qint8, quantization_map, quantize, requantize
-from PIL import Image
+from PIL import Image, ImageOps
 from safetensors import safe_open
 from safetensors.torch import load_file, save_file
 from pydantic import BaseModel
@@ -81,6 +84,9 @@ class Job:
     steps: int
     guidance: float
     seed: int
+    # For a variation: the start image at the size being made, and how much to change it (0 to 1)
+    start_image: Image.Image | None = None
+    change: float | None = None
 
 
 JobPhase = Literal["waiting", "loading", "encoding", "generating", "finishing"]
@@ -117,8 +123,18 @@ class JobProgress:
 ImageGenerator = Callable[[Job, JobProgress], Image.Image]
 
 
+def decode_start_image(data: str, width: int, height: int) -> Image.Image:
+    """The start image cropped to the shape being made, centred, and resized to its size, so it is never stretched."""
+    try:
+        image = Image.open(io.BytesIO(base64.b64decode(data, validate=True))).convert("RGB")
+    except (ValueError, OSError):
+        raise HTTPException(422, "The start image could not be read")
+    return ImageOps.fit(image, (width, height), Image.Resampling.LANCZOS)
+
+
 def to_job(req: GenerateRequest) -> Job:
     spec = MODELS[req.model]
+    start_image = decode_start_image(req.init_image, req.width, req.height) if req.init_image else None
     return Job(
         prompt=with_trigger_word(req.prompt, spec),
         negative_prompt=req.negative_prompt,
@@ -127,6 +143,8 @@ def to_job(req: GenerateRequest) -> Job:
         steps=req.steps or spec.default_steps,
         guidance=spec.default_guidance if req.guidance is None else req.guidance,
         seed=random.randint(0, MAX_SEED) if req.seed is None else req.seed,
+        start_image=start_image,
+        change=req.change,
     )
 
 
@@ -192,10 +210,24 @@ class MfluxStepReporter:
     def __init__(self) -> None:
         self.progress = JobProgress(total=0)
 
-    def call_in_loop(self, t: int, seed: int, prompt: str, latents: mx.array, config: object, time_steps: object) -> None:
+    def call_in_loop(self, t: int, seed: int, prompt: str, latents: mx.array, config: Config, time_steps: object) -> None:
         # MLX computes lazily: evaluating here finishes the step before it is reported
         mx.eval(latents)
-        self.progress.step_done(t + 1)
+        # A variation starts part-way through the steps; progress counts only the ones it runs
+        self.progress.total = config.num_inference_steps - config.init_time_step
+        self.progress.step_done(t + 1 - config.init_time_step)
+
+
+@contextmanager
+def start_image_file(image: Image.Image | None) -> Iterator[str | None]:
+    """mflux reads a start image from a file, so a variation's is written to a temporary one."""
+    if image is None:
+        yield None
+        return
+    with tempfile.NamedTemporaryFile(suffix=".png") as file:
+        image.save(file, format="PNG")
+        file.flush()
+        yield file.name
 
 
 def load_z_image() -> ImageGenerator:
@@ -206,13 +238,17 @@ def load_z_image() -> ImageGenerator:
     def generate(job: Job, progress: JobProgress) -> Image.Image:
         reporter.progress = progress
         progress.enter("generating")
-        return model.generate_image(
-            seed=job.seed,
-            prompt=job.prompt,
-            num_inference_steps=job.steps,
-            height=job.height,
-            width=job.width,
-        ).image
+        with start_image_file(job.start_image) as start_path:
+            return model.generate_image(
+                seed=job.seed,
+                prompt=job.prompt,
+                num_inference_steps=job.steps,
+                height=job.height,
+                width=job.width,
+                image_path=start_path,
+                # mflux's strength is how much of the start image to keep, the opposite of "change"
+                image_strength=None if job.change is None else 1 - job.change,
+            ).image
 
     return generate
 
@@ -274,8 +310,13 @@ def load_anime_desire() -> ImageGenerator:
     return sdxl_generator(pipe)
 
 
-def diffusers_step_callback(progress: JobProgress) -> Callable[[object, int, object, dict[str, torch.Tensor]], dict[str, torch.Tensor]]:
-    def on_step_end(pipe: object, step: int, timestep: object, callback_kwargs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+SdxlPipeline = StableDiffusionXLPipeline | StableDiffusionXLImg2ImgPipeline
+
+
+def diffusers_step_callback(progress: JobProgress) -> Callable[[SdxlPipeline, int, object, dict[str, torch.Tensor]], dict[str, torch.Tensor]]:
+    def on_step_end(pipe: SdxlPipeline, step: int, timestep: object, callback_kwargs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        # A variation runs only part of the steps; the pipeline knows how many
+        progress.total = pipe.num_timesteps
         progress.step_done(step + 1)
         return callback_kwargs
 
@@ -298,26 +339,38 @@ def sdxl_conditioning(compel: CompelForSDXL, prompt: str, negative_prompt: str) 
     return embeds
 
 
+def encode_in_float32(pipe: StableDiffusionXLPipeline, image: Image.Image) -> torch.Tensor:
+    """A variation's start image as latents. Encoding it here keeps the VAE in float32: diffusers' own encoding
+    switches the shared VAE back to float16 afterwards, which breaks decode_in_float32 on MPS."""
+    pixels = pipe.image_processor.preprocess(image).to(device=pipe.vae.device, dtype=torch.float32)
+    latents = pipe.vae.encode(pixels).latent_dist.mode() * pipe.vae.config.scaling_factor
+    return latents.to(pipe.unet.dtype)
+
+
 def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
     pipe.to(torch.device("mps"))
     pipe.vae.to(dtype=torch.float32)
     compel = CompelForSDXL(pipe)
+    # Shares the loaded weights, so variations cost no extra memory
+    img2img = StableDiffusionXLImg2ImgPipeline(**pipe.components)
 
     def generate(job: Job, progress: JobProgress) -> Image.Image:
         progress.enter("generating")
         # A CPU generator is more stable than an MPS one
         generator = torch.Generator("cpu").manual_seed(job.seed)
         with torch.inference_mode():
-            latents = pipe(
+            common = {
                 **sdxl_conditioning(compel, job.prompt, job.negative_prompt),
-                width=job.width,
-                height=job.height,
-                num_inference_steps=job.steps,
-                guidance_scale=job.guidance,
-                generator=generator,
-                output_type="latent",
-                callback_on_step_end=diffusers_step_callback(progress),
-            ).images
+                "num_inference_steps": job.steps,
+                "guidance_scale": job.guidance,
+                "generator": generator,
+                "output_type": "latent",
+                "callback_on_step_end": diffusers_step_callback(progress),
+            }
+            if job.start_image is None:
+                latents = pipe(width=job.width, height=job.height, **common).images
+            else:
+                latents = img2img(image=encode_in_float32(pipe, job.start_image), strength=job.change, **common).images
             return decode_in_float32(pipe, latents)
 
     return generate

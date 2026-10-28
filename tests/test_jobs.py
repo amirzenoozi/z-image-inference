@@ -124,3 +124,43 @@ def test_unknown_jobs_are_not_found(generator: SteppingGenerator) -> None:
 def test_a_job_id_must_be_a_uuid(generator: SteppingGenerator) -> None:
     client = TestClient(model_server.app)
     assert client.post("/generate", json=request("../models")).status_code == 422
+
+
+def png_base64(image: Image.Image) -> str:
+    import base64, io
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode()
+
+
+def test_a_start_image_is_cropped_to_the_shape_being_made_never_stretched() -> None:
+    # 200×100: red left half, blue right half; a square is cut from the middle, half red, half blue
+    image = Image.new("RGB", (200, 100), "red")
+    image.paste("blue", (100, 0, 200, 100))
+    req = model_server.GenerateRequest(model=WAI, prompt="a cat", width=512, height=512, init_image=png_base64(image), change=0.5)
+
+    job = model_server.to_job(req)
+
+    assert job.start_image is not None
+    assert job.start_image.size == (512, 512)
+    assert job.start_image.getpixel((10, 256))[0] > 200 and job.start_image.getpixel((500, 256))[2] > 200
+    assert job.change == 0.5
+
+
+def test_an_unreadable_start_image_is_refused(generator: SteppingGenerator) -> None:
+    client = TestClient(model_server.app)
+    resp = client.post("/generate", json={**request(JOB), "init_image": "bm90IGFuIGltYWdl", "change": 0.5})
+    assert resp.status_code == 422
+    assert generator.runs == 0
+
+
+def test_z_image_progress_counts_only_the_steps_a_variation_runs() -> None:
+    from types import SimpleNamespace
+    import mlx.core as mx
+    reporter = model_server.MfluxStepReporter()
+    reporter.progress = model_server.JobProgress(total=9)
+    config = SimpleNamespace(num_inference_steps=9, init_time_step=4)
+
+    reporter.call_in_loop(4, 1, "a cat", mx.zeros(1), config, None)
+
+    assert (reporter.progress.step, reporter.progress.total) == (1, 5)
