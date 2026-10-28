@@ -31,6 +31,7 @@ Defined once in `model_catalog.py` (shared by the UI and the server); loaders an
 |-------|--------|-----------|
 | Z-Image-Turbo (default) | mflux (MLX), 4-bit | `models/zimage-q4/`; the original download is deleted after the 4-bit copy is built |
 | WAI-NSFW-Illustrious v12 (SDXL) | diffusers on MPS, float16; VAE decodes in float32 | `models/waiNSFWIllustrious_v120/`, rewritten from float32 to float16 once |
+| Anime Desire (Illustrious SDXL) | diffusers on MPS, float16, single-file checkpoint loaded with the SDXL configs in `models/sdxl-base-config/` | `models/anime-desire-illustrious/` |
 | MOSS-Image NSFW | diffusers on MPS, bfloat16; pipeline vendored in `moss_pipeline.py` | `models/moss-image-nsfw/`; text encoder kept 8-bit (optimum-quanto) in `text_encoder-q8/` |
 
 - Downloads run in the background (`download_thread`) and finish with a `.download-complete` marker; `/generate` answers 503 with a message while a model downloads, and `/models/status` reports progress.

@@ -20,4 +20,6 @@ The server downloads these models into `models/` on first use. They are not part
 |-------|--------|---------|
 | Z-Image-Turbo | [Tongyi-MAI/Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) | Apache 2.0 |
 | WAI-NSFW-Illustrious v12 | [votepurchase/waiNSFWIllustrious_v120](https://huggingface.co/votepurchase/waiNSFWIllustrious_v120) | CreativeML OpenRAIL-M (includes use restrictions) |
+| Anime Desire | [AI-Porn/anime-desire-illustrious](https://huggingface.co/AI-Porn/anime-desire-illustrious) | OpenRAIL (includes use restrictions) |
+| SDXL configuration files, used to load Anime Desire's single-file checkpoint (no weights) | [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) | CreativeML OpenRAIL++-M |
 | MOSS-Image NSFW (MOSS-Image with a merged LoRA) | [axiomofmind/Moss-image-nsfw-uncensored-lora](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora), based on [OpenMOSS-Team/MOSS-Image-SFT](https://huggingface.co/OpenMOSS-Team/MOSS-Image-SFT) | Apache 2.0 |
