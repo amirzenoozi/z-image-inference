@@ -31,7 +31,10 @@ def check_image_check_ready(nsfw_check_ready: bool) -> None:
 
 
 def with_safe_negative(negative_prompt: str) -> str:
-    return f"{negative_prompt.strip()}, {SAFE_NEGATIVE}" if negative_prompt.strip() else SAFE_NEGATIVE
+    """The negative prompt with each safe-for-work term it doesn't have yet, so terms already there aren't repeated."""
+    terms = [term.strip() for term in negative_prompt.split(",") if term.strip()]
+    present = {term.lower() for term in terms}
+    return ", ".join(terms + [term for term in SAFE_NEGATIVE.split(", ") if term not in present])
 
 
 def check_result(nsfw: bool | None, name: str) -> None:
