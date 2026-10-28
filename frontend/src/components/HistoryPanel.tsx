@@ -283,17 +283,22 @@ function ConfirmClear({ total, onClose, onCleared }: { total: number; onClose: (
     }
   }
   return (
-    <Modal title="Delete all images?" onClose={onClose}>
+    <Modal
+      title="Delete all images?"
+      onClose={onClose}
+      actions={
+        <>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+          <button type="button" onClick={() => void clear()} disabled={state.status === 'loading'} className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50">
+            {state.status === 'loading' ? 'Deleting…' : 'Delete all'}
+          </button>
+        </>
+      }
+    >
       <p className="text-sm text-zinc-600 dark:text-zinc-300">This permanently deletes all {total} images from your history, favourites included.</p>
       {state.status === 'failed' && <div className="mt-3"><ErrorNotice message={state.error} /></div>}
-      <div className="mt-5 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className={secondaryButtonClass}>
-          Cancel
-        </button>
-        <button type="button" onClick={() => void clear()} disabled={state.status === 'loading'} className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50">
-          {state.status === 'loading' ? 'Deleting…' : 'Delete all'}
-        </button>
-      </div>
     </Modal>
   )
 }

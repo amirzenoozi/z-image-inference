@@ -54,8 +54,15 @@ export function PromptBuilderDialog({ model, hasExistingPrompt, maxPromptLength,
     onClose()
   }
 
+  const tooLong = promptTooLong(result, maxPromptLength)
   return (
-    <Modal title="Prompt builder" onClose={onClose} size="xl">
+    <Modal
+      title="Prompt builder"
+      onClose={onClose}
+      size="xl"
+      actionsNote={actionsNote(tooLong, hasExistingPrompt)}
+      actions={<DialogActions ready={result.status === 'ready' && !tooLong} hasExistingPrompt={hasExistingPrompt} onCancel={onClose} onConfirm={confirm} />}
+    >
       <div className="grid gap-5 lg:h-[68vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
         <StepNav steps={steps} current={step.id} onSelect={setStepId} />
         <section aria-label={step.label} className="min-h-0 overflow-y-auto pr-1">
@@ -72,7 +79,6 @@ export function PromptBuilderDialog({ model, hasExistingPrompt, maxPromptLength,
           onReset={() => setState(emptyBuilderState())}
         />
       </div>
-      <DialogFooter result={result} hasExistingPrompt={hasExistingPrompt} tooLong={promptTooLong(result, maxPromptLength)} onCancel={onClose} onConfirm={confirm} />
     </Modal>
   )
 }
@@ -167,21 +173,22 @@ function PreviewBody({ result, maxPromptLength }: { result: BuildResult; maxProm
   )
 }
 
-interface FooterProps {
-  result: BuildResult
+function actionsNote(tooLong: boolean, hasExistingPrompt: boolean): string {
+  if (tooLong) return 'The prompt is too long; remove some details.'
+  return hasExistingPrompt ? 'Use this prompt replaces the text in the Write box.' : 'The prompt goes into the Write box, where you can still edit it.'
+}
+
+interface ActionsProps {
+  ready: boolean
   hasExistingPrompt: boolean
-  tooLong: boolean
   onCancel: () => void
   onConfirm: (mode: InsertMode) => void
 }
 
-function DialogFooter({ result, hasExistingPrompt, tooLong, onCancel, onConfirm }: FooterProps) {
-  const disabled = result.status !== 'ready' || tooLong
+function DialogActions({ ready, hasExistingPrompt, onCancel, onConfirm }: ActionsProps) {
+  const disabled = !ready
   return (
-    <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-      <p className="mr-auto text-xs text-zinc-500 dark:text-zinc-400">
-        {tooLong ? 'The prompt is too long; remove some details.' : hasExistingPrompt ? 'Use this prompt replaces the text in the Write box.' : 'The prompt goes into the Write box, where you can still edit it.'}
-      </p>
+    <>
       <button type="button" onClick={onCancel} className={secondaryButtonClass}>
         Cancel
       </button>
@@ -193,6 +200,6 @@ function DialogFooter({ result, hasExistingPrompt, tooLong, onCancel, onConfirm 
       <button type="button" onClick={() => onConfirm('replace')} disabled={disabled} className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50">
         Use this prompt
       </button>
-    </div>
+    </>
   )
 }

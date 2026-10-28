@@ -142,12 +142,14 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
   const fullScreen = useFullScreen(area)
   const [zoomed, setZoomed] = useState(false)
   const [favouriteError, setFavouriteError] = useState<string | null>(null)
+  const [deleteState, setDeleteState] = useState<DeleteState>({ status: 'idle' })
   const [armed, pressDelete] = useArmedDelete(() => deleteButton.current?.click())
 
   const moveTo = (next: number) => {
     if (next < 0 || next >= image.total) return
     setIndex(next)
     setZoomed(false)
+    setDeleteState({ status: 'idle' })
     onIndexChange(next)
   }
   // The next image takes the removed one's place; after the last one, the one before it is shown
@@ -176,6 +178,16 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
   })
 
   const item = image.state.status === 'settled' ? image.state.value : null
+  const remove = async (target: HistoryItem) => {
+    setDeleteState({ status: 'deleting' })
+    try {
+      await deleteHistoryItem(target.id)
+      setDeleteState({ status: 'idle' })
+      afterRemoval()
+    } catch (error) {
+      setDeleteState({ status: 'failed', error: errorMessage(error) })
+    }
+  }
   return (
     <Modal title="Image details" onClose={onClose} size="xl">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -201,14 +213,14 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
         </div>
         {item && (
           <ViewerDetails
-            key={item.id}
             item={item}
             label={labelOf(item.model)}
             favouriteError={favouriteError}
+            deleteError={deleteState.status === 'failed' ? deleteState.error : null}
             armed={armed}
-            deleteButton={deleteButton}
-            onReuse={() => onReuse(item)}
-            onDeleted={afterRemoval}
+            actions={
+              <ViewerActions item={item} deleting={deleteState.status === 'deleting'} deleteButton={deleteButton} onDelete={() => void remove(item)} onReuse={() => onReuse(item)} />
+            }
           />
         )}
       </div>
@@ -324,55 +336,57 @@ interface DetailsProps {
   item: HistoryItem
   label: string
   favouriteError: string | null
+  deleteError: string | null
   armed: boolean
-  deleteButton: RefObject<HTMLButtonElement | null>
-  onReuse: () => void
-  onDeleted: () => void
+  actions: ReactNode
 }
 
-function ViewerDetails({ item, label, favouriteError, armed, deleteButton, onReuse, onDeleted }: DetailsProps) {
-  const [deleteState, setDeleteState] = useState<DeleteState>({ status: 'idle' })
-  const remove = async () => {
-    setDeleteState({ status: 'deleting' })
-    try {
-      await deleteHistoryItem(item.id)
-      onDeleted()
-    } catch (error) {
-      setDeleteState({ status: 'failed', error: errorMessage(error) })
-    }
-  }
+/** The metadata column beside the image; its actions sit at the bottom of the column, under a divider. */
+function ViewerDetails({ item, label, favouriteError, deleteError, armed, actions }: DetailsProps) {
   return (
-    <div className="space-y-4 text-sm">
-      <ImageFacts item={item} label={label} />
-      <ColourPalette itemId={item.id} />
-      <PromptBlock title="Prompt" text={item.prompt} />
-      {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}
-      <p className="text-xs text-zinc-400">Created {new Date(`${item.created_at}Z`).toLocaleString()}</p>
-      {favouriteError && <ErrorNotice message={favouriteError} />}
-      {deleteState.status === 'failed' && <ErrorNotice message={deleteState.error} />}
-      {armed && (
-        <p role="status" className="text-xs font-medium text-red-600 dark:text-red-400">
-          Press Delete again to delete
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onReuse} className="rounded-lg bg-violet-600 px-3 py-1.5 font-semibold text-white hover:bg-violet-500">
-          Reuse settings
-        </button>
-        <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
-          Download
-        </a>
-        <button
-          ref={deleteButton}
-          type="button"
-          onClick={() => void remove()}
-          disabled={deleteState.status === 'deleting'}
-          className={`${secondaryButtonClass} text-red-600 dark:text-red-400`}
-        >
-          {deleteState.status === 'deleting' ? 'Deleting…' : 'Delete'}
-        </button>
+    <div className="flex min-h-0 flex-col gap-4 text-sm lg:max-h-[70vh]">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+        <ImageFacts item={item} label={label} />
+        <ColourPalette itemId={item.id} />
+        <PromptBlock title="Prompt" text={item.prompt} />
+        {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}
+        <p className="text-xs text-zinc-400">Created {new Date(`${item.created_at}Z`).toLocaleString()}</p>
+        {favouriteError && <ErrorNotice message={favouriteError} />}
+        {deleteError && <ErrorNotice message={deleteError} />}
+        {armed && (
+          <p role="status" className="text-xs font-medium text-red-600 dark:text-red-400">
+            Press Delete again to delete
+          </p>
+        )}
+        <p className="text-[11px] text-zinc-400">← → browse · Z full screen · F star · Delete twice to delete · Esc close</p>
       </div>
-      <p className="text-[11px] text-zinc-400">← → browse · Z full screen · F star · Delete twice to delete · Esc close</p>
+      <div role="group" aria-label="Image actions" className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        {actions}
+      </div>
     </div>
+  )
+}
+
+interface ActionsProps {
+  item: HistoryItem
+  deleting: boolean
+  deleteButton: RefObject<HTMLButtonElement | null>
+  onDelete: () => void
+  onReuse: () => void
+}
+
+function ViewerActions({ item, deleting, deleteButton, onDelete, onReuse }: ActionsProps) {
+  return (
+    <>
+      <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
+        Download
+      </a>
+      <button ref={deleteButton} type="button" onClick={onDelete} disabled={deleting} className={`${secondaryButtonClass} text-red-600 dark:text-red-400`}>
+        {deleting ? 'Deleting…' : 'Delete'}
+      </button>
+      <button type="button" onClick={onReuse} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
+        Reuse settings
+      </button>
+    </>
   )
 }
