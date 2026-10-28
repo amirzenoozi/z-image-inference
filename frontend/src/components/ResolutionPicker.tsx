@@ -1,18 +1,13 @@
 import { useState } from 'react'
 import type { Category, Limits, ModelInfo, ResolutionInfo } from '../types'
+import { CATEGORY_LABELS } from '../lib/categories'
 import { fitsModel, snapSide } from '../lib/settings'
 import { chipClass, fieldLabelClass, secondaryButtonClass, tabClass } from '../lib/styles'
 import { NumberInput } from './form/NumberInput'
 
 type Tab = Category | 'custom'
 
-const TAB_LABELS: Record<Tab, string> = {
-  square: 'Square',
-  portrait: 'Portrait',
-  landscape: 'Landscape',
-  widescreen: 'Widescreen',
-  custom: 'Custom',
-}
+const TAB_LABELS: Record<Tab, string> = { ...CATEGORY_LABELS, custom: 'Custom' }
 
 const TAB_SHAPES: Record<Tab, [number, number]> = {
   square: [1, 1],

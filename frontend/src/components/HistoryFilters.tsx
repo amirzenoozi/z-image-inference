@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react'
 import { chipClass, controlHeight } from '../lib/styles'
 import { SearchInput } from './form/SearchInput'
 import { Select } from './form/Select'
+import { CATEGORY_LABELS, isCategory } from '../lib/categories'
 import type { HistoryFilters, ModelInfo } from '../types'
 
 export const SEARCH_DELAY_MS = 300
+
+const RATIO_GROUPS = [
+  { options: [{ value: '', label: 'All ratios' }, ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))] },
+]
 
 interface Props {
   models: ModelInfo[]
@@ -27,6 +32,14 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
         groups={[{ options: [{ value: '', label: 'All models' }, ...models.map((model) => ({ value: model.id, label: model.label }))] }]}
         onChange={(model) => onChange({ ...filters, model: model || null })}
         className="w-60"
+      />
+      <Select
+        label="Ratio"
+        hideLabel
+        value={filters.ratio ?? ''}
+        groups={RATIO_GROUPS}
+        onChange={(ratio) => onChange({ ...filters, ratio: isCategory(ratio) ? ratio : null })}
+        className="w-44"
       />
       <button
         type="button"

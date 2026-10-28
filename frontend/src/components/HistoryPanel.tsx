@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearHistory, deleteHistoryItem, fetchHistory, imageUrl } from '../api'
 import { NO_FILTERS, isFiltered } from '../lib/historyFilters'
 import { errorMessage } from '../lib/hooks'
 import { secondaryButtonClass } from '../lib/styles'
 import type { HistoryFilters, HistoryItem, HistoryPage, Loadable, ModelInfo } from '../types'
+import { ColourPalette } from './ColourPalette'
 import { CompareDialog } from './CompareDialog'
 import { FavouriteButton } from './FavouriteButton'
 import { HistoryCleanUp } from './HistoryCleanUp'
@@ -11,43 +12,35 @@ import { HistoryFilterBar } from './HistoryFilters'
 import { HistoryGrid } from './HistoryGrid'
 import { ImageFacts } from './ImageFacts'
 import { Modal } from './Modal'
-import { ErrorNotice, PromptBlock, Spinner } from './ui'
+import { Pagination } from './Pagination'
+import { ErrorNotice, PromptBlock } from './ui'
 
 export const PAGE_SIZE = 30
 
-type MoreState = { status: 'idle' } | { status: 'loading' } | { status: 'failed'; error: string }
+type ActionState = { status: 'idle' } | { status: 'loading' } | { status: 'failed'; error: string }
 
-function useHistoryPages(filters: HistoryFilters) {
+/** One page of History at a time; loading another page, or the same one again, shows the placeholder first. */
+function useHistoryPage(filters: HistoryFilters) {
+  const [pageNumber, setPageNumber] = useState(1)
   const [page, setPage] = useState<Loadable<HistoryPage>>({ status: 'pending' })
-  const [more, setMore] = useState<MoreState>({ status: 'idle' })
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchHistory(0, PAGE_SIZE, filters, controller.signal).then(
+    fetchHistory((pageNumber - 1) * PAGE_SIZE, PAGE_SIZE, filters, controller.signal).then(
       (value) => setPage({ status: 'settled', value }),
       (error: unknown) => !controller.signal.aborted && setPage({ status: 'failed', error: errorMessage(error) }),
     )
     return () => controller.abort()
-  }, [filters, attempt])
+  }, [filters, pageNumber, attempt])
 
-  const loadMore = async (loaded: HistoryItem[]) => {
-    setMore({ status: 'loading' })
-    try {
-      const next = await fetchHistory(loaded.length, PAGE_SIZE, filters)
-      setPage({ status: 'settled', value: { items: [...loaded, ...next.items], total: next.total } })
-      setMore({ status: 'idle' })
-    } catch (error) {
-      setMore({ status: 'failed', error: errorMessage(error) })
-    }
-  }
-
-  const replace = useCallback((value: HistoryPage) => setPage({ status: 'settled', value }), [])
-  const reload = () => {
+  const load = (number: number) => {
     setPage({ status: 'pending' })
+    setPageNumber(number)
     setAttempt((n) => n + 1)
   }
-  return { page, more, loadMore, replace, reload }
+  const replace = useCallback((value: HistoryPage) => setPage({ status: 'settled', value }), [])
+  return { page, pageNumber, load, replace }
 }
 
 /** Adds or removes an image from the compare selection, which holds at most two. */
@@ -69,6 +62,7 @@ export function HistoryPanel({ models, onReuse }: Props) {
   const [selection, setSelection] = useState<HistoryItem[] | null>(null)
   const [comparing, setComparing] = useState<[HistoryItem, HistoryItem] | null>(null)
   const labelOf = (id: string) => models.find((model) => model.id === id)?.label ?? id
+  const top = useRef<HTMLDivElement>(null)
 
   const clearFilters = () => {
     setFilters(NO_FILTERS)
@@ -79,7 +73,7 @@ export function HistoryPanel({ models, onReuse }: Props) {
   }
 
   return (
-    <div className="space-y-5 p-6">
+    <div ref={top} className="space-y-5 p-6">
       <HistoryFilterBar
         key={filtersVersion}
         models={models}
@@ -99,6 +93,7 @@ export function HistoryPanel({ models, onReuse }: Props) {
         onClearFilters={clearFilters}
         selectedIds={selection?.map((item) => item.id) ?? null}
         onSelect={(item) => setSelection((current) => toggleInSelection(current ?? [], item))}
+        onPageChanged={() => top.current?.scrollIntoView({ block: 'start' })}
       />
       {comparing && <CompareDialog items={comparing} labelOf={labelOf} onClose={() => setComparing(null)} />}
     </div>
@@ -112,30 +107,43 @@ interface ResultsProps {
   onClearFilters: () => void
   selectedIds: number[] | null
   onSelect: (item: HistoryItem) => void
+  onPageChanged: () => void
 }
 
-function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds, onSelect }: ResultsProps) {
-  const { page, more, loadMore, replace, reload } = useHistoryPages(filters)
+function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds, onSelect, onPageChanged }: ResultsProps) {
+  const { page, pageNumber, load, replace } = useHistoryPage(filters)
   const [opened, setOpened] = useState<HistoryItem | null>(null)
   const [favouriteError, setFavouriteError] = useState<string | null>(null)
 
   if (page.status === 'pending') return <HistorySkeleton />
-  if (page.status === 'failed') return <ErrorNotice message={page.error} onRetry={reload} />
+  if (page.status === 'failed') return <ErrorNotice message={page.error} onRetry={() => load(pageNumber)} />
 
   const { items, total } = page.value
   const filtered = isFiltered(filters)
-  const removeItem = (id: number) => replace({ items: items.filter((item) => item.id !== id), total: total - 1 })
+  const goToPage = (number: number) => {
+    load(number)
+    onPageChanged()
+  }
+  // The page refills from the next one; when its only image goes, the page before it is shown instead
+  const removeItem = () => load(items.length === 1 && pageNumber > 1 ? pageNumber - 1 : pageNumber)
   const updateItem = (item: HistoryItem) => {
     setFavouriteError(null)
     setOpened((current) => (current?.id === item.id ? item : current))
     // With the Favourites filter on, an unstarred image no longer belongs in the list
-    if (filters.favouritesOnly && !item.favourite) removeItem(item.id)
+    if (filters.favouritesOnly && !item.favourite) removeItem()
     else replace({ items: items.map((current) => (current.id === item.id ? item : current)), total })
   }
 
   return (
     <>
-      <HistoryHeader total={total} filtered={filtered} onCleaned={reload} onCleared={() => replace({ items: [], total: 0 })} />
+      <HistoryHeader
+        total={total}
+        firstShown={(pageNumber - 1) * PAGE_SIZE + 1}
+        lastShown={(pageNumber - 1) * PAGE_SIZE + items.length}
+        filtered={filtered}
+        onCleaned={() => load(1)}
+        onCleared={() => load(1)}
+      />
       {favouriteError && <ErrorNotice message={favouriteError} />}
       {total === 0 ? (
         <EmptyResults filtered={filtered} onClearFilters={onClearFilters} />
@@ -149,7 +157,7 @@ function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds
           onFavouriteFailed={setFavouriteError}
         />
       )}
-      {items.length < total && <LoadMore state={more} onLoad={() => void loadMore(items)} />}
+      <Pagination page={pageNumber} pageCount={Math.ceil(total / PAGE_SIZE)} onChange={goToPage} />
       {opened && (
         <HistoryDetail
           item={opened}
@@ -157,7 +165,7 @@ function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds
           onClose={() => setOpened(null)}
           onReuse={() => onReuse(opened)}
           onDeleted={() => {
-            removeItem(opened.id)
+            removeItem()
             setOpened(null)
           }}
           onFavouriteChanged={updateItem}
@@ -170,18 +178,19 @@ function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds
 
 interface HeaderProps {
   total: number
+  firstShown: number
+  lastShown: number
   filtered: boolean
   onCleaned: () => void
   onCleared: () => void
 }
 
 /** The image count, and the clean-up and delete-all actions, which only make sense for the whole History. */
-function HistoryHeader({ total, filtered, onCleaned, onCleared }: HeaderProps) {
+function HistoryHeader({ total, firstShown, lastShown, filtered, onCleaned, onCleared }: HeaderProps) {
   const [confirmClear, setConfirmClear] = useState(false)
-  const count = total === 1 ? '1 image' : `${total} images`
   return (
     <div className="flex items-center justify-between">
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">{filtered ? `${total} matching` : count}</p>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">{countLabel(total, firstShown, lastShown, filtered)}</p>
       {total > 0 && !filtered && (
         <div className="flex items-center gap-4">
           <HistoryCleanUp onCleaned={onCleaned} />
@@ -193,6 +202,11 @@ function HistoryHeader({ total, filtered, onCleaned, onCleared }: HeaderProps) {
       {confirmClear && <ConfirmClear total={total} onClose={() => setConfirmClear(false)} onCleared={onCleared} />}
     </div>
   )
+}
+
+function countLabel(total: number, firstShown: number, lastShown: number, filtered: boolean): string {
+  const count = filtered ? `${total} matching` : total === 1 ? '1 image' : `${total} images`
+  return total > PAGE_SIZE ? `Showing ${firstShown}–${lastShown} of ${count}` : count
 }
 
 function EmptyResults({ filtered, onClearFilters }: { filtered: boolean; onClearFilters: () => void }) {
@@ -225,18 +239,6 @@ function EmptyHistory() {
   )
 }
 
-function LoadMore({ state, onLoad }: { state: MoreState; onLoad: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      {state.status === 'failed' && <ErrorNotice message={state.error} />}
-      <button type="button" onClick={onLoad} disabled={state.status === 'loading'} className={`${secondaryButtonClass} flex items-center gap-2`}>
-        {state.status === 'loading' && <Spinner className="size-4" />}
-        {state.status === 'failed' ? 'Try again' : 'Load more'}
-      </button>
-    </div>
-  )
-}
-
 interface DetailProps {
   item: HistoryItem
   label: string
@@ -248,7 +250,7 @@ interface DetailProps {
 }
 
 function HistoryDetail({ item, label, onClose, onReuse, onDeleted, ...favourite }: DetailProps) {
-  const [deleteState, setDeleteState] = useState<MoreState>({ status: 'idle' })
+  const [deleteState, setDeleteState] = useState<ActionState>({ status: 'idle' })
   const remove = async () => {
     setDeleteState({ status: 'loading' })
     try {
@@ -267,6 +269,7 @@ function HistoryDetail({ item, label, onClose, onReuse, onDeleted, ...favourite 
         </div>
         <div className="space-y-4 text-sm">
           <ImageFacts item={item} label={label} />
+          <ColourPalette itemId={item.id} />
           <PromptBlock title="Prompt" text={item.prompt} />
           {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}
           <p className="text-xs text-zinc-400">Created {new Date(`${item.created_at}Z`).toLocaleString()}</p>
@@ -289,7 +292,7 @@ function HistoryDetail({ item, label, onClose, onReuse, onDeleted, ...favourite 
 }
 
 function ConfirmClear({ total, onClose, onCleared }: { total: number; onClose: () => void; onCleared: () => void }) {
-  const [state, setState] = useState<MoreState>({ status: 'idle' })
+  const [state, setState] = useState<ActionState>({ status: 'idle' })
   const clear = async () => {
     setState({ status: 'loading' })
     try {

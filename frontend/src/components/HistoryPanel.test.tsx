@@ -17,6 +17,7 @@ vi.mock('../api', async (importOriginal) => ({
   fetchHistorySummary: vi.fn(),
   deleteHistoryOlderThan: vi.fn(),
   setFavourite: vi.fn(),
+  fetchPalette: vi.fn(),
 }))
 
 const fetchHistory = vi.mocked(api.fetchHistory)
@@ -39,6 +40,7 @@ beforeEach(() => {
   fetchHistory.mockReset()
   vi.mocked(api.fetchHistorySummary).mockReset().mockResolvedValue(summary)
   vi.mocked(api.deleteHistoryOlderThan).mockReset()
+  vi.mocked(api.fetchPalette).mockReset().mockResolvedValue([])
 })
 
 function renderHistory() {
@@ -71,19 +73,96 @@ it('shows an error that can be retried, instead of an empty history', async () =
   expect(await screen.findAllByRole('button', { name: /^Open:/ })).toHaveLength(2)
 })
 
-it('loads the next page after the ones already shown', async () => {
-  fetchHistory.mockResolvedValueOnce(page(PAGE_SIZE, PAGE_SIZE + 1)).mockResolvedValueOnce(page(1, PAGE_SIZE + 1, 99))
+it('moves between pages, showing a placeholder while the next one loads', async () => {
+  const second = deferred<HistoryPage>()
+  fetchHistory.mockResolvedValueOnce(page(PAGE_SIZE, PAGE_SIZE + 1)).mockReturnValueOnce(second.promise)
   renderHistory()
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Load more' }))
+  expect(await screen.findByText(`Showing 1–${PAGE_SIZE} of ${PAGE_SIZE + 1} images`)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '‹ Previous' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Next ›' }))
 
-  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS)
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(screen.getByLabelText('Loading history')).toBeInTheDocument()
+  expect(screen.queryByText(/No images/)).not.toBeInTheDocument()
+
+  await act(async () => second.resolve(page(1, PAGE_SIZE + 1, 99)))
+  expect(screen.getByRole('button', { name: 'Open: image 99' })).toBeInTheDocument()
+  expect(screen.getByText(`Showing ${PAGE_SIZE + 1}–${PAGE_SIZE + 1} of ${PAGE_SIZE + 1} images`)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('button', { name: 'Next ›' })).toBeDisabled()
+})
+
+it('shows no page buttons when everything fits on one page', async () => {
+  fetchHistory.mockResolvedValue(page(3))
+  renderHistory()
+  await screen.findByText('3 images')
+  expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
+})
+
+it('collapses long runs of pages into a gap', async () => {
+  fetchHistory.mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE * 12))
+  renderHistory()
+  await screen.findByText(/Showing 1–/)
+
+  const pages = () => within(screen.getByRole('navigation', { name: 'Pages' })).getAllByRole('button', { name: /^Page / }).map((button) => button.textContent)
+  expect(pages()).toEqual(['1', '2', '12'])
+
+  await userEvent.click(screen.getByRole('button', { name: 'Page 12' }))
+  await screen.findByRole('button', { name: 'Page 11' })
+  await userEvent.click(screen.getByRole('button', { name: 'Page 11' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 10' }))
+  await screen.findByRole('button', { name: 'Page 9' })
+  expect(pages()).toEqual(['1', '9', '10', '11', '12'])
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE * 9, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+})
+
+it('starts from the first page again when a filter changes', async () => {
+  fetchHistory.mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE * 3))
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 3' }))
+  await screen.findByRole('button', { name: 'Page 3', current: 'page' })
+
+  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, favouritesOnly: true }, expect.any(AbortSignal))
+  expect(await screen.findByRole('button', { name: 'Page 1', current: 'page' })).toBeInTheDocument()
+})
+
+it('goes back a page when the only image on the last page is deleted', async () => {
+  fetchHistory
+    .mockResolvedValueOnce(page(PAGE_SIZE, PAGE_SIZE + 1))
+    .mockResolvedValueOnce(page(1, PAGE_SIZE + 1, 99))
+    .mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE))
+  vi.mocked(api.deleteHistoryItem).mockResolvedValue()
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }))
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 99' }))
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(await screen.findByText(`${PAGE_SIZE} images`)).toBeInTheDocument()
+})
+
+it('shows an error with a retry when a page fails to load, not an empty page', async () => {
+  fetchHistory
+    .mockResolvedValueOnce(page(PAGE_SIZE, PAGE_SIZE + 1))
+    .mockRejectedValueOnce(new Error('Could not reach the app server'))
+    .mockResolvedValueOnce(page(1, PAGE_SIZE + 1, 99))
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the app server')
+  expect(screen.queryByText(/No images/)).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
   expect(await screen.findByRole('button', { name: 'Open: image 99' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
 })
 
 it('opens an image to reuse its settings or delete it', async () => {
-  fetchHistory.mockResolvedValue(page(2))
+  fetchHistory.mockResolvedValueOnce(page(2)).mockResolvedValue(page(1, 1, 2))
   vi.mocked(api.deleteHistoryItem).mockResolvedValue()
   const onReuse = renderHistory()
 
@@ -95,11 +174,11 @@ it('opens an image to reuse its settings or delete it', async () => {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
   expect(api.deleteHistoryItem).toHaveBeenCalledWith(1)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByText('1 image')).toBeInTheDocument()
+  expect(await screen.findByText('1 image')).toBeInTheDocument()
 })
 
 it('asks before deleting everything', async () => {
-  fetchHistory.mockResolvedValue(page(2))
+  fetchHistory.mockResolvedValueOnce(page(2)).mockResolvedValue(page(0))
   vi.mocked(api.clearHistory).mockResolvedValue()
   renderHistory()
 
@@ -247,9 +326,12 @@ it('stars an image once, and leaves the star as it was when saving fails', async
 })
 
 it('drops an unstarred image from the Favourites view', async () => {
-  const starred = [historyItem({ id: 1, prompt: 'image 1', favourite: true }), historyItem({ id: 2, prompt: 'image 2', favourite: true })]
+  let starred = [historyItem({ id: 1, prompt: 'image 1', favourite: true }), historyItem({ id: 2, prompt: 'image 2', favourite: true })]
   fetchHistory.mockImplementation((_offset: number, _limit: number, filters: HistoryFilters) => Promise.resolve(filters.favouritesOnly ? pageOf(starred) : page(3)))
-  vi.mocked(api.setFavourite).mockResolvedValue(historyItem({ id: 1, prompt: 'image 1', favourite: false }))
+  vi.mocked(api.setFavourite).mockImplementation(async (id: number) => {
+    starred = starred.filter((item) => item.id !== id)
+    return historyItem({ id, prompt: `image ${id}`, favourite: false })
+  })
   renderHistory()
   await screen.findByText('3 images')
 
@@ -280,4 +362,49 @@ it('compares at most two images and highlights the facts that differ', async () 
   const dialog = screen.getByRole('dialog', { name: 'Compare images' })
   expect(within(dialog).getByText('seed 1').closest('li')).toHaveTextContent('(differs)')
   expect(within(dialog).getAllByText('512×512')[0].closest('li')).not.toHaveTextContent('(differs)')
+})
+
+it('filters by ratio, and back to all ratios', async () => {
+  fetchHistory.mockResolvedValue(page(2))
+  renderHistory()
+  await screen.findByText('2 images')
+
+  await chooseOption(screen.getByLabelText('Ratio'), 'Portrait')
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, ratio: 'portrait' }, expect.any(AbortSignal))
+
+  await chooseOption(screen.getByLabelText('Ratio'), 'All ratios')
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+})
+
+it('shows the colour palette when an image is opened: placeholder, then swatches that copy their colour', async () => {
+  const palette = deferred<{ hex: string; share: number }[]>()
+  vi.mocked(api.fetchPalette).mockReturnValue(palette.promise)
+  const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
+  fetchHistory.mockResolvedValue(page(1))
+  renderHistory()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  const section = screen.getByRole('region', { name: 'Colour palette' })
+  expect(within(section).getByLabelText('Working out the colours')).toBeInTheDocument()
+  expect(api.fetchPalette).toHaveBeenCalledWith(1, expect.any(AbortSignal))
+
+  await act(async () => palette.resolve([{ hex: '#FF0000', share: 0.594 }, { hex: '#0000FF', share: 0.297 }]))
+  expect(within(section).getByText('59%')).toBeInTheDocument()
+  await userEvent.click(within(section).getByRole('button', { name: 'Copy #FF0000' }))
+
+  expect(writeText).toHaveBeenCalledWith('#FF0000')
+  expect(within(section).getByText('Copied')).toBeInTheDocument()
+})
+
+it('shows an error with a retry when the palette cannot be worked out', async () => {
+  vi.mocked(api.fetchPalette).mockRejectedValueOnce(new Error('Image not found')).mockResolvedValueOnce([{ hex: '#123456', share: 1 }])
+  fetchHistory.mockResolvedValue(page(1))
+  renderHistory()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  const section = screen.getByRole('region', { name: 'Colour palette' })
+  expect(await within(section).findByRole('alert')).toHaveTextContent('Image not found')
+  await userEvent.click(within(section).getByRole('button', { name: 'Retry' }))
+
+  expect(await within(section).findByRole('button', { name: 'Copy #123456' })).toBeInTheDocument()
 })
