@@ -49,9 +49,10 @@ function toggleInSelection(selection: HistoryItem[], item: HistoryItem): History
 interface Props {
   models: ModelInfo[]
   onReuse: (item: HistoryItem) => void
+  onVary: (item: HistoryItem) => void
 }
 
-export function HistoryPanel({ models, onReuse }: Props) {
+export function HistoryPanel({ models, onReuse, onVary }: Props) {
   const [address, go, visits] = useHistoryAddress(models)
   const { filters, page } = address
   // Remounts the filter bar when the filters are cleared, so its search box empties too
@@ -131,6 +132,7 @@ export function HistoryPanel({ models, onReuse }: Props) {
           onIndexChange={followViewer}
           onListChanged={() => setListVersion((n) => n + 1)}
           onReuse={onReuse}
+          onVary={onVary}
           onEdited={(item) => void openEdited(item)}
           onClose={() => setViewing(null)}
         />

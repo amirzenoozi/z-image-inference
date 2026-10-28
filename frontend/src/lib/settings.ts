@@ -1,6 +1,9 @@
-import type { Catalog, GenerationSettings, HistoryItem, Limits, ModelInfo, ResolutionInfo } from '../types'
+import type { Catalog, GenerationSettings, HistoryItem, Limits, ModelInfo, ResolutionInfo, StartImage } from '../types'
 
 const STORAGE_KEY = 'z-image-studio.settings.v1'
+export const MIN_CHANGE = 0.1
+export const MAX_CHANGE = 0.9
+export const DEFAULT_CHANGE = 0.5
 
 type ModelDefaults = Pick<GenerationSettings, 'negativePrompt' | 'width' | 'height' | 'steps' | 'guidance'>
 
@@ -16,7 +19,7 @@ export function modelDefaults(model: ModelInfo): ModelDefaults {
 
 export function initialSettings(catalog: Catalog): GenerationSettings {
   const model = catalog.models[0]
-  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, ...modelDefaults(model) }
+  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, ...modelDefaults(model) }
 }
 
 export function findModel(catalog: Catalog, modelId: string): ModelInfo {
@@ -56,23 +59,33 @@ export function switchModel(settings: GenerationSettings, model: ModelInfo): Gen
   return { ...withModel(settings, model), steps: model.default_steps, guidance: model.default_guidance }
 }
 
-/** The settings that produced a history image, keeping the seed fixed so it can be reproduced. */
+/**
+ * The settings that produced a history image, keeping the seed fixed so it can be reproduced. The size is snapped
+ * to what the model allows, since an edited (cropped) image can have any size.
+ */
 export function settingsFromItem(item: HistoryItem, catalog: Catalog): GenerationSettings {
   const model = findModel(catalog, item.model)
+  const snap = (side: number) => snapSide(side, catalog.limits, model.max_side)
   return withModel(
     {
       modelId: model.id,
       prompt: item.prompt,
       negativePrompt: item.negative_prompt,
-      width: item.width,
-      height: item.height,
+      width: snap(item.width),
+      height: snap(item.height),
       steps: item.steps,
       guidance: item.guidance ?? model.default_guidance,
       seed: item.seed,
       randomSeed: false,
+      startImage: item.varied_from !== null && item.change !== null ? { id: item.varied_from, change: item.change } : null,
     },
     model,
   )
+}
+
+/** Settings for new variations of an image: its prompt and settings, the image as the start, and a new seed each time. */
+export function variationSettings(item: HistoryItem, catalog: Catalog): GenerationSettings {
+  return { ...settingsFromItem(item, catalog), randomSeed: true, startImage: { id: item.id, change: DEFAULT_CHANGE } }
 }
 
 export function differsFromDefaults(settings: GenerationSettings, model: ModelInfo): boolean {
@@ -91,6 +104,12 @@ function isStoredSettings(value: unknown): value is GenerationSettings {
   return numbersOk && stringsOk && typeof record.randomSeed === 'boolean'
 }
 
+function isStartImage(value: unknown): value is StartImage {
+  if (typeof value !== 'object' || value === null) return false
+  const { id, change } = value as Record<string, unknown>
+  return Number.isInteger(id) && typeof change === 'number' && change >= MIN_CHANGE && change <= MAX_CHANGE
+}
+
 /** Restores the last settings, falling back to defaults if storage is empty, unreadable or out of date. */
 export function loadSettings(catalog: Catalog): GenerationSettings {
   let stored: unknown = null
@@ -100,7 +119,9 @@ export function loadSettings(catalog: Catalog): GenerationSettings {
     stored = null
   }
   if (!isStoredSettings(stored)) return initialSettings(catalog)
-  return withModel(stored, findModel(catalog, stored.modelId))
+  // Settings saved before variations existed have no start image
+  const startImage = isStartImage(stored.startImage) ? stored.startImage : null
+  return withModel({ ...stored, startImage }, findModel(catalog, stored.modelId))
 }
 
 export function saveSettings(settings: GenerationSettings): void {

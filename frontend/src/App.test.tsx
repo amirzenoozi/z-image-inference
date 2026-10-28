@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from './api'
@@ -14,6 +14,9 @@ vi.mock('./api', async (importOriginal) => ({
   generateImage: vi.fn(),
   fetchJobProgress: vi.fn(),
   cancelJob: vi.fn(),
+  fetchHistory: vi.fn(),
+  fetchHistorySummary: vi.fn(),
+  fetchPalette: vi.fn(),
 }))
 
 beforeEach(() => {
@@ -23,6 +26,9 @@ beforeEach(() => {
   vi.mocked(api.generateImage).mockReset()
   vi.mocked(api.fetchJobProgress).mockReturnValue(new Promise(() => {}))
   vi.mocked(api.cancelJob).mockReset().mockResolvedValue()
+  vi.mocked(api.fetchHistorySummary).mockReturnValue(new Promise(() => {}))
+  vi.mocked(api.fetchPalette).mockResolvedValue([])
+  vi.mocked(api.fetchHistory).mockResolvedValue({ items: [], total: 0 })
 })
 
 it('generates exactly once and shows the image only after it arrives', async () => {
@@ -194,4 +200,52 @@ it('drops "nsfw" from the negative prompt when an explicit prompt is appended', 
 
   expect(screen.getByLabelText('Negative prompt')).toHaveDisplayValue(/^low quality, /)
   expect(screen.getByLabelText('Prompt')).toHaveDisplayValue(/^soft light masterpiece, best quality/)
+})
+
+async function makeVariationsOf(item: HistoryItem) {
+  vi.mocked(api.fetchHistory).mockResolvedValue({ items: [item], total: 1 })
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: 'History' }))
+  await userEvent.click(await screen.findByRole('button', { name: `Open: ${item.prompt}` }))
+  await userEvent.click(screen.getByRole('button', { name: 'Make variations' }))
+}
+
+it('makes variations of a History image: Create opens with its prompt, the image to start from and a new seed each time', async () => {
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem({ id: 8, varied_from: 5, change: 0.7 }))
+  await makeVariationsOf(historyItem({ id: 5, prompt: 'a lighthouse', seed: 42 }))
+
+  const block = await screen.findByRole('group', { name: 'Start image' })
+  expect(within(block).getByText('Variation of image #5')).toBeInTheDocument()
+  expect(within(block).getByText('50%')).toBeInTheDocument()
+  expect(screen.getByLabelText('Prompt')).toHaveValue('a lighthouse')
+  expect(screen.getByLabelText('Random each time')).toBeChecked()
+
+  // The test browser does not move range inputs with keys, so the value is set as the browser would
+  fireEvent.change(within(block).getByRole('slider', { name: 'Change' }), { target: { value: '0.7' } })
+  expect(within(block).getByText('70%')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+  expect(api.generateImage).toHaveBeenCalledOnce()
+  expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({ prompt: 'a lighthouse', randomSeed: true, startImage: { id: 5, change: 0.7 } })
+})
+
+it('goes back to a normal render when the start image is removed', async () => {
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem())
+  await makeVariationsOf(historyItem({ id: 5, prompt: 'a lighthouse' }))
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Remove the start image' }))
+  expect(screen.queryByRole('group', { name: 'Start image' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+  expect(vi.mocked(api.generateImage).mock.calls[0][0].startImage).toBeNull()
+})
+
+it('blocks Generate, saying why, when the model can\'t start from an image', async () => {
+  vi.mocked(api.fetchCatalog).mockResolvedValue({ ...catalog, models: catalog.models.map((model) => ({ ...model, supports_variations: false })) })
+  await makeVariationsOf(historyItem({ id: 5, prompt: 'a lighthouse' }))
+
+  const block = await screen.findByRole('group', { name: 'Start image' })
+  expect(within(block).getByRole('alert')).toHaveTextContent("Z-Image-Turbo can’t start from an image")
+  expect(within(block).queryByRole('slider')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Generate' })).toBeDisabled()
 })

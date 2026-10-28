@@ -88,6 +88,8 @@ export async function generateImage(settings: GenerationSettings, jobId: string,
       guidance: settings.guidance,
       seed: settings.randomSeed ? null : settings.seed,
       job_id: jobId,
+      source_image_id: settings.startImage?.id ?? null,
+      change: settings.startImage?.change ?? null,
     },
     signal,
   )
