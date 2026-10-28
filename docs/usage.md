@@ -161,4 +161,18 @@ A **character** is a named person you make many images of, such as "Ava". It kee
 - **Edit** changes its name, seed and look; images already made keep the look they had. **Delete** removes the character but keeps its images in History.
 - Characters are adults only: each needs "Who" and an adult age range, and a name or detail that suggests a minor is refused.
 
-The description only keeps a face similar, not identical; models draw a new face for each image that fits the words.
+The description only keeps a face similar, not identical; models draw a new face for each image that fits the words. For the same face every time, use the face lock.
+
+### Face lock
+
+With **WAI-Illustrious** and **Anime Desire**, a character can keep one face across images (IP-Adapter plus-face).
+
+1. Make or crop an image where the character's face is large and clear: crop it with **Edit** in the image viewer if needed (the copy keeps its character).
+2. In the image viewer, choose **Use as face**.
+3. Pick the character in Create and generate with one of the two SDXL models. Create says "Face locked to image #12 at 60%".
+
+- **Face strength** (in the character's **Edit**, 10% to 100%, 60% to start) sets how closely the face is kept. Higher keeps it closer but follows the prompt less: try 50% to 70%.
+- The first face-locked render downloads the face lock files once (3.4 GB) and asks you to try again when they are there.
+- The image viewer shows which image a render's face came from. Deleting that image ends the face lock; **Remove face** in the character's **Edit** does too.
+- Z-Image-Turbo and MOSS-Image can't lock a face; with them the character's look comes from the description only, and Create says so.
+- The face lock adds about 2 GB of memory while it is in use, and a few seconds to the first render that uses it.

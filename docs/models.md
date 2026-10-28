@@ -21,6 +21,7 @@ All four are defined in one place, `model_catalog.py`, which both the web app an
 | Prompt style | sentences | tags | sentences | tags |
 | Prompt weights | no | yes | no | yes |
 | Variations | yes | yes | no | yes |
+| Face lock | no | yes | no | yes |
 
 - WAI-Illustrious's default negative prompt starts with `nsfw` to keep results safe for work; the prompt builder removes it for explicit prompts.
 - MOSS-Image needs its trigger word `moss_xvstyle`; the server adds it to prompts that lack it.
@@ -46,6 +47,7 @@ Files go in `models/` (not in git). One-time builds (compressed copies) are writ
 | WAI-Illustrious | 13.9 GB | 7.1 GB |
 | MOSS-Image NSFW | 27.2 GB | 19.9 GB |
 | Anime Desire | 6.9 GB | 6.9 GB (already float16) |
+| Face lock (IP-Adapter, for the SDXL models) | 3.4 GB, downloaded on the first face-locked render, in `models/ip-adapter/` | same |
 
 ## Model compression
 

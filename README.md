@@ -21,7 +21,7 @@ Only Z-Image-Turbo downloads by itself; you add or remove the others from the ap
 - **Prompt builder**: assemble a detailed prompt step by step for a purpose (portrait, fashion, scene, 18+ and more), written as a rich description or as weighted tags to suit each model
 - **Prompt weights and long prompts** (`(tag:1.3)`) on the SDXL models, with nothing cut off after 77 tokens
 - **Variations**: start a new image from one you made, with a slider for how much it may change
-- **Characters**: name a person once, then make many images of them with the same look, and find them all in History
+- **Characters**: name a person once, then make many images of them with the same look (and the same face on the SDXL models, with IP-Adapter), and find them all in History
 - **History**: search, filter by model, ratio and favourites, page through it, compare two images side by side, and export a zip
 - **Image viewer and editor**: browse with the arrow keys, zoom to 100%, go full screen, see the colour palette, and rotate, flip or crop into a new copy
 - **Chat with Grok** (optional) to turn a plain description into a detailed prompt
