@@ -95,7 +95,7 @@ it('changes the face strength or removes the face image', async () => {
 
   fireEvent.change(within(dialog).getByLabelText('Face strength'), { target: { value: '0.8' } })
   await userEvent.click(within(dialog).getByRole('button', { name: 'Remove face' }))
-  expect(within(dialog).getByText(/No face image/)).toBeInTheDocument()
+  expect(within(dialog).getByText(/^No face\./)).toBeInTheDocument()
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 
   expect(api.updateCharacter).toHaveBeenCalledWith(3, expect.objectContaining({ face_id: null, face_strength: 0.8 }))
@@ -170,4 +170,43 @@ it('opens with the remembered gender when the address has none, and forgets it o
 
   await userEvent.click(screen.getByRole('radio', { name: 'All' }))
   expect(localStorage.getItem('z-image-studio.character-gender.v1')).toBeNull()
+})
+
+it('uploads a face photo with the character, and explains that it is kept safe for work', async () => {
+  renderPanel({ status: 'settled', value: [character({ face_id: 12 })] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+
+  await userEvent.upload(within(dialog).getByLabelText('Face photo'), new File(['photo-bytes'], 'me.jpg', { type: 'image/jpeg' }))
+  expect(await within(dialog).findByRole('img', { name: 'Uploaded face photo' })).toBeInTheDocument()
+  expect(within(dialog).getByText(/images of Ava are kept safe for work/)).toBeInTheDocument()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  const [, saved] = vi.mocked(api.updateCharacter).mock.calls[0]
+  expect(saved).toMatchObject({ face_id: null, face_upload: btoa('photo-bytes') })
+})
+
+it('refuses a file that is not an image before sending anything', async () => {
+  renderPanel({ status: 'settled', value: [character()] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+
+  await userEvent.upload(within(dialog).getByLabelText('Face photo'), new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' }), { applyAccept: false })
+  expect(within(dialog).getByRole('alert')).toHaveTextContent('Choose an image file')
+  expect(within(dialog).queryByRole('img', { name: 'Uploaded face photo' })).not.toBeInTheDocument()
+})
+
+it('keeps a stored photo when saving other changes, and removes it on request', async () => {
+  renderPanel({ status: 'settled', value: [character({ face_uploaded: true })] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  expect(within(dialog).getByRole('img', { name: 'Uploaded face photo' })).toHaveAttribute('src', '/api/characters/3/face-upload?thumb=true')
+
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+  expect(vi.mocked(api.updateCharacter).mock.calls[0][1]).not.toHaveProperty('face_upload')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit Ava' })).getByRole('button', { name: 'Remove photo' }))
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit Ava' })).getByRole('button', { name: 'Save' }))
+  expect(vi.mocked(api.updateCharacter).mock.calls[1][1]).toMatchObject({ face_id: null, face_upload: null })
 })

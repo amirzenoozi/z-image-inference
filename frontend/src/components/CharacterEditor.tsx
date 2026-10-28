@@ -7,7 +7,8 @@ import { characterProblem, surpriseLook, traitsOf, withTraits } from '../lib/pro
 import { FALLBACK_MODE } from '../lib/promptBuilder/modes'
 import { fieldLabelClass, secondaryButtonClass } from '../lib/styles'
 import type { Character } from '../types'
-import { CharacterFace, type FaceLock } from './CharacterFace'
+import { faceChanges, initialFace, type FaceLock } from '../lib/characterFace'
+import { CharacterFace } from './CharacterFace'
 import { TextInput } from './form/TextInput'
 import { Modal } from './Modal'
 import { AppearanceStep, BodyStep, SubjectStep, type StepProps } from './promptBuilder/steps'
@@ -36,19 +37,13 @@ interface Props {
   onClose: () => void
 }
 
-const DEFAULT_FACE_STRENGTH = 0.6
-
 /** Creates a character, or edits one: its name, seed, look (chosen with the prompt builder's own steps) and face lock. */
 export function CharacterEditor({ character, maxSeed, onClose }: Props) {
   const { reload } = useCharacters()
   const [name, setName] = useState(character?.name ?? '')
   const [seedText, setSeedText] = useState(character?.seed?.toString() ?? '')
   const [state, setState] = useState<BuilderState>(() => (character ? withTraits(emptyBuilderState(), character.traits) : emptyBuilderState()))
-  const [face, setFace] = useState<FaceLock>({
-    id: character?.face_id ?? null,
-    strength: character?.face_strength ?? DEFAULT_FACE_STRENGTH,
-    sensitive: character?.face_sensitive ?? false,
-  })
+  const [face, setFace] = useState<FaceLock>(() => initialFace(character))
   const [save, setSave] = useState<SaveState>({ status: 'idle' })
   const steps: StepProps = { state, mode: FALLBACK_MODE, set: (patch) => setState((current) => ({ ...current, ...patch })), setOutfit: () => {} }
 
@@ -57,7 +52,7 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
     const problem = problemWith(name, state, seed, maxSeed)
     if (problem) return setSave({ status: 'failed', error: problem })
     setSave({ status: 'saving' })
-    const changes = { name: name.trim(), traits: traitsOf(state), seed: seed ?? null, face_id: face.id, face_strength: face.strength }
+    const changes = { name: name.trim(), traits: traitsOf(state), seed: seed ?? null, ...faceChanges(face) }
     try {
       await (character ? updateCharacter(character.id, changes) : createCharacter(changes))
       reload()
@@ -111,7 +106,7 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
           <BodyStep {...steps} />
         </EditorSection>
         <EditorSection title="Face lock">
-          <CharacterFace face={face} onChange={setFace} />
+          <CharacterFace face={face} characterId={character?.id ?? null} name={name} onChange={setFace} />
         </EditorSection>
         {save.status === 'failed' && (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">

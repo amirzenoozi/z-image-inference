@@ -8,6 +8,12 @@ SENSITIVE_WORDS = re.compile(
 )
 
 
+def sensitive_word(prompt: str) -> str | None:
+    """The first word that marks the prompt as sensitive, or None."""
+    found = SENSITIVE_WORDS.search(prompt)
+    return found.group(0) if found else None
+
+
 def is_sensitive(prompt: str) -> bool:
     """Whether the History list blurs an image made from this prompt; the user can change it per image."""
-    return SENSITIVE_WORDS.search(prompt) is not None
+    return sensitive_word(prompt) is not None

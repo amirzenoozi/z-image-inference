@@ -114,6 +114,7 @@ export function character(overrides: Partial<Character> = {}): Character {
     face_strength: 0.6,
     cover_sensitive: false,
     face_sensitive: false,
+    face_uploaded: false,
     ...overrides,
   }
 }

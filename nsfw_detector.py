@@ -35,6 +35,11 @@ def load() -> None:
         _classifier = classifier
 
 
+def is_ready() -> bool:
+    with _lock:
+        return _classifier is not None
+
+
 def is_nsfw(png: bytes) -> bool | None:
     """Whether the image shows nudity or sexual content; None while the classifier is not loaded yet."""
     with _lock:

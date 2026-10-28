@@ -187,6 +187,11 @@ export async function deleteCharacter(id: number): Promise<void> {
   await request(`/api/characters/${id}`, { method: 'DELETE' })
 }
 
+/** A character's uploaded face photo; the same address serves a replaced one, which the server marks not to cache. */
+export function uploadedFaceUrl(characterId: number, thumb = false): string {
+  return `/api/characters/${characterId}/face-upload${thumb ? '?thumb=true' : ''}`
+}
+
 export function imageUrl(id: number, thumb = false): string {
   return `/api/history/${id}/image${thumb ? '?thumb=true' : ''}`
 }

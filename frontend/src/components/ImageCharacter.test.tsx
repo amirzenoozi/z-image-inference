@@ -49,3 +49,9 @@ it('explains that other models use the description only', () => {
   withCharacters([character({ face_id: 12 })], <CharacterPicker characterId={3} model={fastModel} onChange={vi.fn()} />)
   expect(screen.getByText(/Z-Image-Turbo can't lock a face, so Ava's look comes from the description only/)).toBeInTheDocument()
 })
+
+it('says a character with an uploaded face is kept safe for work, and locks the photo', () => {
+  withCharacters([character({ face_uploaded: true, face_strength: 0.5 })], <CharacterPicker characterId={3} model={animeModel} onChange={vi.fn()} />)
+  expect(screen.getByText('Face locked to the uploaded photo at 50%.')).toBeInTheDocument()
+  expect(screen.getByText("Ava's face is an uploaded photo, so images of Ava are kept safe for work.")).toBeInTheDocument()
+})

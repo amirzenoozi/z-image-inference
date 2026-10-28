@@ -1,8 +1,12 @@
+import base64
+import binascii
+import io
 import json
 import sqlite3
 from pathlib import Path
 from typing import Annotated
 
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter
 
 from generation_request import MAX_FACE_STRENGTH, MAX_SEED, MIN_FACE_STRENGTH
@@ -14,6 +18,10 @@ TraitList = Annotated[list[Annotated[str, StringConstraints(max_length=100)]], F
 Seed = Annotated[int, Field(ge=0, le=MAX_SEED)]
 FaceStrength = Annotated[float, Field(ge=MIN_FACE_STRENGTH, le=MAX_FACE_STRENGTH)]
 DEFAULT_FACE_STRENGTH = 0.6
+# An uploaded face photo as base64; about 10 MB of image at most
+FacePhoto = Annotated[str, StringConstraints(min_length=1, max_length=14_000_000)]
+# Stored no larger than this; the image encoder works on far smaller images
+MAX_PHOTO_SIDE = 1024
 
 
 class CharacterTraits(BaseModel):
@@ -51,10 +59,11 @@ class NewCharacter(BaseModel):
     seed: Seed | None = None
     face_id: int | None = None
     face_strength: FaceStrength = DEFAULT_FACE_STRENGTH
+    face_upload: FacePhoto | None = None
 
 
 class CharacterUpdate(BaseModel):
-    """Only the fields sent change; send null to clear the cover, the seed or the face image."""
+    """Only the fields sent change; send null to clear the cover, the seed, the face image or the uploaded face."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -64,6 +73,7 @@ class CharacterUpdate(BaseModel):
     seed: Seed | None = None
     face_id: int | None = None
     face_strength: FaceStrength | None = None
+    face_upload: FacePhoto | None = None
 
 
 class Character(BaseModel):
@@ -80,6 +90,8 @@ class Character(BaseModel):
     # Whether the cover and the face image are blurred in lists, as their History images are
     cover_sensitive: bool
     face_sensitive: bool
+    # The face is an uploaded photo (served by /api/characters/{id}/face-upload), so its images are kept safe for work
+    face_uploaded: bool
 
 
 class SampleCharacter(BaseModel):
@@ -103,6 +115,24 @@ class MissingImage(ValueError):
     pass
 
 
+class BadPhoto(ValueError):
+    pass
+
+
+def face_photo_png(data: str) -> bytes:
+    """The uploaded photo as a PNG no larger than MAX_PHOTO_SIDE; anything that isn't a readable image is refused."""
+    try:
+        image = Image.open(io.BytesIO(base64.b64decode(data, validate=True)))
+        image.load()
+    except (binascii.Error, UnidentifiedImageError, OSError, ValueError):
+        raise BadPhoto("The face photo could not be read; use a JPEG, PNG or WebP image")
+    image = image.convert("RGB")
+    image.thumbnail((MAX_PHOTO_SIDE, MAX_PHOTO_SIDE))
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 COVER = "COALESCE((SELECT id FROM images WHERE id = c.cover_id), (SELECT MAX(id) FROM images WHERE character_id = c.id))"
 SELECT = f"""
     SELECT c.id, c.name, c.traits, {COVER}, c.seed,
@@ -110,19 +140,21 @@ SELECT = f"""
            (SELECT id FROM images WHERE id = c.face_id),
            c.face_strength,
            COALESCE((SELECT sensitive FROM images WHERE id = {COVER}), 0),
-           COALESCE((SELECT sensitive FROM images WHERE id = c.face_id), 0)
+           COALESCE((SELECT sensitive FROM images WHERE id = c.face_id), 0),
+           c.face_upload IS NOT NULL
     FROM characters c
 """
 
 
-CharacterRow = tuple[int, str, str, int | None, int | None, int, int | None, float, int, int]
+CharacterRow = tuple[int, str, str, int | None, int | None, int, int | None, float, int, int, int]
 
 
 def to_character(row: CharacterRow) -> Character:
-    id_, name, traits, cover_id, seed, image_count, face_id, face_strength, cover_sensitive, face_sensitive = row
+    id_, name, traits, cover_id, seed, image_count, face_id, face_strength, cover_sensitive, face_sensitive, face_uploaded = row
     return Character(
         id=id_, name=name, traits=CharacterTraits.model_validate_json(traits), cover_id=cover_id, seed=seed, image_count=image_count,
         face_id=face_id, face_strength=face_strength, cover_sensitive=bool(cover_sensitive), face_sensitive=bool(face_sensitive),
+        face_uploaded=bool(face_uploaded),
     )
 
 
@@ -142,14 +174,21 @@ def check_image(conn: sqlite3.Connection, image_id: int | None, role: str) -> No
         raise MissingImage(f"The {role} image is not in History")
 
 
+def one_face(face_id: int | None, face_upload: str | None) -> None:
+    if face_id is not None and face_upload is not None:
+        raise BadPhoto("Choose a face image from History or upload a photo, not both")
+
+
 def create(new: NewCharacter) -> Character:
+    one_face(new.face_id, new.face_upload)
+    photo = face_photo_png(new.face_upload) if new.face_upload is not None else None
     try:
         with connection() as conn:
             check_image(conn, new.cover_id, "cover")
             check_image(conn, new.face_id, "face")
             cursor = conn.execute(
-                "INSERT INTO characters (name, traits, cover_id, seed, face_id, face_strength) VALUES (?, ?, ?, ?, ?, ?)",
-                (new.name, new.traits.model_dump_json(), new.cover_id, new.seed, new.face_id, new.face_strength),
+                "INSERT INTO characters (name, traits, cover_id, seed, face_id, face_strength, face_upload) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (new.name, new.traits.model_dump_json(), new.cover_id, new.seed, new.face_id, new.face_strength, photo),
             )
     except sqlite3.IntegrityError:
         raise DuplicateName(f"There is already a character called {new.name}")
@@ -158,19 +197,28 @@ def create(new: NewCharacter) -> Character:
     return created
 
 
-CLEARABLE = {"cover_id", "seed", "face_id"}
+CLEARABLE = {"cover_id", "seed", "face_id", "face_upload"}
 
 
-def changed_columns(changes: CharacterUpdate) -> dict[str, str | int | None]:
-    """The columns to set: each field sent, where null clears the cover or seed and is ignored for the name and traits."""
+def changed_columns(changes: CharacterUpdate) -> dict[str, str | int | bytes | None]:
+    """The columns to set: each field sent, where null clears the cover or seed and is ignored for the name and traits.
+
+    A character has one face at a time, so setting a History face removes an uploaded photo, and the other way round.
+    """
     sent = changes.model_dump(include=changes.model_fields_set)
-    columns = {key: value for key, value in sent.items() if key in CLEARABLE or value is not None}
+    columns: dict[str, str | int | bytes | None] = {key: value for key, value in sent.items() if key in CLEARABLE or value is not None}
     if "traits" in columns:
         columns["traits"] = json.dumps(columns["traits"])
+    if changes.face_upload is not None:
+        columns["face_upload"] = face_photo_png(changes.face_upload)
+        columns["face_id"] = None
+    elif changes.face_id is not None:
+        columns["face_upload"] = None
     return columns
 
 
 def update(character_id: int, changes: CharacterUpdate) -> Character | None:
+    one_face(changes.face_id, changes.face_upload)
     columns = changed_columns(changes)
     try:
         with connection() as conn:
@@ -182,6 +230,12 @@ def update(character_id: int, changes: CharacterUpdate) -> Character | None:
     except sqlite3.IntegrityError:
         raise DuplicateName(f"There is already a character called {changes.name}")
     return character(character_id)
+
+
+def uploaded_face(character_id: int) -> bytes | None:
+    with connection() as conn:
+        row = conn.execute("SELECT face_upload FROM characters WHERE id = ?", (character_id,)).fetchone()
+    return row[0] if row else None
 
 
 def delete(character_id: int) -> bool:

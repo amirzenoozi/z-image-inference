@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
-import { parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
+import { FALLBACK_MODE, isAdultMode, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../lib/styles'
 import { withTraits } from '../../lib/promptBuilder/character'
@@ -36,6 +36,13 @@ const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 // A chosen character fixes these steps, so one Character step shows its look in their place
 const CHARACTER_STEPS: ReadonlySet<StepId> = new Set(['appearance', 'body'])
 
+/** A character with an uploaded face photo is kept safe for work, so the 18+ purposes are not offered for it. */
+function modesFor(modes: BuilderMode[], character: Character | null): BuilderMode[] {
+  if (!character?.face_uploaded) return modes
+  const everyday = modes.filter((mode) => !isAdultMode(mode))
+  return everyday.length ? everyday : [FALLBACK_MODE]
+}
+
 function stepsFor(mode: BuilderMode, character: Character | null): Step[] {
   const shown = STEPS.filter((step) => mode.steps.includes(step.id))
   if (!character) return shown
@@ -60,7 +67,8 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
   const [state, setState] = useState<BuilderState>(loadBuilderState)
   const [stepId, setStepId] = useState<StepId>(STEPS[0].id)
   useEffect(() => saveBuilderState(state), [state])
-  const { modes, problems } = useMemo(() => parseModes(modeData), [modeData])
+  const { modes: allModes, problems } = useMemo(() => parseModes(modeData), [modeData])
+  const modes = modesFor(allModes, character)
   const mode = modes.find((candidate) => candidate.id === state.mode) ?? modes[0]
   // The character's look is applied when building, not saved into the builder, so your own choices come back without it
   const result = useMemo(
