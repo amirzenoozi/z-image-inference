@@ -65,7 +65,12 @@ function Workspace({ catalog }: { catalog: Catalog }) {
     [finished],
   )
   const generation = useGeneration(onSuccess, finished)
-  useRenderAlerts(generation.state, catalog.models)
+  const { characters } = useCharacters()
+  const characterName = useCallback(
+    (id: number) => (characters.status === 'settled' ? (characters.value.find((character) => character.id === id)?.name ?? null) : null),
+    [characters],
+  )
+  useRenderAlerts(generation.state, { models: catalog.models, characterName, onOpen: () => setView('create') })
   // A generation attempt can start a model download, so status is re-checked whenever its state changes
   const [modelStatus, refreshModelStatus] = useModelStatus(generation.state.status)
   useEffect(() => saveSettings(settings), [settings])
