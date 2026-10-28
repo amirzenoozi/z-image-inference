@@ -1,7 +1,11 @@
 import { useState } from 'react'
-import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../types'
-import { chipClass, tabClass } from '../lib/styles'
+import { downloadModel, removeModel } from '../api'
+import { formatGb } from '../lib/format'
+import { errorMessage } from '../lib/hooks'
+import { chipClass, secondaryButtonClass, tabClass } from '../lib/styles'
+import type { Loadable, ModelCategory, ModelInfo, ModelStatus, ModelStatusReport } from '../types'
 import { DownloadBadge, HuggingFaceLink } from './modelParts'
+import { Spinner } from './ui'
 
 const ALL = 'all'
 
@@ -12,28 +16,32 @@ interface Props {
   status: Loadable<ModelStatusReport>
   serverDown: boolean
   onSelect: (model: ModelInfo) => void
+  /** Re-checks model status after a download or remove. */
+  onChanged: () => void
 }
 
 /** All models, filterable by category tab; "All" groups them under category headings. */
-export function ModelChooser({ models, categories, selectedId, status, serverDown, onSelect }: Props) {
+export function ModelChooser({ models, categories, selectedId, status, serverDown, onSelect, onChanged }: Props) {
   const [tab, setTab] = useState(ALL)
   const tabs = [{ id: ALL, label: 'All', count: models.length }, ...categories.map((category) => ({ ...category, count: models.filter((m) => m.category === category.id).length }))]
   const groups = tab === ALL ? categories : categories.filter((category) => category.id === tab)
   const option = (model: ModelInfo) => (
-    <ModelOption key={model.id} model={model} selected={model.id === selectedId} status={status} serverDown={serverDown} onSelect={() => onSelect(model)} />
+    <ModelOption
+      key={model.id}
+      model={model}
+      selected={model.id === selectedId}
+      status={status}
+      serverDown={serverDown}
+      onSelect={() => onSelect(model)}
+      onChanged={onChanged}
+    />
   )
   return (
     <div className="space-y-4">
+      <StorageSummary status={status} />
       <div role="tablist" aria-label="Model category" className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/70">
         {tabs.map(({ id, label, count }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tabClass(tab === id)}`}
-          >
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tabClass(tab === id)}`}>
             {label} <span className="tabular-nums text-zinc-400">{count}</span>
           </button>
         ))}
@@ -50,23 +58,45 @@ export function ModelChooser({ models, categories, selectedId, status, serverDow
   )
 }
 
+function StorageSummary({ status }: { status: Loadable<ModelStatusReport> }) {
+  if (status.status !== 'settled' || status.value.free_bytes === null) return null
+  const used = Object.values(status.value.models).reduce((total, model) => total + model.size_bytes, 0)
+  return (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      Models use <span className="font-semibold tabular-nums">{formatGb(used)}</span> · <span className="font-semibold tabular-nums">{formatGb(status.value.free_bytes)}</span> free
+    </p>
+  )
+}
+
+function modelState(status: Loadable<ModelStatusReport>, modelId: string): { status: ModelStatus; sizeBytes: number } | null {
+  if (status.status !== 'settled' || !status.value.server_running) return null
+  const state = status.value.models[modelId]
+  return state ? { status: state.status, sizeBytes: state.size_bytes } : null
+}
+
 interface ModelOptionProps {
   model: ModelInfo
   selected: boolean
   status: Loadable<ModelStatusReport>
   serverDown: boolean
   onSelect: () => void
+  onChanged: () => void
 }
 
-function ModelOption({ model, selected, status, serverDown, onSelect }: ModelOptionProps) {
+function ModelOption({ model, selected, status, serverDown, onSelect, onChanged }: ModelOptionProps) {
+  const state = modelState(status, model.id)
+  // Only block selection when the model is known not to be ready; unknown status never locks the user out
+  const notReady = state !== null && state.status !== 'ready'
   return (
-    <div className="relative">
+    <div className={`flex h-full flex-col rounded-xl border transition ${chipClass(selected)}`}>
       <button
         type="button"
         role="radio"
         aria-checked={selected}
+        disabled={notReady}
+        title={notReady ? 'Download this model to use it' : undefined}
         onClick={onSelect}
-        className={`h-full w-full rounded-xl border p-4 pb-9 text-left transition ${chipClass(selected)}`}
+        className="flex-1 p-4 pb-2 text-left disabled:cursor-not-allowed"
       >
         <span className="flex items-start justify-between gap-2">
           <span className="text-sm font-semibold">{model.label}</span>
@@ -77,10 +107,115 @@ function ModelOption({ model, selected, status, serverDown, onSelect }: ModelOpt
         <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{model.description}</span>
         {!serverDown && <DownloadBadge model={model} status={status} />}
       </button>
-      {/* Beside the card, not inside it: a link inside a button is invalid and would also select the model */}
-      <span className="absolute right-3 bottom-2.5">
+      {/* Actions and the link sit outside the radio button: buttons and links cannot be nested inside it */}
+      <div className="flex items-center justify-between gap-2 px-4 pb-3">
+        {state ? <ModelActions model={model} state={state} selected={selected} freeBytes={status.status === 'settled' ? status.value.free_bytes : null} onChanged={onChanged} /> : <span />}
         <HuggingFaceLink model={model} />
-      </span>
+      </div>
     </div>
+  )
+}
+
+type Pending = 'download' | 'remove' | null
+
+interface ModelActionsProps {
+  model: ModelInfo
+  state: { status: ModelStatus; sizeBytes: number }
+  selected: boolean
+  freeBytes: number | null
+  onChanged: () => void
+}
+
+function ModelActions({ model, state, selected, freeBytes, onChanged }: ModelActionsProps) {
+  const [confirming, setConfirming] = useState<Pending>(null)
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const run = async (action: () => Promise<unknown>) => {
+    setWorking(true)
+    setError(null)
+    try {
+      await action()
+      setConfirming(null)
+      onChanged()
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  if (error) return <ActionError message={error} onDismiss={() => setError(null)} />
+  if (working) return <span className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Spinner className="size-3" /> Working…</span>
+  if (confirming === 'download') {
+    const free = freeBytes === null ? '' : ` · ${formatGb(freeBytes)} free`
+    return <Confirm text={`Downloads ~${model.download_gb} GB, keeps ${model.kept_gb} GB${free}`} action="Download" onCancel={() => setConfirming(null)} onConfirm={() => void run(() => downloadModel(model.id))} />
+  }
+  if (confirming === 'remove') {
+    return <Confirm text={`Frees ${formatGb(state.sizeBytes)}; downloading again takes ~${model.download_gb} GB`} action="Remove" danger onCancel={() => setConfirming(null)} onConfirm={() => void run(() => removeModel(model.id))} />
+  }
+  return <ActionButton model={model} state={state} selected={selected} onDownload={() => setConfirming('download')} onRemove={() => setConfirming('remove')} />
+}
+
+interface ActionButtonProps {
+  model: ModelInfo
+  state: { status: ModelStatus; sizeBytes: number }
+  selected: boolean
+  onDownload: () => void
+  onRemove: () => void
+}
+
+function ActionButton({ model, state, selected, onDownload, onRemove }: ActionButtonProps) {
+  const small = `${secondaryButtonClass} px-2 py-1 text-[11px]`
+  if (state.status === 'missing' || state.status === 'failed') {
+    return (
+      <button type="button" onClick={onDownload} aria-label={`Download ${model.label}`} className={`${small} border-violet-400 text-violet-700 dark:border-violet-700 dark:text-violet-300`}>
+        ↓ Download
+      </button>
+    )
+  }
+  if (state.status !== 'ready') return <span />
+  if (selected) return <span className="text-[11px] font-medium text-violet-700 dark:text-violet-300">✓ In use</span>
+  return (
+    <button type="button" onClick={onRemove} aria-label={`Remove ${model.label}`} className={`${small} text-zinc-500`}>
+      Remove · {formatGb(state.sizeBytes)}
+    </button>
+  )
+}
+
+interface ConfirmProps {
+  text: string
+  action: string
+  danger?: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}
+
+function Confirm({ text, action, danger = false, onCancel, onConfirm }: ConfirmProps) {
+  return (
+    <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-600 dark:text-zinc-300">
+      <span>{text}</span>
+      <button type="button" onClick={onCancel} className={`${secondaryButtonClass} px-2 py-0.5 text-[11px]`}>
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold text-white ${danger ? 'bg-red-600 hover:bg-red-500' : 'bg-violet-600 hover:bg-violet-500'}`}
+      >
+        {action}
+      </button>
+    </span>
+  )
+}
+
+function ActionError({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <span role="alert" className="flex items-center gap-1.5 text-[11px] text-red-600 dark:text-red-400">
+      {message}
+      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="font-semibold">
+        ×
+      </button>
+    </span>
   )
 }

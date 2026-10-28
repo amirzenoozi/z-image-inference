@@ -9,6 +9,7 @@ export interface ModelInfo {
   speed_hint: string
   category: string
   download_gb: number
+  kept_gb: number
   default_steps: number
   max_steps: number
   max_side: number
@@ -53,9 +54,16 @@ export interface Catalog {
 
 export type ModelStatus = 'ready' | 'queued' | 'downloading' | 'missing' | 'failed'
 
+export interface ModelState {
+  status: ModelStatus
+  /** Bytes on disk now; while downloading, how much has arrived. */
+  size_bytes: number
+}
+
 export interface ModelStatusReport {
   server_running: boolean
-  models: Record<string, ModelStatus>
+  models: Record<string, ModelState>
+  free_bytes: number | null
 }
 
 export interface HistoryItem {

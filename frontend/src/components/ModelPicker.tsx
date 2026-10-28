@@ -11,10 +11,11 @@ interface Props {
   selectedId: string
   status: Loadable<ModelStatusReport>
   onSelect: (model: ModelInfo) => void
+  onStatusChanged: () => void
 }
 
 /** The sidebar shows only the selected model; the full list opens in a dialog. */
-export function ModelPicker({ models, categories, selectedId, status, onSelect }: Props) {
+export function ModelPicker({ models, categories, selectedId, status, onSelect, onStatusChanged }: Props) {
   const [choosing, setChoosing] = useState(false)
   const selected = models.find((model) => model.id === selectedId) ?? models[0]
   const serverDown = status.status === 'failed' || (status.status === 'settled' && !status.value.server_running)
@@ -34,6 +35,7 @@ export function ModelPicker({ models, categories, selectedId, status, onSelect }
             selectedId={selected.id}
             status={status}
             serverDown={serverDown}
+            onChanged={onStatusChanged}
             onSelect={(model) => {
               onSelect(model)
               setChoosing(false)
