@@ -176,17 +176,31 @@ export function poseOptions(explicit: boolean, who: string = NOT_SET): string[] 
   return explicit ? [...POSES, ...Object.keys(EXPLICIT_POSES).filter(fitsWho(who))] : [...POSES]
 }
 
-export function soloActions(who: string): string[] {
-  return Object.keys(EXPLICIT_SOLO_ACTIONS).filter(fitsWho(who))
+// Actions about clothes still being on, and the nudity levels that leave those clothes on
+const CLOTHING_ACTIONS: Readonly<Record<string, readonly Nudity[]>> = {
+  'peeling off shirt': ['clothed'],
+  'pulling down strap': ['clothed'],
+  'undoing bra clasp': ['clothed'],
+  'playing with waistband': ['clothed', 'topless'],
+  'pulling panties aside': ['clothed', 'topless'],
+  'stepping out of panties': ['clothed', 'topless'],
+  'slowly undressing': ['clothed', 'topless'],
+  'undressing each other': ['clothed', 'topless'],
+}
+
+const fitsNudity = (nudity: Nudity) => (action: string) => CLOTHING_ACTIONS[action]?.includes(nudity) ?? true
+
+export function soloActions(who: string, nudity: Nudity): string[] {
+  return Object.keys(EXPLICIT_SOLO_ACTIONS).filter(fitsWho(who)).filter(fitsNudity(nudity))
 }
 
 /** Partner actions are written for a woman with a man, so they are only offered for a couple. */
-export function partnerActions(who: string): string[] {
-  return who === 'couple' ? Object.keys(EXPLICIT_PARTNER_ACTIONS) : []
+export function partnerActions(who: string, nudity: Nudity): string[] {
+  return who === 'couple' ? Object.keys(EXPLICIT_PARTNER_ACTIONS).filter(fitsNudity(nudity)) : []
 }
 
-function explicitActions(who: string): string[] {
-  return [...soloActions(who), ...partnerActions(who)]
+function explicitActions(who: string, nudity: Nudity): string[] {
+  return [...soloActions(who, nudity), ...partnerActions(who, nudity)]
 }
 
 // ── Age safeguard ────────────────────────────────────────────────────────────
@@ -265,9 +279,10 @@ export function hasRandomChoice(state: BuilderState): boolean {
 
 function surpriseExplicit(state: BuilderState, who: string, seed: number): Partial<BuilderState> {
   const p = (options: readonly string[], field: string) => pick(options, seed, field)
+  const nudity = p(NUDITY_LEVELS.map((level) => level.value), 'nudity') as Nudity
   return {
-    explicitAction: p(soloActions(who), 'explicitAction'),
-    nudity: p(NUDITY_LEVELS.map((level) => level.value), 'nudity') as Nudity,
+    explicitAction: p(soloActions(who, nudity), 'explicitAction'),
+    nudity,
     intimacy: pickSome(INTIMACY_CUES, 2, seed, 'intimacy'),
     bust: includesWoman(who) ? p(BUST_SIZES, 'bust') : NOT_SET,
     outfit: {
@@ -327,9 +342,10 @@ function explicitPose(state: BuilderState, who: string, seed: number): Labelled 
 
 function explicitAction(state: BuilderState, who: string, seed: number): Labelled {
   if (!state.explicit) return { label: '', text: '' }
-  const label = resolve(state.explicitAction, explicitActions(who), seed, 'explicitAction')
-  // A choice kept from an earlier "Who" that no longer fits is left out rather than contradicting the subject
-  return explicitActions(who).includes(label) ? { label, text: EXPLICIT_ACTIONS[label] } : { label: '', text: '' }
+  const fitting = explicitActions(who, state.nudity)
+  const label = resolve(state.explicitAction, fitting, seed, 'explicitAction')
+  // A choice kept from an earlier "Who" or nudity level that no longer fits is left out rather than contradicting it
+  return fitting.includes(label) ? { label, text: EXPLICIT_ACTIONS[label] } : { label: '', text: '' }
 }
 
 const OUTFIT_SLOTS = [

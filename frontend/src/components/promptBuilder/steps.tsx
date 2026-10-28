@@ -148,7 +148,7 @@ export function OutfitStep({ state, setOutfit }: StepProps) {
 export function PoseStep({ state, set }: StepProps) {
   const explicitPoses = poseOptions(true, state.who).filter((pose) => !POSES.includes(pose))
   const poseGroups = [{ options: POSES }, ...(state.explicit ? [{ label: 'Explicit (18+)', options: explicitPoses }] : [])]
-  const partner = partnerActions(state.who)
+  const partner = partnerActions(state.who, state.nudity)
   return (
     <FieldGrid>
       <ChoiceSelect label="Pose" value={state.pose} groups={poseGroups} onChange={(pose) => set({ pose })} />
@@ -156,7 +156,7 @@ export function PoseStep({ state, set }: StepProps) {
         <ChoiceSelect
           label="Explicit action"
           value={state.explicitAction}
-          groups={[{ label: 'Solo', options: soloActions(state.who) }, ...(partner.length ? [{ label: 'With a partner', options: partner }] : [])]}
+          groups={[{ label: 'Solo', options: soloActions(state.who, state.nudity) }, ...(partner.length ? [{ label: 'With a partner', options: partner }] : [])]}
           onChange={(explicitAction) => set({ explicitAction })}
         />
       )}
