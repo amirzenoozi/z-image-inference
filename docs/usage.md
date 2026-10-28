@@ -20,15 +20,16 @@ Switching models resets steps and guidance to the new model's defaults. Your pro
 
 **Prompt builder** (above the prompt box) opens a dialog that assembles a detailed prompt step by step, with a live preview.
 
-First pick a **purpose** at the top. Each one shows only the steps it needs, starts from sensible choices (only those you have not set yet) and writes the parts that matter for it first:
+First pick a **purpose** at the top. Each one shows only the steps it needs, starts from sensible choices (only those you have not set yet), opens the prompt in its own style and writes the parts that matter for it first:
 
 | Purpose | Steps | What it stresses |
 |---------|-------|------------------|
 | **General** | every step except Intimacy | nothing in particular |
 | **Portrait** | Subject, Face & hair, Scene & light, Camera, Mood & finish; close shot types only | the face, hair and light |
 | **Fashion** | every step except Face & hair and Intimacy; starts as a full-body fashion shot in a studio | the outfit and figure |
-| **Glamour (18+)** | every step; nudity up to topless, no explicit acts | the outfit, body and mood |
-| **Explicit (18+)** | every step and option | nudity, explicit poses and acts |
+| **Influencer** | every step except Intimacy; safe for work, with no lingerie and nudity kept out by the negative prompt | "An Instagram influencer photo of …", a candid lifestyle look |
+| **Glamour (18+)** | every step; nudity up to topless, no explicit poses or acts | "A sensual glamour photograph of …", alluring and tasteful |
+| **Explicit (18+)** | every step and option | "An explicit adult photograph of …", nudity, explicit poses and acts |
 | **Scene** | Scene & light, Camera, Mood & finish; no people | the place and light |
 
 The steps:
@@ -55,12 +56,13 @@ The steps:
 The purposes live in `prompt_modes.json` in the project folder; edit it and reopen the builder to change them. Each one has:
 
 - `id`, `label` and `description`
+- `content`: how far it may go: `safe` (no nudity or lingerie), `everyday`, `suggestive` (up to topless, no explicit poses or acts) or `explicit`; these rules are built into the app
+- `focus`: an `opening` that replaces "a photograph", a sentence of style `cues` for the description models, and style `tags` for the tag models
 - `steps`: which steps it shows, from `subject`, `appearance`, `body`, `outfit`, `pose`, `intimacy`, `scene`, `camera` and `finish`
 - `defaults`: a starting value per choice, for example `"shotType": "headshot"`
 - `options`: a shorter list for a choice, for example `"nudity": ["clothed", "implied"]`; an empty list hides that choice
 - `emphasis`: the parts of the paragraph to write first, from `face`, `hair`, `body`, `outfit`, `nudity`, `intimacy`, `scene`, `details`, `light`, `camera`, `mood` and `realism`
 - `weights`: tag weights from 0.5 to 2, for `nudity`, `action`, `explicitPose`, `pose`, `outfit`, `face`, `hair`, `body`, `scene` and `light`
-- `adult_only`: marks an 18+ purpose
 
 A purpose with an unknown step, choice or option is left out, with a note in the builder saying why. A purpose that shows the Intimacy step is always treated as 18+, so the adult checks above apply whatever the file says.
 
