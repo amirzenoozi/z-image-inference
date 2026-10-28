@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_val
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
-from history_store import CLEANUP_AGES_DAYS, HistoryItem, HistorySummary, NewImage
+from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
 from model_catalog import MODEL_CATEGORIES, MODELS, ModelSpec, kept_gb, speed_hint
 from resolutions import CATEGORIES, PRESETS
 
@@ -31,6 +31,7 @@ REQUEST_TIMEOUT = 900
 FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
 THUMBNAIL_SIDE = 384
 MAX_PAGE_SIZE = 100
+MAX_SEARCH_LENGTH = 200
 MAX_CHAT_MESSAGES = 50
 # History images never change: ids are not reused after a delete
 IMMUTABLE = {"Cache-Control": "private, max-age=31536000, immutable"}
@@ -283,9 +284,29 @@ def cancel_job(job_id: JobId) -> None:
 
 
 @app.get("/api/history")
-def history(offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=MAX_PAGE_SIZE)) -> HistoryPage:
-    items, total = history_store.page(offset, limit)
+def history(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(30, ge=1, le=MAX_PAGE_SIZE),
+    model: str | None = None,
+    q: str = Query("", max_length=MAX_SEARCH_LENGTH),
+    favourites: bool = False,
+) -> HistoryPage:
+    if model is not None and model not in MODELS:
+        raise HTTPException(422, f"Unknown model: {model}")
+    items, total = history_store.page(offset, limit, HistoryFilter(model=model, search=q.strip(), favourites_only=favourites))
     return HistoryPage(items=items, total=total)
+
+
+class FavouriteUpdate(BaseModel):
+    favourite: bool
+
+
+@app.put("/api/history/{item_id}/favourite")
+def set_favourite(item_id: int, update: FavouriteUpdate) -> HistoryItem:
+    item = history_store.set_favourite(item_id, update.favourite)
+    if item is None:
+        raise HTTPException(404, "Image not found")
+    return item
 
 
 def thumbnail(png: bytes) -> bytes:

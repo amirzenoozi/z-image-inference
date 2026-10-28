@@ -202,7 +202,7 @@ def test_old_history_rows_gain_the_new_columns(tmp_path: Path, monkeypatch: pyte
     history_store.init_db()
 
     [item], total = history_store.page(0, 10)
-    assert (item.model, item.negative_prompt, item.guidance, item.duration_seconds, total) == ("z-image-turbo", "", None, None, 1)
+    assert (item.model, item.negative_prompt, item.guidance, item.duration_seconds, item.favourite, total) == ("z-image-turbo", "", None, None, False, 1)
 
 
 def test_chat_streams_the_rewritten_prompt(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -360,3 +360,58 @@ def test_cleaning_up_deletes_only_older_images_and_shrinks_the_file(client: Test
 def test_cleaning_up_accepts_only_the_offered_ages(client: TestClient) -> None:
     assert client.delete("/api/history/older-than/0").status_code == 422
     assert client.delete("/api/history/older-than/45").status_code == 422
+
+
+def history_ids(client: TestClient, query: str = "") -> tuple[list[int], int]:
+    data = client.get(f"/api/history?{query}").json()
+    return [item["id"] for item in data["items"]], data["total"]
+
+
+def test_history_filters_by_model_search_and_favourites(client: TestClient, model_server: FakeModelServer) -> None:
+    fox = generate(client, prompt="A Red fox in snow").json()["id"]
+    cat = generate(client, prompt="a cat on a sofa").json()["id"]
+    anime_fox = generate(client, model="wai-illustrious", prompt="1girl, fox ears", width=1024, height=1024, steps=None).json()["id"]
+    client.put(f"/api/history/{anime_fox}/favourite", json={"favourite": True})
+
+    assert history_ids(client) == ([anime_fox, cat, fox], 3)
+    assert history_ids(client, "model=z-image-turbo") == ([cat, fox], 2)
+    assert history_ids(client, "q=red%20FOX") == ([fox], 1)
+    assert history_ids(client, "q=fox") == ([anime_fox, fox], 2)
+    assert history_ids(client, "favourites=true") == ([anime_fox], 1)
+    assert history_ids(client, "q=fox&model=z-image-turbo&favourites=true") == ([], 0)
+
+
+def test_search_matches_percent_and_underscore_literally(client: TestClient, model_server: FakeModelServer) -> None:
+    sale = generate(client, prompt="poster reading 50% off").json()["id"]
+    generate(client, prompt="poster reading 50 percent off")
+    snake = generate(client, prompt="a file named my_cat").json()["id"]
+    generate(client, prompt="a file named myXcat")
+
+    assert history_ids(client, "q=50%25") == ([sale], 1)
+    assert history_ids(client, "q=my_cat") == ([snake], 1)
+
+
+def test_history_filters_are_checked(client: TestClient) -> None:
+    assert client.get("/api/history?model=not-a-model").status_code == 422
+    assert client.get(f"/api/history?q={'x' * 201}").status_code == 422
+
+
+def test_starring_and_unstarring_an_image(client: TestClient, model_server: FakeModelServer) -> None:
+    item = generate(client).json()
+    assert item["favourite"] is False
+
+    assert client.put(f"/api/history/{item['id']}/favourite", json={"favourite": True}).json()["favourite"] is True
+    assert client.get("/api/history").json()["items"][0]["favourite"] is True
+    assert client.put(f"/api/history/{item['id']}/favourite", json={"favourite": False}).json()["favourite"] is False
+    assert client.put("/api/history/999/favourite", json={"favourite": True}).status_code == 404
+
+
+def test_cleaning_up_keeps_favourites(client: TestClient, model_server: FakeModelServer) -> None:
+    kept, gone = (generate(client).json()["id"] for _ in range(2))
+    backdate(kept, 40)
+    backdate(gone, 40)
+    client.put(f"/api/history/{kept}/favourite", json={"favourite": True})
+
+    assert client.get("/api/history/summary").json()["older_than"][1] == {"days": 30, "count": 1}
+    assert client.delete("/api/history/older-than/30").json() == {"deleted": 1}
+    assert history_ids(client) == ([kept], 1)

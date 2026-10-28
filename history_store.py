@@ -7,7 +7,7 @@ from pathlib import Path
 from model_catalog import DEFAULT_MODEL
 
 DB_PATH = Path(__file__).parent / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -16,6 +16,7 @@ ADDED_COLUMNS: dict[str, str] = {
     "guidance": "REAL",
     # Rows saved before render times were recorded have none
     "duration_seconds": "REAL",
+    "favourite": "INTEGER NOT NULL DEFAULT 0",
 }
 
 
@@ -32,6 +33,7 @@ class HistoryItem:
     model: str
     created_at: str
     duration_seconds: float | None
+    favourite: bool
 
     def to_dict(self) -> dict[str, str | int | float | None]:
         return asdict(self)
@@ -52,6 +54,32 @@ class HistorySummary:
     total: int
     bytes: int
     older_than: list[AgeCount]
+
+
+@dataclass(frozen=True)
+class HistoryFilter:
+    model: str | None = None
+    # Text the prompt must contain, ignoring case
+    search: str = ""
+    favourites_only: bool = False
+
+    def where(self) -> tuple[str, list[str]]:
+        conditions: list[str] = []
+        params: list[str] = []
+        if self.model:
+            conditions.append("model = ?")
+            params.append(self.model)
+        if self.search:
+            conditions.append("prompt LIKE ? ESCAPE '\\'")
+            params.append(f"%{escape_like(self.search)}%")
+        if self.favourites_only:
+            conditions.append("favourite = 1")
+        return (f" WHERE {' AND '.join(conditions)}" if conditions else ""), params
+
+
+def escape_like(text: str) -> str:
+    """So % and _ typed in a search match themselves."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 @dataclass(frozen=True)
@@ -102,9 +130,11 @@ def add_missing_columns(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE images ADD COLUMN {name} {definition}")
 
 
-def to_item(row: tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None]) -> HistoryItem:
-    id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds = row
-    return HistoryItem(id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds)
+def to_item(row: tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int]) -> HistoryItem:
+    id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite = row
+    return HistoryItem(
+        id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
+    )
 
 
 def add(image: NewImage) -> HistoryItem:
@@ -119,14 +149,22 @@ def add(image: NewImage) -> HistoryItem:
     return to_item(row)
 
 
-def page(offset: int, limit: int) -> tuple[list[HistoryItem], int]:
-    """Newest first; also returns the total count so callers know whether more remain."""
+def page(offset: int, limit: int, filters: HistoryFilter = HistoryFilter()) -> tuple[list[HistoryItem], int]:
+    """Newest first; also returns how many images match, so callers know whether more remain."""
+    where, params = filters.where()
     with connection() as conn:
         rows = conn.execute(
-            f"SELECT {COLUMNS} FROM images ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset)
+            f"SELECT {COLUMNS} FROM images{where} ORDER BY id DESC LIMIT ? OFFSET ?", (*params, limit, offset)
         ).fetchall()
-        total = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+        total = conn.execute(f"SELECT COUNT(*) FROM images{where}", params).fetchone()[0]
     return [to_item(row) for row in rows], total
+
+
+def set_favourite(item_id: int, favourite: bool) -> HistoryItem | None:
+    with connection() as conn:
+        conn.execute("UPDATE images SET favourite = ? WHERE id = ?", (int(favourite), item_id))
+        row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (item_id,)).fetchone()
+    return to_item(row) if row else None
 
 
 def image_png(item_id: int) -> bytes | None:
@@ -147,7 +185,8 @@ def clear() -> None:
 
 
 def older_than(days: int) -> tuple[str, str]:
-    return "created_at < datetime('now', ?)", f"-{days} days"
+    """Images older than `days`, except favourites, which cleaning up keeps."""
+    return "created_at < datetime('now', ?) AND favourite = 0", f"-{days} days"
 
 
 def summary() -> HistorySummary:
