@@ -7,7 +7,7 @@ import { useGeneration } from './lib/generation'
 import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
-import { loadSettings, saveSettings, settingsFromItem } from './lib/settings'
+import { loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
 import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
@@ -50,8 +50,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
     askToNotify()
     void generation.run({ ...settings, prompt })
   }
-  const reuse = (item: HistoryItem) => {
-    setSettings(settingsFromItem(item, catalog))
+  const openInCreate = (next: GenerationSettings) => {
+    setSettings(next)
     setMode('direct')
     setView('create')
   }
@@ -90,7 +90,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
       </main>
       {view === 'history' && (
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <HistoryPanel models={catalog.models} onReuse={reuse} />
+          <HistoryPanel models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
         </main>
       )}
     </div>

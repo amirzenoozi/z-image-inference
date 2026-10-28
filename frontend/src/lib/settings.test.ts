@@ -8,6 +8,7 @@ import {
   saveSettings,
   settingsFromItem,
   switchModel,
+  variationSettings,
   snapSide,
   withModel,
 } from './settings'
@@ -69,5 +70,30 @@ describe('loadSettings', () => {
     const saved = { ...initialSettings(catalog), prompt: 'kept', modelId: 'removed-model' }
     saveSettings(saved)
     expect(loadSettings(catalog)).toMatchObject({ prompt: 'kept', modelId: 'z-image-turbo' })
+  })
+})
+
+describe('variations', () => {
+  it('start from the image with the default change and a new seed each time', () => {
+    const settings = variationSettings(historyItem({ id: 5, seed: 42 }), catalog)
+    expect(settings).toMatchObject({ startImage: { id: 5, change: 0.5 }, randomSeed: true, seed: 42 })
+  })
+
+  it('come back with their start image when their settings are reused', () => {
+    expect(settingsFromItem(historyItem({ varied_from: 5, change: 0.7 }), catalog).startImage).toEqual({ id: 5, change: 0.7 })
+    expect(settingsFromItem(historyItem(), catalog).startImage).toBeNull()
+  })
+
+  it('snap an edited image\'s size to what the model can make', () => {
+    const settings = settingsFromItem(historyItem({ width: 333, height: 1000 }), catalog)
+    expect([settings.width, settings.height]).toEqual([336, 1008])
+  })
+
+  it('are optional in settings saved before variations existed', () => {
+    const { startImage: _removed, ...older } = { ...initialSettings(catalog), prompt: 'kept' }
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify(older))
+    expect(loadSettings(catalog)).toMatchObject({ prompt: 'kept', startImage: null })
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify({ ...older, startImage: { id: 5, change: 7 } }))
+    expect(loadSettings(catalog).startImage).toBeNull()
   })
 })

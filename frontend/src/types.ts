@@ -20,6 +20,8 @@ export interface ModelInfo {
   default_negative_prompt: string
   trigger_word: string
   prompt_style: 'prose' | 'tags'
+  /** Whether the model can start from an image, for variations. */
+  supports_variations: boolean
   examples: string[]
 }
 
@@ -82,6 +84,9 @@ export interface HistoryItem {
   favourite: boolean
   /** The image this one was turned, flipped or cropped from; null for a generated image. */
   edited_from: number | null
+  /** For a variation: its start image, and how much it was changed (0 to 1). */
+  varied_from: number | null
+  change: number | null
 }
 
 export interface PaletteColour {
@@ -130,6 +135,13 @@ export interface GenerationSettings {
   guidance: number
   seed: number
   randomSeed: boolean
+  /** Set for a variation: the History image to start from, and how much to change it (0.1 to 0.9). */
+  startImage: StartImage | null
+}
+
+export interface StartImage {
+  id: number
+  change: number
 }
 
 export interface ChatMessage {

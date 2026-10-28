@@ -46,7 +46,7 @@ beforeEach(() => {
 
 function renderHistory() {
   const onReuse = vi.fn()
-  render(<HistoryPanel models={catalog.models} onReuse={onReuse} />)
+  render(<HistoryPanel models={catalog.models} onReuse={onReuse} onVary={vi.fn()} />)
   return onReuse
 }
 
@@ -660,7 +660,7 @@ it('puts each History dialog\'s buttons in its actions footer, and the image vie
   // The image view has two columns, so its actions sit at the bottom of the details column instead
   expect(screen.queryByRole('group', { name: 'Dialog actions' })).not.toBeInTheDocument()
   const imageActions = within(screen.getByRole('group', { name: 'Image actions' }))
-  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Edit', 'Delete', 'Reuse settings'])
+  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Edit', 'Make variations', 'Delete', 'Reuse settings'])
   expect(imageActions.getByRole('link', { name: 'Download' })).toBeInTheDocument()
 })
 

@@ -27,6 +27,8 @@ interface Props {
   /** Called after a star or delete, so History reloads what it shows. */
   onListChanged: () => void
   onReuse: (item: HistoryItem) => void
+  /** Opens Create with this image as the start of new variations. */
+  onVary: (item: HistoryItem) => void
   /** Called with the new image after an edit is saved. */
   onEdited: (item: HistoryItem) => void
   onClose: () => void
@@ -137,7 +139,7 @@ function useArmedDelete(onConfirmed: () => void): [boolean, () => void] {
   return [armed, press]
 }
 
-export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListChanged, onReuse, onEdited, onClose }: Props) {
+export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListChanged, onReuse, onVary, onEdited, onClose }: Props) {
   const [index, setIndex] = useState(start.index)
   const image = useImageAt(filters, index, start)
   const area = useRef<HTMLDivElement>(null)
@@ -255,6 +257,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
                     deleteButton={deleteButton}
                     onDelete={() => void remove(item)}
                     onEdit={() => setEditing(true)}
+                    onVary={() => onVary(item)}
                     onReuse={() => onReuse(item)}
                   />
                 }
@@ -399,6 +402,7 @@ function ViewerDetails({ item, label, favouriteError, deleteError, armed, action
         <p className="text-xs text-zinc-400">
           Created {new Date(`${item.created_at}Z`).toLocaleString()}
           {item.edited_from !== null && ` · Edited from image #${item.edited_from}`}
+          {item.varied_from !== null && item.change !== null && ` · Variation of image #${item.varied_from}, ${Math.round(item.change * 100)}% change`}
         </p>
         {favouriteError && <ErrorNotice message={favouriteError} />}
         {deleteError && <ErrorNotice message={deleteError} />}
@@ -422,10 +426,11 @@ interface ActionsProps {
   deleteButton: RefObject<HTMLButtonElement | null>
   onDelete: () => void
   onEdit: () => void
+  onVary: () => void
   onReuse: () => void
 }
 
-function ViewerActions({ item, deleting, deleteButton, onDelete, onEdit, onReuse }: ActionsProps) {
+function ViewerActions({ item, deleting, deleteButton, onDelete, onEdit, onVary, onReuse }: ActionsProps) {
   return (
     <>
       <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
@@ -433,6 +438,9 @@ function ViewerActions({ item, deleting, deleteButton, onDelete, onEdit, onReuse
       </a>
       <button type="button" onClick={onEdit} className={secondaryButtonClass}>
         Edit
+      </button>
+      <button type="button" onClick={onVary} className={secondaryButtonClass}>
+        Make variations
       </button>
       <button ref={deleteButton} type="button" onClick={onDelete} disabled={deleting} className={`${secondaryButtonClass} text-red-600 dark:text-red-400`}>
         {deleting ? 'Deleting…' : 'Delete'}

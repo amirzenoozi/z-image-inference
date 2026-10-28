@@ -7,6 +7,7 @@ import { ModelPicker } from './ModelPicker'
 import { PromptEditor } from './PromptEditor'
 import { ResolutionPicker } from './ResolutionPicker'
 import { SamplingControls } from './SamplingControls'
+import { StartImageBlock } from './StartImageBlock'
 import { Section, Spinner } from './ui'
 
 export type PromptMode = 'direct' | 'chat'
@@ -70,9 +71,15 @@ export function SettingsPanel(props: Props) {
           <SamplingControls settings={settings} model={model} limits={catalog.limits} lastSeed={lastSeed} onChange={patch} />
         </Section>
       </div>
-      <GenerateBar disabled={generating || !settings.prompt.trim()} generating={generating} onGenerate={onGenerate} />
+      <GenerateBar disabled={!canGenerate(settings, model, generating)} generating={generating} onGenerate={onGenerate} />
     </div>
   )
+}
+
+/** A start image the model can't use blocks Generate, rather than being ignored. */
+function canGenerate(settings: GenerationSettings, model: ModelInfo, generating: boolean): boolean {
+  const startImageFits = settings.startImage === null || model.supports_variations
+  return [!generating, settings.prompt.trim() !== '', startImageFits].every(Boolean)
 }
 
 function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply: () => void; onDismiss: () => void }) {
@@ -126,6 +133,7 @@ function PromptSection(props: PromptSectionProps) {
         <PromptEditor settings={settings} model={model} limits={catalog.limits} onChange={patch} onSubmit={onGenerate} />
       )}
       {mode === 'chat' && <ChatPanel busy={generating} onPromptReady={props.onChatPrompt} />}
+      {settings.startImage && <StartImageBlock startImage={settings.startImage} model={model} onChange={(startImage) => patch({ startImage })} />}
     </Section>
   )
 }

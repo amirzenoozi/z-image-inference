@@ -19,6 +19,7 @@ export const fastModel: ModelInfo = {
   default_negative_prompt: '',
   trigger_word: '',
   prompt_style: 'prose',
+  supports_variations: true,
   examples: ['A red fox in the snow', 'A lighthouse at dawn'],
 }
 
@@ -41,6 +42,7 @@ export const animeModel: ModelInfo = {
   default_negative_prompt: 'nsfw, low quality',
   trigger_word: '',
   prompt_style: 'tags',
+  supports_variations: true,
   examples: ['1girl, adult woman, kimono'],
 }
 
@@ -79,6 +81,8 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     duration_seconds: 52.3,
     favourite: false,
     edited_from: null,
+    varied_from: null,
+    change: null,
     ...overrides,
   }
 }
