@@ -6,9 +6,11 @@ from huggingface_hub import snapshot_download
 from PIL import Image
 from transformers import ImageClassificationPipeline, pipeline
 
+from paths import MODELS_DIR
+
 # A small image classifier (ViT, Apache 2.0) that tells nudity and sexual content from normal images
 DETECTOR_REPO = "Falconsai/nsfw_image_detection"
-DETECTOR_PATH = Path(__file__).parent / "models" / "nsfw-detector"
+DETECTOR_PATH = MODELS_DIR / "nsfw-detector"
 DETECTOR_FILES = ["config.json", "preprocessor_config.json", "model.safetensors"]
 NSFW_LABEL = "nsfw"
 # The share of its confidence above which an image counts as sensitive

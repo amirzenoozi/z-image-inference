@@ -1,7 +1,7 @@
 """Build Z-Image-Turbo at a quantisation level and compare it with the original.
 
-    uv run python tools/z_image_levels.py build --bits 8
-    uv run python tools/z_image_levels.py compare --bits 8
+    uv run python backend/tools/z_image_levels.py build --bits 8
+    uv run python backend/tools/z_image_levels.py compare --bits 8
 
 Stop the model server first: the original alone needs about 20 GB of memory. Results go to comparisons/z-image/.
 """
@@ -17,11 +17,13 @@ import mlx.core as mx
 import numpy as np
 from PIL import Image
 
+# The backend modules sit one folder up, in backend/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from mflux.models.z_image.variants.z_image import ZImage  # noqa: E402
 from model_server import Z_IMAGE_LEVELS, Z_IMAGE_PATH, build_z_image_quantized, z_image_quantized_path  # noqa: E402
+from paths import PROJECT_DIR  # noqa: E402
 
-OUT_DIR = Path(__file__).resolve().parent.parent / "comparisons" / "z-image"
+OUT_DIR = PROJECT_DIR / "comparisons" / "z-image"
 SEED = 42
 STEPS = 9
 PROMPTS: dict[str, str] = {

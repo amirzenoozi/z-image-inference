@@ -41,9 +41,9 @@ from generation_request import MAX_SEED, GenerateRequest
 from prompt_weights import a1111_to_compel
 from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
+from paths import MODELS_DIR
 
 
-MODELS_DIR = Path(__file__).parent / "models"
 HF_CACHE_DIR = MODELS_DIR / ".hf-cache"
 Z_IMAGE_PATH = MODELS_DIR / "Z-Image-Turbo"
 

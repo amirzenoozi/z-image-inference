@@ -3,14 +3,14 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
-from pathlib import Path
 
 from model_catalog import DEFAULT_MODEL
 from palette import PaletteColour, extract_palette
+from paths import PROJECT_DIR
 from resolutions import CATEGORY_CONDITIONS, Category
 from sensitive import is_sensitive
 
-DB_PATH = Path(__file__).parent / "history.db"
+DB_PATH = PROJECT_DIR / "history.db"
 COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
