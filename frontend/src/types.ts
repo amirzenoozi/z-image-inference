@@ -6,6 +6,7 @@ export interface ModelInfo {
   label: string
   description: string
   speed_hint: string
+  download_gb: number
   default_steps: number
   max_steps: number
   max_side: number
@@ -40,6 +41,13 @@ export interface Catalog {
   examples: string[]
   chat_available: boolean
   limits: Limits
+}
+
+export type ModelStatus = 'ready' | 'downloading' | 'missing' | 'failed'
+
+export interface ModelStatusReport {
+  server_running: boolean
+  models: Record<string, ModelStatus>
 }
 
 export interface HistoryItem {

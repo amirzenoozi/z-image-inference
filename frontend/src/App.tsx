@@ -5,6 +5,7 @@ import { SettingsPanel, type PromptMode } from './components/SettingsPanel'
 import { ErrorNotice, Spinner } from './components/ui'
 import { useGeneration } from './lib/generation'
 import { useCatalog } from './lib/hooks'
+import { useModelStatus } from './lib/modelStatus'
 import { loadSettings, saveSettings, settingsFromItem } from './lib/settings'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
 
@@ -36,6 +37,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   const [lastSeed, setLastSeed] = useState<number | null>(null)
   const onSuccess = useCallback((item: HistoryItem) => setLastSeed(item.seed), [])
   const generation = useGeneration(onSuccess)
+  // A generation attempt can start a model download, so status is re-checked whenever its state changes
+  const modelStatus = useModelStatus(generation.state.status)
   useEffect(() => saveSettings(settings), [settings])
 
   const generating = generation.state.status === 'pending'
@@ -61,6 +64,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
             onModeChange={setMode}
             generating={generating}
             lastSeed={lastSeed}
+            modelStatus={modelStatus}
             onGenerate={() => generateWith(settings.prompt)}
             onChatPrompt={(prompt) => {
               setSettings((current) => ({ ...current, prompt }))
