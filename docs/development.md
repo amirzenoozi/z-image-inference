@@ -38,6 +38,7 @@ z-image-inference/
 ├── palette.py              # Colour palette of an image
 ├── prompt_weights.py       # Rewrites (tag:1.3) weights for Compel
 ├── sensitive.py            # Which prompts mark an image as sensitive (blurred in lists)
+├── nsfw_detector.py        # The image classifier that checks each image for nudity
 ├── moss_pipeline.py        # Vendored MOSS-Image pipeline (Apache 2.0)
 ├── grok_client.py          # xAI Grok client
 ├── example_prompts.json    # Each model's example prompts
