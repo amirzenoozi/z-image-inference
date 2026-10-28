@@ -169,6 +169,14 @@ def page(offset: int, limit: int, filters: HistoryFilter = HistoryFilter()) -> t
     return [to_item(row) for row in rows], total
 
 
+def images(filters: HistoryFilter) -> Iterator[tuple[HistoryItem, bytes]]:
+    """Every matching image with its PNG, newest first, read one at a time so a large History is not held in memory."""
+    where, params = filters.where()
+    with connection() as conn:
+        for row in conn.execute(f"SELECT {COLUMNS}, image_data FROM images{where} ORDER BY id DESC", params):
+            yield to_item(row[:-1]), row[-1]
+
+
 def palette(item_id: int) -> list[PaletteColour] | None:
     """The image's colour palette, worked out and saved the first time it is asked for; None if there is no such image."""
     with connection() as conn:
