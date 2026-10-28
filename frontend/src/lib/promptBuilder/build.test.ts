@@ -165,16 +165,35 @@ describe('explicit content', () => {
 
 describe('options that fit the subject', () => {
   it('offers partner actions only for a couple, which they are written for', () => {
-    expect(partnerActions('couple')).toContain('missionary')
-    for (const who of ['woman', 'man', 'two women', 'two men', NOT_SET]) expect(partnerActions(who)).toEqual([])
+    expect(partnerActions('couple', 'nude')).toContain('missionary')
+    for (const who of ['woman', 'man', 'two women', 'two men', NOT_SET]) expect(partnerActions(who, 'nude')).toEqual([])
   })
 
   it('leaves out poses and actions about breasts or lingerie for men', () => {
-    expect(soloActions('woman')).toContain('cupping breasts')
-    expect(soloActions('man')).not.toContain('cupping breasts')
-    expect(soloActions('man')).toContain('biting lip')
+    expect(soloActions('woman', 'nude')).toContain('cupping breasts')
+    expect(soloActions('man', 'nude')).not.toContain('cupping breasts')
+    expect(soloActions('man', 'nude')).toContain('biting lip')
     expect(poseOptions(true, 'two men')).not.toContain('topless covering with hands')
     expect(poseOptions(true, 'woman')).toContain('topless covering with hands')
+  })
+
+  it.each([
+    ['clothed', true, true],
+    ['topless', false, true],
+    ['implied', false, false],
+    ['nude', false, false],
+  ] as const)('offers actions about taking clothes off only while those clothes are on (%s)', (nudity, topOn, bottomOn) => {
+    expect(soloActions('woman', nudity).includes('undoing bra clasp')).toBe(topOn)
+    expect(soloActions('woman', nudity).includes('pulling panties aside')).toBe(bottomOn)
+    expect(partnerActions('couple', nudity).includes('undressing each other')).toBe(bottomOn)
+    expect(soloActions('woman', nudity)).toContain('biting lip')
+  })
+
+  it('drops an action about clothes once the nudity level has taken them off', () => {
+    const state = adult({ explicit: true, nudity: 'nude', explicitAction: 'pulling down strap' })
+    expect(promptOf(state)).not.toContain('strap')
+    expect(promptOf(state, 'tags')).not.toContain('strap')
+    expect(promptOf({ ...state, nudity: 'clothed' })).toContain('pulling a bra or top strap down off the shoulder')
   })
 
   it('drops an action kept from an earlier subject that no longer fits', () => {
@@ -242,7 +261,8 @@ describe('surprise', () => {
     expect(state.intimacy).toHaveLength(2)
     expect(buildPrompt(state).status).toBe('ready')
     for (let seed = 0; seed < 30; seed++) {
-      expect(soloActions('man')).toContain(surprise({ ...emptyBuilderState(), who: 'man', explicit: true }, seed).explicitAction)
+      const state = surprise({ ...emptyBuilderState(), who: 'man', explicit: true }, seed)
+      expect(soloActions('man', state.nudity)).toContain(state.explicitAction)
     }
   })
 
