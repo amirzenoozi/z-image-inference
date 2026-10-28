@@ -143,7 +143,7 @@ function PromptSection(props: PromptSectionProps) {
         ))}
       </div>
       {mode === 'direct' && (
-        <PromptEditor settings={settings} model={model} limits={catalog.limits} builderModes={catalog.builder_modes} onChange={patch} onSubmit={onGenerate} />
+        <PromptEditor settings={settings} model={model} limits={catalog.limits} builderModes={catalog.builder_modes} locked={generating} onChange={patch} onSubmit={onGenerate} />
       )}
       {mode === 'chat' && <ChatPanel busy={generating} onPromptReady={props.onChatPrompt} />}
       {settings.startImage && <StartImageBlock startImage={settings.startImage} model={model} onChange={(startImage) => patch({ startImage })} />}
