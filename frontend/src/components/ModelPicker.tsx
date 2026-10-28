@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isServerDown } from '../lib/modelStatus'
 import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../types'
 import { secondaryButtonClass } from '../lib/styles'
 import { Modal } from './Modal'
@@ -18,7 +19,7 @@ interface Props {
 export function ModelPicker({ models, categories, selectedId, status, onSelect, onStatusChanged }: Props) {
   const [choosing, setChoosing] = useState(false)
   const selected = models.find((model) => model.id === selectedId) ?? models[0]
-  const serverDown = status.status === 'failed' || (status.status === 'settled' && !status.value.server_running)
+  const serverDown = isServerDown(status)
   return (
     <div className="space-y-2">
       <SelectedModel model={selected} status={status} serverDown={serverDown} onChange={() => setChoosing(true)} />
