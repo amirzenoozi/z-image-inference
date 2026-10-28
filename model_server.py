@@ -1,5 +1,7 @@
 import io
 import gc
+import json
+import shutil
 import asyncio
 import base64
 import random
@@ -16,9 +18,12 @@ from diffusers import AutoencoderKLFlux2, EulerAncestralDiscreteScheduler, Stabl
 from fastapi import FastAPI
 from huggingface_hub import snapshot_download
 from mflux.models.z_image.variants.z_image import ZImage
+from optimum.quanto import freeze, qint8, quantization_map, quantize, requantize
 from PIL import Image
+from safetensors import safe_open
+from safetensors.torch import load_file, save_file
 from pydantic import BaseModel
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
 from model_catalog import DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
@@ -32,8 +37,13 @@ Z_IMAGE_Q4_PATH = MODELS_DIR / "zimage-q4"
 WAI_ILLUSTRIOUS_PATH = MODELS_DIR / "waiNSFWIllustrious_v120"
 # The repo's "fp16" files are full precision too, so fetch only one set
 WAI_ILLUSTRIOUS_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
+# Stored as float32 upstream but run in float16; the VAE stays float32 because it decodes in float32
+WAI_FLOAT16_COMPONENTS = ["unet", "text_encoder", "text_encoder_2"]
 MOSS_IMAGE_PATH = MODELS_DIR / "moss-image-nsfw"
 MOSS_IMAGE_MODEL_PATH = MOSS_IMAGE_PATH / "merged-model"
+# 8-bit copy of the 16 GB text encoder: 9.4 GB, 7 GB less memory and faster, with near-identical images
+MOSS_TEXT_ENCODER_Q8_PATH = MOSS_IMAGE_PATH / "text_encoder-q8"
+QUANTO_MAP_FILE = "quanto_qmap.json"
 # Only the merged model; its pipeline code is vendored in moss_pipeline.py
 MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged-model/**/*.safetensors"]
 QUANTIZE_BITS = 4
@@ -88,11 +98,21 @@ def ensure_downloaded(spec: ModelSpec, path: Path, allow_patterns: list[str] | N
     marker.touch()
 
 
+def build_z_image_q4() -> None:
+    """Quantise Z-Image to 4-bit once, then delete the 31 GB original, which nothing else uses."""
+    ensure_downloaded(Z_IMAGE, Z_IMAGE_PATH)
+    print(f"Creating {QUANTIZE_BITS}-bit model at {Z_IMAGE_Q4_PATH}...")
+    # Built beside the final folder and renamed when complete, so an interrupted build is never used
+    building = Z_IMAGE_Q4_PATH.with_name(f"{Z_IMAGE_Q4_PATH.name}.building")
+    shutil.rmtree(building, ignore_errors=True)
+    ZImage(quantize=QUANTIZE_BITS, model_path=str(Z_IMAGE_PATH)).save_model(str(building))
+    building.rename(Z_IMAGE_Q4_PATH)
+    shutil.rmtree(Z_IMAGE_PATH)
+
+
 def load_z_image() -> ImageGenerator:
     if not Z_IMAGE_Q4_PATH.exists():
-        ensure_downloaded(Z_IMAGE, Z_IMAGE_PATH)
-        print(f"Creating {QUANTIZE_BITS}-bit model at {Z_IMAGE_Q4_PATH}...")
-        ZImage(quantize=QUANTIZE_BITS, model_path=str(Z_IMAGE_PATH)).save_model(str(Z_IMAGE_Q4_PATH))
+        build_z_image_q4()
     model = ZImage(model_path=str(Z_IMAGE_Q4_PATH))
 
     def generate(job: Job) -> Image.Image:
@@ -107,8 +127,26 @@ def load_z_image() -> ImageGenerator:
     return generate
 
 
+def has_float32(file: Path) -> bool:
+    with safe_open(file, "pt") as weights:
+        return any(weights.get_slice(name).get_dtype() == "F32" for name in weights.keys())
+
+
+def store_as_float16(path: Path, components: list[str]) -> None:
+    """Rewrite float32 weights as float16 once, halving their size without changing what the model computes."""
+    for file in (f for name in components for f in (path / name).glob("*.safetensors")):
+        if not has_float32(file):
+            continue
+        print(f"Storing {file.relative_to(path)} as float16...")
+        tensors = {name: t.to(torch.float16) if t.dtype == torch.float32 else t for name, t in load_file(file).items()}
+        temporary = file.with_suffix(".tmp")
+        save_file(tensors, temporary, metadata={"format": "pt"})
+        temporary.replace(file)
+
+
 def load_wai_illustrious() -> ImageGenerator:
     ensure_downloaded(WAI_ILLUSTRIOUS, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES)
+    store_as_float16(WAI_ILLUSTRIOUS_PATH, WAI_FLOAT16_COMPONENTS)
     pipe = StableDiffusionXLPipeline.from_pretrained(
         WAI_ILLUSTRIOUS_PATH,
         torch_dtype=torch.float16,
@@ -147,12 +185,41 @@ def decode_in_float32(pipe: StableDiffusionXLPipeline, latents: torch.Tensor) ->
 MossEmbeddings = tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
 
 
+def build_moss_text_encoder_q8() -> None:
+    """Quantise the text encoder to 8-bit once, then delete the bfloat16 original to save 16 GB."""
+    original = MOSS_IMAGE_MODEL_PATH / "text_encoder"
+    if not original.exists():
+        snapshot_download(MOSS_IMAGE.repo_id, local_dir=MOSS_IMAGE_PATH, cache_dir=HF_CACHE_DIR, allow_patterns=["merged-model/text_encoder/*"])
+    print(f"Creating 8-bit text encoder at {MOSS_TEXT_ENCODER_Q8_PATH}...")
+    encoder = AutoModel.from_pretrained(original, dtype=torch.bfloat16).eval()
+    quantize(encoder, weights=qint8)
+    freeze(encoder)
+    # Built beside the final folder and renamed when complete, so an interrupted build is never used
+    building = MOSS_TEXT_ENCODER_Q8_PATH.with_name(f"{MOSS_TEXT_ENCODER_Q8_PATH.name}.building")
+    shutil.rmtree(building, ignore_errors=True)
+    building.mkdir()
+    encoder.config.save_pretrained(building)
+    save_file(encoder.state_dict(), building / "model.safetensors")
+    (building / QUANTO_MAP_FILE).write_text(json.dumps(quantization_map(encoder)))
+    building.rename(MOSS_TEXT_ENCODER_Q8_PATH)
+    shutil.rmtree(original)
+
+
+def load_moss_text_encoder() -> torch.nn.Module:
+    if not MOSS_TEXT_ENCODER_Q8_PATH.exists():
+        build_moss_text_encoder_q8()
+    with torch.device("meta"):
+        encoder = AutoModel.from_config(AutoConfig.from_pretrained(MOSS_TEXT_ENCODER_Q8_PATH), dtype=torch.bfloat16)
+    quantized_map = json.loads((MOSS_TEXT_ENCODER_Q8_PATH / QUANTO_MAP_FILE).read_text())
+    requantize(encoder, load_file(MOSS_TEXT_ENCODER_Q8_PATH / "model.safetensors"), quantized_map, device=torch.device("cpu"))
+    return encoder.eval()
+
+
 @torch.no_grad()
 def encode_moss_prompts(prompt: str, negative_prompt: str) -> MossEmbeddings:
     """Mirrors MOSSImagePipeline.encode_prompt, with the text encoder loaded only for this call."""
     tokenizer = AutoTokenizer.from_pretrained(MOSS_IMAGE_MODEL_PATH / "tokenizer")
-    encoder = AutoModel.from_pretrained(MOSS_IMAGE_MODEL_PATH / "text_encoder", dtype=torch.bfloat16)
-    encoder.eval().to(torch.device("mps"))
+    encoder = load_moss_text_encoder().to(torch.device("mps"))
     encoded: list[torch.Tensor] = []
     for text in (prompt, negative_prompt):
         formatted = tokenizer.apply_chat_template(
