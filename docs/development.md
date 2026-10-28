@@ -1,0 +1,53 @@
+# Development
+
+## Running in development
+
+Run the two servers as usual, then the UI with live reload:
+
+```bash
+uv run python model_server.py
+uv run python main.py
+cd frontend && npm run dev
+```
+
+Open the address Vite prints; it forwards `/api` to `main.py`. After changing the UI for normal use, rebuild it with `cd frontend && npm run build`; `main.py` serves `frontend/dist`.
+
+## Checks
+
+```bash
+uv run pytest                                 # backend tests
+cd frontend && npm test                       # frontend tests (Vitest)
+cd frontend && npx tsc -b && npx oxlint src   # type check and lint
+```
+
+The backend tests use fake models, so they run in seconds without any model downloaded.
+
+## Project layout
+
+```
+z-image-inference/
+├── main.py                 # Web app: serves the UI and the /api endpoints
+├── model_server.py         # Loads the models and generates images
+├── model_catalog.py        # The four models and their defaults, shared by both servers
+├── generation_request.py   # Request checks shared by both servers
+├── resolutions.py          # Resolution presets and their categories
+├── history_store.py        # History database
+├── history_export.py       # History zip export
+├── image_edits.py          # Rotate, flip and crop, applied with Pillow
+├── palette.py              # Colour palette of an image
+├── prompt_weights.py       # Rewrites (tag:1.3) weights for Compel
+├── moss_pipeline.py        # Vendored MOSS-Image pipeline (Apache 2.0)
+├── grok_client.py          # xAI Grok client
+├── example_prompts.json    # Each model's example prompts
+├── frontend/               # React, TypeScript and Tailwind UI (Vite)
+│   └── src/
+│       ├── components/     # The UI; form/ holds the shared field components
+│       └── lib/            # Logic: settings, API client, prompt builder, edits
+├── tests/                  # Backend tests
+├── tools/                  # Z-Image-Turbo compression level comparison
+├── docs/                   # This documentation
+├── models/                 # Downloaded models (not in git)
+└── history.db              # Generated images (not in git)
+```
+
+`CLAUDE.md` describes the conventions the code follows, such as how dialogs, icons and icon buttons are built, and the rules to keep, such as the prompt builder's adult-only checks.
