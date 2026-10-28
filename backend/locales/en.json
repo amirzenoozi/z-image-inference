@@ -39,5 +39,6 @@
   "cancelled": "Cancelled",
   "notEnoughSpace": "Not enough disk space: free about {gb} GB more, then try again.",
   "removeWhileDownloading": "{label} is downloading; remove it when the download has finished.",
-  "noSuchJob": "No such job; it may have finished"
+  "noSuchJob": "No such job; it may have finished",
+  "needsHfToken": "{label} is gated on Hugging Face: accept its licence on the model page, then add HF_TOKEN=<your token> to .env and restart the model server."
 }

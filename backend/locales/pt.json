@@ -39,5 +39,6 @@
   "cancelled": "Cancelado",
   "notEnoughSpace": "Espaço em disco insuficiente: libere cerca de {gb} GB a mais e tente de novo.",
   "removeWhileDownloading": "{label} está sendo baixado; remova-o quando o download terminar.",
-  "noSuchJob": "Tarefa não encontrada; talvez já tenha terminado"
+  "noSuchJob": "Tarefa não encontrada; talvez já tenha terminado",
+  "needsHfToken": "{label} é restrito no Hugging Face: aceite a licença na página do modelo, depois adicione HF_TOKEN=<seu token> ao .env e reinicie o servidor de modelos."
 }

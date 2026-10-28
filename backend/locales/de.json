@@ -39,5 +39,6 @@
   "cancelled": "Abgebrochen",
   "notEnoughSpace": "Nicht genug Speicherplatz: Gib noch etwa {gb} GB frei und versuch es erneut.",
   "removeWhileDownloading": "{label} wird heruntergeladen; entferne es, wenn der Download abgeschlossen ist.",
-  "noSuchJob": "Kein solcher Auftrag; er ist vielleicht schon fertig"
+  "noSuchJob": "Kein solcher Auftrag; er ist vielleicht schon fertig",
+  "needsHfToken": "{label} ist auf Hugging Face zugangsbeschränkt: Akzeptieren Sie die Lizenz auf der Modellseite, tragen Sie dann HF_TOKEN=<Ihr Token> in .env ein und starten Sie den Modellserver neu."
 }

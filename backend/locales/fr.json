@@ -39,5 +39,6 @@
   "cancelled": "Annulé",
   "notEnoughSpace": "Espace disque insuffisant : libérez environ {gb} GB de plus, puis réessayez.",
   "removeWhileDownloading": "{label} est en cours de téléchargement ; supprimez-le une fois le téléchargement terminé.",
-  "noSuchJob": "Tâche introuvable ; elle est peut-être terminée"
+  "noSuchJob": "Tâche introuvable ; elle est peut-être terminée",
+  "needsHfToken": "{label} est protégé sur Hugging Face : acceptez sa licence sur la page du modèle, puis ajoutez HF_TOKEN=<votre jeton> à .env et redémarrez le serveur de modèles."
 }

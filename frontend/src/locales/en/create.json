@@ -140,5 +140,8 @@
   "modelDescription_realvisxl": "SDXL photorealistic people; locks a character's face in photo style.",
   "modelCategory_photo": "Photorealistic",
   "modelCategory_anime": "Anime & illustration",
-  "changeAmount": "Change"
+  "changeAmount": "Change",
+  "modelDescription_flux-dev": "Detailed photorealistic images; slow, and needs a Hugging Face token to download.",
+  "modelDescription_flux-create-nsfw": "FLUX.1-dev with the create-nsfw LoRA, for nude photos.",
+  "modelDescription_flux-asian-nudity": "FLUX.1-dev with the asian-nudity-2 LoRA, for nude photos of East Asian women."
 }

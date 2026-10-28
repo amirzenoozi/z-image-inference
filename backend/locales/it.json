@@ -39,5 +39,6 @@
   "cancelled": "Annullato",
   "notEnoughSpace": "Spazio su disco insufficiente: libera circa altri {gb} GB, poi riprova.",
   "removeWhileDownloading": "{label} è in download; rimuovilo quando il download è finito.",
-  "noSuchJob": "Processo inesistente; potrebbe essere già terminato"
+  "noSuchJob": "Processo inesistente; potrebbe essere già terminato",
+  "needsHfToken": "{label} è protetto su Hugging Face: accetta la licenza nella pagina del modello, poi aggiungi HF_TOKEN=<il tuo token> a .env e riavvia il server dei modelli."
 }

@@ -140,5 +140,8 @@
   "modelDescription_realvisxl": "Personas fotorrealistas con SDXL; fija la cara de un personaje en estilo foto.",
   "modelCategory_photo": "Fotorrealista",
   "modelCategory_anime": "Anime e ilustración",
-  "changeAmount": "Cambio"
+  "changeAmount": "Cambio",
+  "modelDescription_flux-dev": "Imágenes fotorrealistas detalladas; lento, y para descargarlo hace falta un token de Hugging Face.",
+  "modelDescription_flux-create-nsfw": "FLUX.1-dev con la LoRA create-nsfw, para fotos de desnudo.",
+  "modelDescription_flux-asian-nudity": "FLUX.1-dev con la LoRA asian-nudity-2, para fotos de desnudo de mujeres de Asia oriental."
 }

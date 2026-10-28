@@ -140,5 +140,8 @@
   "modelDescription_realvisxl": "SDXL fotorealistische mensen; zet het gezicht van een personage vast in fotostijl.",
   "modelCategory_photo": "Fotorealistisch",
   "modelCategory_anime": "Anime & illustratie",
-  "changeAmount": "Verandering"
+  "changeAmount": "Verandering",
+  "modelDescription_flux-dev": "Gedetailleerde fotorealistische afbeeldingen; traag, en downloaden vraagt een Hugging Face-token.",
+  "modelDescription_flux-create-nsfw": "FLUX.1-dev met de create-nsfw-LoRA, voor naaktfoto’s.",
+  "modelDescription_flux-asian-nudity": "FLUX.1-dev met de asian-nudity-2-LoRA, voor naaktfoto’s van Oost-Aziatische vrouwen."
 }
