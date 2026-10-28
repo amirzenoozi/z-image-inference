@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { IconButton } from './IconButton'
 import { fetchPalette } from '../api'
 import { useCopyToClipboard, useLoadable } from '../lib/hooks'
 import type { PaletteColour } from '../types'
@@ -39,14 +40,14 @@ function Swatch({ colour }: { colour: PaletteColour }) {
   const [copied, copy] = useCopyToClipboard()
   return (
     <li>
-      <button
-        type="button"
+      <IconButton
         onClick={() => void copy(colour.hex)}
-        aria-label={`Copy ${colour.hex}`}
-        title={`Copy ${colour.hex}`}
+        label={`Copy ${colour.hex}`}
         className="block h-10 w-full rounded-md border border-black/10 shadow-xs transition hover:scale-105 focus:ring-2 focus:ring-violet-500 focus:outline-none dark:border-white/10"
         style={{ backgroundColor: colour.hex }}
-      />
+      >
+        {null}
+      </IconButton>
       <p className="mt-1 truncate text-center font-mono text-[10px] text-zinc-600 dark:text-zinc-300">{copied ? 'Copied' : colour.hex}</p>
       <p className="text-center text-[10px] text-zinc-400 tabular-nums">{Math.round(colour.share * 100)}%</p>
     </li>

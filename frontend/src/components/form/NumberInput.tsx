@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from 'react'
+import { IconButton } from '../IconButton'
 import { controlHeight, fieldFrameClass } from '../../lib/styles'
 
 interface Props {
@@ -65,15 +66,14 @@ export function NumberInput({ id, label, value, min, max, step = 1, disabled = f
 
 function StepButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: string }) {
   return (
-    <button
-      type="button"
+    <IconButton
       tabIndex={-1}
-      aria-label={label}
+      label={label}
       disabled={disabled}
       onClick={onClick}
       className="flex h-full w-8 shrink-0 items-center justify-center text-base text-zinc-500 hover:text-violet-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:text-violet-400"
     >
       {children}
-    </button>
+    </IconButton>
   )
 }

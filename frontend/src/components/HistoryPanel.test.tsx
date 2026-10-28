@@ -674,3 +674,17 @@ it('keeps the Clean up delete button neutral while the counts load', async () =>
   expect(deleteButton).toBeDisabled()
   expect(screen.queryByText(/No images older/)).not.toBeInTheDocument()
 })
+
+it('shows tooltips with their keys on the image view\'s icon buttons', async () => {
+  serveHistory(2)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+
+  within(viewer()).getByRole('button', { name: 'Next image' }).focus()
+  await userEvent.tab({ shift: true })
+  await userEvent.tab()
+
+  expect(document.querySelector('[data-tooltip]')).toHaveTextContent('Next image→')
+  await userEvent.keyboard('{ArrowRight}')
+  expect(shownImage()).toHaveAccessibleName('image 1')
+})

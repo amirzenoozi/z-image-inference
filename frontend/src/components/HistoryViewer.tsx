@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
+import { IconButton } from './IconButton'
 import { deleteHistoryItem, fetchHistory, imageUrl } from '../api'
 import { errorMessage } from '../lib/hooks'
 import { secondaryButtonClass } from '../lib/styles'
@@ -203,10 +204,10 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
             <OverlayButton label={zoomed ? 'Fit to window' : 'Zoom to 100%'} onClick={() => setZoomed(!zoomed)} disabled={!item}>
               {zoomed ? '⤡' : '⤢'}
             </OverlayButton>
-            <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} onClick={fullScreen.toggle}>
+            <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} shortcut="Z" onClick={fullScreen.toggle}>
               ⛶
             </OverlayButton>
-            {item && <FavouriteButton ref={favouriteButton} item={item} onChanged={changed} onFailed={setFavouriteError} />}
+            {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setFavouriteError} />}
           </div>
           <SideButton side="previous" disabled={index === 0} onClick={() => moveTo(index - 1)} />
           <SideButton side="next" disabled={index >= image.total - 1} onClick={() => moveTo(index + 1)} />
@@ -301,26 +302,33 @@ function ZoomableImage({ item, zoomed, onZoomedChange }: { item: HistoryItem; zo
   )
 }
 
-function OverlayButton({ label, onClick, disabled = false, children }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode }) {
+interface OverlayButtonProps {
+  label: string
+  shortcut?: string
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}
+
+function OverlayButton({ label, shortcut, onClick, disabled = false, children }: OverlayButtonProps) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
+    <IconButton
+      label={label}
+      shortcut={shortcut}
       onClick={onClick}
       disabled={disabled}
       className="flex size-8 items-center justify-center rounded-full bg-black/45 text-base leading-none text-white backdrop-blur-sm hover:bg-black/60 disabled:opacity-40"
     >
       {children}
-    </button>
+    </IconButton>
   )
 }
 
 function SideButton({ side, disabled, onClick }: { side: 'previous' | 'next'; disabled: boolean; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      aria-label={side === 'previous' ? 'Previous image' : 'Next image'}
+    <IconButton
+      label={side === 'previous' ? 'Previous image' : 'Next image'}
+      shortcut={side === 'previous' ? '←' : '→'}
       onClick={onClick}
       disabled={disabled}
       className={`absolute top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-2xl text-white backdrop-blur-sm hover:bg-black/60 disabled:invisible ${
@@ -328,7 +336,7 @@ function SideButton({ side, disabled, onClick }: { side: 'previous' | 'next'; di
       }`}
     >
       {side === 'previous' ? '‹' : '›'}
-    </button>
+    </IconButton>
   )
 }
 

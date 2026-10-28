@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { IconButton } from './IconButton'
 import { downloadModel, removeModel } from '../api'
 import { formatGb } from '../lib/format'
 import { errorMessage } from '../lib/hooks'
@@ -213,9 +214,9 @@ function ActionError({ message, onDismiss }: { message: string; onDismiss: () =>
   return (
     <span role="alert" className="flex items-center gap-1.5 text-[11px] text-red-600 dark:text-red-400">
       {message}
-      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="font-semibold">
+      <IconButton label="Dismiss" onClick={onDismiss} className="font-semibold">
         ×
-      </button>
+      </IconButton>
     </span>
   )
 }
