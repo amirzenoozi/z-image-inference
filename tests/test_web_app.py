@@ -85,6 +85,9 @@ def test_catalog_lists_models_resolutions_and_limits(client: TestClient) -> None
     assert data["limits"]["side_step"] == 16
     assert {model["id"]: model["prompt_style"] for model in data["models"]}["wai-illustrious"] == "tags"
     assert data["models"][0]["repo_id"] == "Tongyi-MAI/Z-Image-Turbo"
+    category_ids = [category["id"] for category in data["model_categories"]]
+    assert category_ids == ["photo", "anime"]
+    assert {model["category"] for model in data["models"]} == set(category_ids)
 
 
 def test_generate_rejects_invalid_settings_without_calling_the_model_server(
