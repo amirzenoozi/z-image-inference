@@ -48,6 +48,7 @@ grok_client = GrokClient()
 
 class ModelInfo(BaseModel):
     id: str
+    repo_id: str
     label: str
     description: str
     speed_hint: str
@@ -67,7 +68,7 @@ class ModelInfo(BaseModel):
     def from_spec(cls, spec: ModelSpec) -> "ModelInfo":
         width, height = spec.default_size
         return cls(
-            id=spec.id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, download_gb=spec.download_gb,
+            id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, download_gb=spec.download_gb,
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
@@ -99,7 +100,7 @@ class Catalog(BaseModel):
     limits: Limits
 
 
-ModelStatus = Literal["ready", "downloading", "missing", "failed"]
+ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
 
 
 class ModelStatusReport(BaseModel):
