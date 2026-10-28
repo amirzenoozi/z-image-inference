@@ -10,7 +10,7 @@ from palette import PaletteColour, extract_palette
 from resolutions import CATEGORY_CONDITIONS, Category
 
 DB_PATH = Path(__file__).parent / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -24,6 +24,9 @@ ADDED_COLUMNS: dict[str, str] = {
     "palette": "TEXT",
     # The image this one was cropped, turned or flipped from
     "edited_from": "INTEGER",
+    # A variation's start image, and how much it was changed (0 to 1)
+    "varied_from": "INTEGER",
+    "change": "REAL",
 }
 
 
@@ -42,6 +45,8 @@ class HistoryItem:
     duration_seconds: float | None
     favourite: bool
     edited_from: int | None
+    varied_from: int | None
+    change: float | None
 
     def to_dict(self) -> dict[str, str | int | float | None]:
         return asdict(self)
@@ -107,6 +112,8 @@ class NewImage:
     model: str
     duration_seconds: float | None
     edited_from: int | None = None
+    varied_from: int | None = None
+    change: float | None = None
 
 
 @contextmanager
@@ -143,21 +150,26 @@ def add_missing_columns(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE images ADD COLUMN {name} {definition}")
 
 
-def to_item(row: tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None]) -> HistoryItem:
-    id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from = row
+Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None]
+
+
+def to_item(row: Row) -> HistoryItem:
+    id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
+    edited_from, varied_from, change = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
-        edited_from,
+        edited_from, varied_from, change,
     )
 
 
 def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
-            """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds, edited_from)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
+                                  edited_from, varied_from, change)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (image.png, image.prompt, image.negative_prompt, image.seed, image.width, image.height,
-             image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from),
+             image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)

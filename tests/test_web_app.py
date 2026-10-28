@@ -553,3 +553,43 @@ def test_bad_edits_are_refused(client: TestClient, model_server: FakeModelServer
     assert client.post(f"/api/history/{item_id}/edits", json={"crop": {"x": 60, "y": 0, "width": 16, "height": 16}}).status_code == 422
     assert client.post("/api/history/999/edits", json={"quarter_turns": 1}).status_code == 404
     assert client.get("/api/history").json()["total"] == 1
+
+
+def test_a_variation_sends_its_start_image_and_change_and_is_linked_in_history(client: TestClient, model_server: FakeModelServer) -> None:
+    source = generate(client).json()
+    source_png = client.get(f"/api/history/{source['id']}/image").content
+
+    variation = generate(client, source_image_id=source["id"], change=0.6, prompt="the same at night").json()
+
+    sent = model_server.calls[-1]
+    assert base64.b64decode(sent["init_image"]) == source_png
+    assert sent["change"] == 0.6
+    assert "source_image_id" not in sent
+    assert (variation["varied_from"], variation["change"], variation["prompt"]) == (source["id"], 0.6, "the same at night")
+    assert source["varied_from"] is None and source["change"] is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"change": 0.5}, "both a start image and how much to change it"),
+        ({"source_image_id": 1}, "both a start image and how much to change it"),
+        ({"source_image_id": 1, "change": 0.95}, "less than or equal to 0.9"),
+        ({"source_image_id": 1, "change": 0.05}, "greater than or equal to 0.1"),
+        ({"init_image": "aGVsbG8=", "source_image_id": 1, "change": 0.5}, "Input should be None"),
+        ({"model": "moss-image-nsfw", "width": 1024, "height": 1024, "source_image_id": 1, "change": 0.5}, "can't start from an image"),
+    ],
+)
+def test_variations_that_make_no_sense_are_refused_before_rendering(
+    client: TestClient, model_server: FakeModelServer, overrides: dict[str, object], message: str,
+) -> None:
+    resp = generate(client, **overrides)
+    assert resp.status_code == 422
+    assert message in dumps(resp.json())
+    assert model_server.calls == []
+
+
+def test_a_variation_of_a_deleted_image_is_refused_before_rendering(client: TestClient, model_server: FakeModelServer) -> None:
+    resp = generate(client, source_image_id=999, change=0.5)
+    assert (resp.status_code, resp.json()["detail"]) == (404, "The start image is no longer in History; remove it and try again")
+    assert model_server.calls == []

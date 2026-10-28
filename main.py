@@ -68,6 +68,7 @@ class ModelInfo(BaseModel):
     default_negative_prompt: str
     trigger_word: str
     prompt_style: Literal["prose", "tags"]
+    supports_variations: bool
     examples: list[str]
 
     @classmethod
@@ -78,7 +79,7 @@ class ModelInfo(BaseModel):
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
-            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, examples=examples,
+            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, supports_variations=spec.supports_variations, examples=examples,
         )
 
 
@@ -221,14 +222,37 @@ def guidance_used(req: GenerateRequest, spec: ModelSpec) -> float | None:
     return spec.default_guidance if req.guidance is None else req.guidance
 
 
+class WebGenerateRequest(GenerateRequest):
+    """What the browser sends: a variation names its start image in History instead of sending the image."""
+
+    source_image_id: int | None = None
+    # The web app loads the start image itself; image data from the browser is refused
+    init_image: None = None
+
+    def has_start_image(self) -> bool:
+        return self.source_image_id is not None
+
+
+def model_server_request(req: WebGenerateRequest) -> GenerateRequest:
+    """The request for the model server, with a variation's start image loaded from History."""
+    fields = req.model_dump(exclude={"source_image_id"})
+    if req.source_image_id is None:
+        return GenerateRequest(**fields)
+    png = history_store.image_png(req.source_image_id)
+    if png is None:
+        raise HTTPException(404, "The start image is no longer in History; remove it and try again")
+    return GenerateRequest(**fields | {"init_image": base64.b64encode(png).decode()})
+
+
 @app.post("/api/generate")
-def generate(req: GenerateRequest) -> HistoryItem:
-    rendered = request_image(req)
+def generate(req: WebGenerateRequest) -> HistoryItem:
+    rendered = request_image(model_server_request(req))
     spec = MODELS[req.model]
     return history_store.add(NewImage(
         png=base64.b64decode(rendered.image_base64), prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
+        varied_from=req.source_image_id, change=req.change,
     ))
 
 
