@@ -217,6 +217,8 @@ export interface GenerationSettings {
   startImage: StartImage | null
   /** The character the images are made for; the prompt builder writes its look, and History can filter by it. */
   characterId: number | null
+  /** The character whose look the prompt already has (written by the prompt builder, or reused from an image); null for none. */
+  lookIncluded: number | null
 }
 
 export interface StartImage {

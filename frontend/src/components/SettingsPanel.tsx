@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../types'
+import { useCharacter } from '../lib/characters'
+import { addsCharacterLook, promptToSend } from '../lib/characterPrompt'
 import { isServerDown } from '../lib/modelStatus'
 import { characterSettings, differsFromDefaults, findModel, modelDefaults, switchModel } from '../lib/settings'
 import { useTooltip } from '../lib/useTooltip'
@@ -32,7 +34,9 @@ interface Props {
 export function SettingsPanel(props: Props) {
   const { catalog, settings, onChange, generating, lastSeed, onGenerate } = props
   const model = findModel(catalog, settings.modelId)
-  const reason = blockedReason(settings, model, isServerDown(props.modelStatus))
+  const character = useCharacter(settings.characterId)
+  const sentLength = promptToSend(settings, character, model).length
+  const reason = blockedReason(settings, model, isServerDown(props.modelStatus)) ?? lengthProblem(sentLength, catalog.limits.max_prompt_length)
   // The same rule for the button and for ⌘/Ctrl + Enter in the prompt box
   const generate = () => {
     if (reason === null && !generating) onGenerate()
@@ -56,7 +60,7 @@ export function SettingsPanel(props: Props) {
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
         </Section>
-        <PromptSection {...props} onGenerate={generate} model={model} patch={patch} />
+        <PromptSection {...props} onGenerate={generate} model={model} patch={patch} addsLook={addsCharacterLook(settings, character)} />
         <Section title="Resolution">
           <ResolutionPicker
             width={settings.width}
@@ -94,6 +98,11 @@ function blockedReason(settings: GenerationSettings, model: ModelInfo, serverDow
   return null
 }
 
+/** The look a character adds can take a prompt that fits the box over the limit. */
+function lengthProblem(sentLength: number, maxLength: number): string | null {
+  return sentLength > maxLength ? `With the character's look added, the prompt is too long (${sentLength} of ${maxLength} characters). Shorten it.` : null
+}
+
 function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply: () => void; onDismiss: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-900 dark:bg-violet-950/50 dark:text-violet-100">
@@ -113,17 +122,18 @@ function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply
 interface PromptSectionProps extends Props {
   model: ModelInfo
   patch: (changes: Partial<GenerationSettings>) => void
+  addsLook: boolean
 }
 
 function PromptSection(props: PromptSectionProps) {
-  const { catalog, settings, mode, onModeChange, generating, onGenerate, model, patch } = props
+  const { catalog, settings, mode, onModeChange, generating, onGenerate, model, patch, addsLook } = props
   const modes: { id: PromptMode; label: string; enabled: boolean }[] = [
     { id: 'direct', label: 'Write prompt', enabled: true },
     { id: 'chat', label: 'Chat with Grok', enabled: catalog.chat_available },
   ]
   return (
     <Section title="Prompt">
-      <CharacterPicker characterId={settings.characterId} model={model} onChange={(character) => patch(characterSettings(character))} />
+      <CharacterPicker characterId={settings.characterId} model={model} addsLook={addsLook} onChange={(character) => patch(characterSettings(character))} />
       <div role="tablist" aria-label="Prompt mode" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium dark:bg-zinc-800/70">
         {modes.map(({ id, label, enabled }) => (
           <button
