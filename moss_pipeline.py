@@ -1,6 +1,7 @@
 # Vendored from https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora (merged-model/pipeline_moss_image.py),
 # the MOSS-Image pipeline by the OpenMOSS team, Apache License 2.0.
 # Change from upstream: the timestep sinusoid is computed on the CPU, because MPS has no float64.
+# Change from upstream: __call__ takes on_step, called with the step number after each step, for progress and cancelling.
 """MOSSImage modeling and text-to-image pipeline (no Motor/TorchTitan imports).
 
 Dependencies: torch>=2.9, diffusers>=0.38, transformers>=5.3, safetensors,
@@ -346,7 +347,7 @@ class MOSSImagePipeline(DiffusionPipeline):
                  negative_prompt_embeds=None, negative_prompt_attention_mask=None,
                  max_sequence_length=4096, output_type='pil', return_dict=True,
                  uncond_skip_layers=(22,), slg_layers=None, slg_scale=0.0,
-                 slg_start=0.0, slg_stop=1.0):
+                 slg_start=0.0, slg_stop=1.0, on_step=None):
         """Generate images with optional full-block skipping (zero-based indices).
 
         uncond_skip_layers defaults to (22,) and replaces CFG's negative-prompt
@@ -427,6 +428,8 @@ class MOSSImagePipeline(DiffusionPipeline):
                     prediction = skipped
                 prediction = prediction + slg_scale * (conditional - skipped)
             latents = self.scheduler.step(prediction, timestep, latents, return_dict=False)[0]
+            if on_step is not None:
+                on_step(step_index + 1)
         if output_type == 'latent':
             images = latents
         else:

@@ -10,6 +10,7 @@ import shutil
 import asyncio
 import base64
 import random
+import uuid
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -79,7 +80,38 @@ class Job:
     seed: int
 
 
-ImageGenerator = Callable[[Job], Image.Image]
+JobPhase = Literal["waiting", "loading", "encoding", "generating", "finishing"]
+
+
+class JobCancelled(Exception):
+    pass
+
+
+@dataclass
+class JobProgress:
+    """Where a generation is, read by GET /jobs/{id}; cancelling takes effect at the next phase or step."""
+
+    total: int
+    phase: JobPhase = "waiting"
+    step: int = 0
+    cancelled: bool = False
+
+    def enter(self, phase: JobPhase) -> None:
+        self.check_cancelled()
+        self.phase = phase
+
+    def step_done(self, step: int) -> None:
+        self.step = step
+        if step >= self.total:
+            self.phase = "finishing"
+        self.check_cancelled()
+
+    def check_cancelled(self) -> None:
+        if self.cancelled:
+            raise JobCancelled()
+
+
+ImageGenerator = Callable[[Job, JobProgress], Image.Image]
 
 
 def to_job(req: GenerateRequest) -> Job:
@@ -143,10 +175,26 @@ def z_image_model_path() -> Path:
     return target
 
 
+class MfluxStepReporter:
+    """mflux in-loop callback that reports each finished step to the current job."""
+
+    def __init__(self) -> None:
+        self.progress = JobProgress(total=0)
+
+    def call_in_loop(self, t: int, seed: int, prompt: str, latents: mx.array, config: object, time_steps: object) -> None:
+        # MLX computes lazily: evaluating here finishes the step before it is reported
+        mx.eval(latents)
+        self.progress.step_done(t + 1)
+
+
 def load_z_image() -> ImageGenerator:
     model = ZImage(model_path=str(z_image_model_path()))
+    reporter = MfluxStepReporter()
+    model.callbacks.register(reporter)
 
-    def generate(job: Job) -> Image.Image:
+    def generate(job: Job, progress: JobProgress) -> Image.Image:
+        reporter.progress = progress
+        progress.enter("generating")
         return model.generate_image(
             seed=job.seed,
             prompt=job.prompt,
@@ -215,11 +263,20 @@ def load_anime_desire() -> ImageGenerator:
     return sdxl_generator(pipe)
 
 
+def diffusers_step_callback(progress: JobProgress) -> Callable[[object, int, object, dict[str, torch.Tensor]], dict[str, torch.Tensor]]:
+    def on_step_end(pipe: object, step: int, timestep: object, callback_kwargs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        progress.step_done(step + 1)
+        return callback_kwargs
+
+    return on_step_end
+
+
 def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
     pipe.to(torch.device("mps"))
     pipe.vae.to(dtype=torch.float32)
 
-    def generate(job: Job) -> Image.Image:
+    def generate(job: Job, progress: JobProgress) -> Image.Image:
+        progress.enter("generating")
         # A CPU generator is more stable than an MPS one
         generator = torch.Generator("cpu").manual_seed(job.seed)
         with torch.inference_mode():
@@ -232,6 +289,7 @@ def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
                 guidance_scale=job.guidance,
                 generator=generator,
                 output_type="latent",
+                callback_on_step_end=diffusers_step_callback(progress),
             ).images
             return decode_in_float32(pipe, latents)
 
@@ -314,16 +372,19 @@ class MossImageGenerator:
         self.prompts: tuple[str, str] | None = None
         self.embeddings: MossEmbeddings | None = None
 
-    def __call__(self, job: Job) -> Image.Image:
+    def __call__(self, job: Job, progress: JobProgress) -> Image.Image:
         prompts = (job.prompt, job.negative_prompt)
         if prompts != self.prompts or self.embeddings is None:
+            progress.enter("encoding")
             self.pipe = None
             release_memory()
             self.embeddings = encode_moss_prompts(*prompts)
             self.prompts = prompts
             release_memory()
         if self.pipe is None:
+            progress.enter("loading")
             self.pipe = load_moss_image_pipe()
+        progress.enter("generating")
         positive, positive_mask, negative, negative_mask = self.embeddings
         return self.pipe(
             prompt_embeds=positive,
@@ -335,6 +396,7 @@ class MossImageGenerator:
             num_inference_steps=job.steps,
             guidance_scale=job.guidance,
             generator=torch.Generator("cpu").manual_seed(job.seed),
+            on_step=progress.step_done,
         ).images[0]
 
 
@@ -472,6 +534,8 @@ def space_needed_bytes(model_id: str) -> int:
 
 loaded_model_id: str | None = None
 loaded_generator: ImageGenerator | None = None
+# Generations that are running or waiting for the model thread, by job id
+jobs: dict[str, JobProgress] = {}
 # MLX streams belong to the thread that created them, so all model work runs on this one thread
 model_thread = ThreadPoolExecutor(max_workers=1)
 
@@ -506,8 +570,9 @@ def unload_and_remove(model_id: str) -> None:
     downloads.pop(model_id, None)
 
 
-def generate_png(model_id: str, job: Job) -> bytes:
-    image = use_model(model_id)(job)
+def generate_png(model_id: str, job: Job, progress: JobProgress) -> bytes:
+    progress.enter("loading" if model_id != loaded_model_id else "generating")
+    image = use_model(model_id)(job, progress)
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
@@ -530,7 +595,14 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
     if model_status(req.model) != "ready":
         raise HTTPException(503, not_ready_message(req.model))
     job = to_job(req)
-    png = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job)
+    job_id = req.job_id or str(uuid.uuid4())
+    progress = jobs[job_id] = JobProgress(total=job.steps)
+    try:
+        png = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job, progress)
+    except JobCancelled:
+        raise HTTPException(409, "Cancelled")
+    finally:
+        jobs.pop(job_id, None)
     return GenerateResponse(image_base64=base64.b64encode(png).decode("utf-8"), seed=job.seed, model=req.model)
 
 
@@ -577,6 +649,31 @@ async def remove_model(model_id: str) -> Response:
     if model_status(model_id) in ("queued", "downloading"):
         raise HTTPException(409, f"{MODELS[model_id].label} is downloading; remove it when the download has finished.")
     await asyncio.get_running_loop().run_in_executor(model_thread, unload_and_remove, model_id)
+    return Response(status_code=204)
+
+
+class JobState(BaseModel):
+    phase: JobPhase
+    step: int
+    total: int
+
+
+def running_job(job_id: str) -> JobProgress:
+    progress = jobs.get(job_id)
+    if progress is None:
+        raise HTTPException(404, "No such job; it may have finished")
+    return progress
+
+
+@app.get("/jobs/{job_id}")
+def job_state(job_id: str) -> JobState:
+    progress = running_job(job_id)
+    return JobState(phase=progress.phase, step=progress.step, total=progress.total)
+
+
+@app.post("/jobs/{job_id}/cancel", status_code=204)
+def cancel_job(job_id: str) -> Response:
+    running_job(job_id).cancelled = True
     return Response(status_code=204)
 
 
