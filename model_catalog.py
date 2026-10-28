@@ -72,5 +72,25 @@ MOSS_IMAGE = ModelSpec(
     trigger_word="moss_xvstyle",
 )
 
-MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE)}
+ANIME_DESIRE = ModelSpec(
+    id="anime-desire",
+    label="Anime Desire (Illustrious SDXL)",
+    repo_id="AI-Porn/anime-desire-illustrious",
+    description="SDXL anime and hentai styles; knows many characters and Danbooru tags.",
+    speed_hint="~45–60 s at 1024",
+    download_gb=6.9,
+    default_steps=30,
+    max_steps=50,
+    max_side=1216,
+    default_size=(1024, 1024),
+    uses_guidance=True,
+    default_guidance=4.0,
+    default_negative_prompt=(
+        "(worst quality, low quality:1.2), lowres, bad anatomy, bad hands, extra fingers, "
+        "watermark, signature, text, blurry, jpeg artifacts"
+    ),
+    prompt_style="tags",
+)
+
+MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE)}
 DEFAULT_MODEL = Z_IMAGE

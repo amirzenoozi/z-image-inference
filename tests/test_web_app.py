@@ -78,7 +78,7 @@ def generate(client: TestClient, **overrides: object) -> requests.Response:
 
 def test_catalog_lists_models_resolutions_and_limits(client: TestClient) -> None:
     data = client.get("/api/catalog").json()
-    assert [model["id"] for model in data["models"]] == ["z-image-turbo", "wai-illustrious", "moss-image-nsfw"]
+    assert [model["id"] for model in data["models"]] == ["z-image-turbo", "wai-illustrious", "moss-image-nsfw", "anime-desire"]
     assert len(data["resolutions"]) == 28
     assert data["categories"] == ["square", "portrait", "landscape", "widescreen"]
     assert {r["category"] for r in data["resolutions"]} == set(data["categories"])
