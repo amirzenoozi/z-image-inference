@@ -7,6 +7,7 @@ import type { HistoryFilters, HistoryItem, Loadable } from '../types'
 import { ColourPalette } from './ColourPalette'
 import { EditSession } from './EditSession'
 import { FavouriteButton } from './FavouriteButton'
+import { ImageCharacter } from './ImageCharacter'
 import { ImageFacts } from './ImageFacts'
 import { Modal } from './Modal'
 import { ErrorNotice, PromptBlock, Spinner } from './ui'
@@ -422,6 +423,7 @@ function ViewerDetails({ item, label, favouriteError, deleteError, armed, action
     <div className="flex min-h-0 flex-col gap-4 text-sm lg:h-full">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <ImageFacts item={item} label={label} />
+        <ImageCharacter item={item} />
         <ColourPalette itemId={item.id} />
         <PromptBlock title="Prompt" text={item.prompt} />
         {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}

@@ -102,6 +102,49 @@ export interface HistoryItem {
   /** For a variation: its start image, and how much it was changed (0 to 1). */
   varied_from: number | null
   change: number | null
+  /** The character the image was made for; null for none, or once that character is deleted. */
+  character_id: number | null
+}
+
+/** The prompt builder's identity choices a character keeps, named as in the builder's state. */
+export interface CharacterTraits {
+  who: string
+  age: string
+  ethnicity: string
+  subject: string
+  eyeColor: string
+  makeup: string
+  skinTone: string
+  skinDetails: string[]
+  appearanceExtra: string
+  hairColor: string
+  hairstyle: string
+  hairLength: string
+  bodyType: string
+  height: string
+  bust: string
+  hips: string
+  tattoos: string[]
+  piercings: string[]
+  bodyExtra: string
+}
+
+export interface Character {
+  id: number
+  name: string
+  traits: CharacterTraits
+  /** The chosen cover, or else the character's newest image; null while it has none. */
+  cover_id: number | null
+  /** A seed every render of the character uses; null for a new seed each time. */
+  seed: number | null
+  image_count: number
+}
+
+export interface CharacterChanges {
+  name?: string
+  traits?: CharacterTraits
+  cover_id?: number | null
+  seed?: number | null
 }
 
 export interface PaletteColour {
@@ -125,6 +168,7 @@ export interface HistoryFilters {
   favouritesOnly: boolean
   /** The image's shape, grouped as the resolution picker groups sizes. */
   ratio: Category | null
+  character: number | null
 }
 
 export interface HistorySummary {
@@ -152,6 +196,8 @@ export interface GenerationSettings {
   randomSeed: boolean
   /** Set for a variation: the History image to start from, and how much to change it (0.1 to 0.9). */
   startImage: StartImage | null
+  /** The character the images are made for; the prompt builder writes its look, and History can filter by it. */
+  characterId: number | null
 }
 
 export interface StartImage {

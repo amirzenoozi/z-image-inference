@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../types'
 import { isServerDown } from '../lib/modelStatus'
-import { differsFromDefaults, findModel, modelDefaults, switchModel } from '../lib/settings'
+import { characterSettings, differsFromDefaults, findModel, modelDefaults, switchModel } from '../lib/settings'
 import { useTooltip } from '../lib/useTooltip'
 import { tabClass } from '../lib/styles'
+import { CharacterPicker } from './CharacterPicker'
 import { ChatPanel } from './ChatPanel'
 import { ModelPicker } from './ModelPicker'
 import { PromptEditor } from './PromptEditor'
@@ -122,6 +123,7 @@ function PromptSection(props: PromptSectionProps) {
   ]
   return (
     <Section title="Prompt">
+      <CharacterPicker characterId={settings.characterId} onChange={(character) => patch(characterSettings(character))} />
       <div role="tablist" aria-label="Prompt mode" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium dark:bg-zinc-800/70">
         {modes.map(({ id, label, enabled }) => (
           <button

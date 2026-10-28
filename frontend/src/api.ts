@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
+import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -90,6 +90,7 @@ export async function generateImage(settings: GenerationSettings, jobId: string,
       job_id: jobId,
       source_image_id: settings.startImage?.id ?? null,
       change: settings.startImage?.change ?? null,
+      character_id: settings.characterId,
     },
     signal,
   )
@@ -113,6 +114,7 @@ function filterParams(filters: HistoryFilters): URLSearchParams {
   if (filters.search) params.set('q', filters.search)
   if (filters.favouritesOnly) params.set('favourites', 'true')
   if (filters.ratio) params.set('ratio', filters.ratio)
+  if (filters.character !== null) params.set('character', String(filters.character))
   return params
 }
 
@@ -160,6 +162,24 @@ export async function fetchHistorySummary(signal?: AbortSignal): Promise<History
 export async function deleteHistoryOlderThan(days: number): Promise<number> {
   const resp = await request(`/api/history/older-than/${days}`, { method: 'DELETE' })
   return ((await resp.json()) as { deleted: number }).deleted
+}
+
+export async function fetchCharacters(signal?: AbortSignal): Promise<Character[]> {
+  return (await request('/api/characters', { signal })).json() as Promise<Character[]>
+}
+
+export async function createCharacter(character: Required<Pick<CharacterChanges, 'name' | 'traits'>> & CharacterChanges): Promise<Character> {
+  return (await postJson('/api/characters', character)).json() as Promise<Character>
+}
+
+/** Only the fields given change; null clears the cover or the seed. */
+export async function updateCharacter(id: number, changes: CharacterChanges): Promise<Character> {
+  return (await postJson(`/api/characters/${id}`, changes, undefined, 'PATCH')).json() as Promise<Character>
+}
+
+/** Its images are kept, no longer linked to it. */
+export async function deleteCharacter(id: number): Promise<void> {
+  await request(`/api/characters/${id}`, { method: 'DELETE' })
 }
 
 export function imageUrl(id: number, thumb = false): string {

@@ -1,4 +1,4 @@
-import type { Catalog, GenerationSettings, HistoryItem, Limits, ModelInfo, ResolutionInfo, StartImage } from '../types'
+import type { Catalog, Character, GenerationSettings, HistoryItem, Limits, ModelInfo, ResolutionInfo, StartImage } from '../types'
 
 const STORAGE_KEY = 'z-image-studio.settings.v1'
 export const MIN_CHANGE = 0.1
@@ -19,7 +19,7 @@ export function modelDefaults(model: ModelInfo): ModelDefaults {
 
 export function initialSettings(catalog: Catalog): GenerationSettings {
   const model = catalog.models[0]
-  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, ...modelDefaults(model) }
+  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, ...modelDefaults(model) }
 }
 
 export function findModel(catalog: Catalog, modelId: string): ModelInfo {
@@ -78,6 +78,7 @@ export function settingsFromItem(item: HistoryItem, catalog: Catalog): Generatio
       seed: item.seed,
       randomSeed: false,
       startImage: item.varied_from !== null && item.change !== null ? { id: item.varied_from, change: item.change } : null,
+      characterId: item.character_id,
     },
     model,
   )
@@ -86,6 +87,12 @@ export function settingsFromItem(item: HistoryItem, catalog: Catalog): Generatio
 /** Settings for new variations of an image: its prompt and settings, the image as the start, and a new seed each time. */
 export function variationSettings(item: HistoryItem, catalog: Catalog): GenerationSettings {
   return { ...settingsFromItem(item, catalog), randomSeed: true, startImage: { id: item.id, change: DEFAULT_CHANGE } }
+}
+
+/** Settings for making images of a character, or of no one; a character with its own seed renders with it. */
+export function characterSettings(character: Character | null): Partial<GenerationSettings> {
+  const seed = character?.seed ?? null
+  return { characterId: character?.id ?? null, ...(seed === null ? {} : { seed, randomSeed: false }) }
 }
 
 export function differsFromDefaults(settings: GenerationSettings, model: ModelInfo): boolean {
@@ -119,9 +126,10 @@ export function loadSettings(catalog: Catalog): GenerationSettings {
     stored = null
   }
   if (!isStoredSettings(stored)) return initialSettings(catalog)
-  // Settings saved before variations existed have no start image
+  // Settings saved before variations or characters existed have no start image or character
   const startImage = isStartImage(stored.startImage) ? stored.startImage : null
-  return withModel({ ...stored, startImage }, findModel(catalog, stored.modelId))
+  const characterId = Number.isInteger(stored.characterId) ? stored.characterId : null
+  return withModel({ ...stored, startImage, characterId }, findModel(catalog, stored.modelId))
 }
 
 export function saveSettings(settings: GenerationSettings): void {

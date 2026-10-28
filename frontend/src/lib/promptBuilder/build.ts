@@ -135,7 +135,12 @@ export function minorTermIn(state: BuilderState, mode: BuilderMode): string | nu
     state.subject, state.appearanceExtra, state.bodyExtra, state.action, state.environment, state.mood,
     state.extraDetails, state.outfit.details,
   ].join(' ')
-  return MINOR_TERMS.exec(freeText)?.[0] ?? null
+  return minorWordIn(freeText)
+}
+
+/** The first word in the text that points to a minor; characters check their name and details with it. */
+export function minorWordIn(text: string): string | null {
+  return MINOR_TERMS.exec(text)?.[0] ?? null
 }
 
 function adultContentProblem(state: BuilderState, mode: BuilderMode): BuildResult | null {

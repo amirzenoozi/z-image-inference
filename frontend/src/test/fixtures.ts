@@ -1,5 +1,5 @@
 import shippedModes from '../../../prompt_modes.json'
-import type { BuilderModeData, Catalog, HistoryItem, ModelInfo } from '../types'
+import type { BuilderModeData, Catalog, Character, HistoryItem, ModelInfo } from '../types'
 
 /** The modes shipped in prompt_modes.json, so the tests check the real file. */
 // TypeScript reads optional JSON keys as possibly undefined; the catalog serves the same file with the right shape
@@ -89,6 +89,23 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     edited_from: null,
     varied_from: null,
     change: null,
+    character_id: null,
+    ...overrides,
+  }
+}
+
+export function character(overrides: Partial<Character> = {}): Character {
+  return {
+    id: 3,
+    name: 'Ava',
+    traits: {
+      who: 'woman', age: 'late 20s', ethnicity: '', subject: '', eyeColor: 'green', makeup: '', skinTone: '', skinDetails: [],
+      appearanceExtra: '', hairColor: 'auburn', hairstyle: '', hairLength: 'long', bodyType: '', height: '', bust: '', hips: '',
+      tattoos: [], piercings: [], bodyExtra: '',
+    },
+    cover_id: null,
+    seed: null,
+    image_count: 0,
     ...overrides,
   }
 }

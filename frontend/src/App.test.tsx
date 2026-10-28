@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from './api'
 import App from './App'
-import { catalog, deferred, historyItem } from './test/fixtures'
+import { catalog, character, deferred, historyItem } from './test/fixtures'
+import { initialSettings } from './lib/settings'
 import type { HistoryItem } from './types'
 import { chooseOption } from './test/select'
 import { STATUS_POLL_MS } from './lib/modelStatus'
@@ -18,6 +19,7 @@ vi.mock('./api', async (importOriginal) => ({
   fetchHistory: vi.fn(),
   fetchHistorySummary: vi.fn(),
   fetchPalette: vi.fn(),
+  fetchCharacters: vi.fn(),
 }))
 
 beforeEach(() => {
@@ -30,6 +32,7 @@ beforeEach(() => {
   vi.mocked(api.fetchHistorySummary).mockReturnValue(new Promise(() => {}))
   vi.mocked(api.fetchPalette).mockResolvedValue([])
   vi.mocked(api.fetchHistory).mockResolvedValue({ items: [], total: 0 })
+  vi.mocked(api.fetchCharacters).mockResolvedValue([])
 })
 
 it('generates exactly once and shows the image only after it arrives', async () => {
@@ -302,4 +305,35 @@ it('explains a blocked Generate when there is no prompt yet', async () => {
   const generate = await screen.findByRole('button', { name: 'Generate' })
   await waitFor(() => expect(generate).toHaveAccessibleDescription('Write a prompt first'))
   expect(generate).toHaveAttribute('aria-disabled', 'true')
+})
+
+it('makes images for the chosen character, with its own seed, and lets a deleted one go', async () => {
+  vi.mocked(api.fetchCharacters).mockResolvedValue([character({ seed: 42 })])
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem({ character_id: 3 }))
+  render(<App />)
+
+  await chooseOption(await screen.findByLabelText('Character'), 'Ava')
+  await userEvent.type(screen.getByLabelText('Prompt'), 'a red fox')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  expect(api.generateImage).toHaveBeenCalledWith(expect.objectContaining({ characterId: 3, seed: 42, randomSeed: false }), expect.any(String))
+})
+
+it('forgets a remembered character that no longer exists', async () => {
+  localStorage.setItem('z-image-studio.settings.v1', JSON.stringify({ ...initialSettings(catalog), prompt: 'a cat', characterId: 9 }))
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem())
+  render(<App />)
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Generate' }))
+  expect(api.generateImage).toHaveBeenCalledWith(expect.objectContaining({ characterId: null }), expect.any(String))
+})
+
+it('opens History filtered to a character from the Characters page', async () => {
+  vi.mocked(api.fetchCharacters).mockResolvedValue([character({ image_count: 2 })])
+  render(<App />)
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Characters' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Show images' }))
+
+  expect(window.location.pathname + window.location.search).toBe('/history?character=3')
+  await waitFor(() => expect(api.fetchHistory).toHaveBeenCalledWith(0, 30, expect.objectContaining({ character: 3 }), expect.any(AbortSignal)))
 })
