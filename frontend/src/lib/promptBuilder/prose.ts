@@ -1,8 +1,8 @@
 import { capitalise, joinPieces, withArticle, type Facts } from './facts'
-import { PROSE_BLOCKS, type ProseBlock } from './modes'
+import { PROSE_BLOCKS, type BuilderMode, type ProseBlock } from './modes'
 
-function opening(f: Facts): string {
-  const photo = f.photoStyle ? `${withArticle(f.photoStyle)} photograph` : 'a photograph'
+function opening(f: Facts, focusOpening: string): string {
+  const photo = focusOpening || (f.photoStyle ? `${withArticle(f.photoStyle)} photograph` : 'a photograph')
   return [`${photo} of ${f.subject}`, f.pose.text, f.action.text, f.freeAction].filter(Boolean).join(', ')
 }
 
@@ -107,12 +107,15 @@ const BLOCKS: Record<ProseBlock, (f: Facts) => string[]> = {
 
 /**
  * One flowing paragraph for models that read natural language (Z-Image, MOSS-Image): who and what is happening
- * first, since these models weigh what comes early most; then the blocks the mode stresses, then the rest in their
+ * first, since these models weigh what comes early most; then the mode's style cues and the blocks it stresses, then the rest in their
  * usual order: nudity, the person, the outfit, the setting, the light and the camera, each tied to the subject.
  */
-export function proseFrom(f: Facts, emphasis: readonly ProseBlock[] = []): string {
-  const order = [...new Set([...emphasis, ...PROSE_BLOCKS])]
-  const sentences = [opening(f), ...order.flatMap((block) => BLOCKS[block](f))]
+export function proseFrom(f: Facts, mode: Pick<BuilderMode, 'emphasis' | 'focus'>): string {
+  const order = [...new Set([...mode.emphasis, ...PROSE_BLOCKS])]
+  // With its own opening the mode replaces the photo style there, so the style moves to the cues
+  const style = mode.focus.opening && f.photoStyle ? `shot in ${withArticle(f.photoStyle)} style` : ''
+  const cues = [mode.focus.cues, style].filter(Boolean).join(', ')
+  const sentences = [opening(f, mode.focus.opening), cues, ...order.flatMap((block) => BLOCKS[block](f))]
   const text = sentences
     .map((sentence) => sentence.trim().replace(/\.+$/, ''))
     .filter(Boolean)

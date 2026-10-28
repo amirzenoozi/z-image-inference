@@ -60,7 +60,8 @@ export interface BuilderModeData {
   id: string
   label: string
   description: string
-  adult_only: boolean
+  content: string
+  focus?: { opening: string; cues: string; tags: string[] }
   steps: string[]
   defaults: Record<string, string>
   options: Record<string, string[]>

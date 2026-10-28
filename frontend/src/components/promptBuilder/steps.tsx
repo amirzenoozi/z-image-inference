@@ -2,7 +2,7 @@ import { ACCESSORIES, BOTTOMS, CLOTHING_COLORS, LINGERIE_BOTTOMS, LINGERIE_TOPS,
 import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
 import type { ChoiceField } from '../../lib/promptBuilder/choices'
-import { isAdultMode, type BuilderMode } from '../../lib/promptBuilder/modes'
+import { isAdultMode, isSafeMode, type BuilderMode } from '../../lib/promptBuilder/modes'
 import { ChipGroup, ChoiceSelect, FieldGrid, Segmented, StepIntro, TextField } from './fields'
 
 export interface StepProps {
@@ -67,24 +67,26 @@ export function BodyStep({ state, mode, set }: StepProps) {
 
 type OutfitChoice = Exclude<keyof OutfitState, 'accessories' | 'details'>
 
-const OUTFIT_ROWS: { label: string; item: OutfitChoice; color: OutfitChoice; options: readonly string[] }[] = [
+const OUTFIT_ROWS: { label: string; item: OutfitChoice; color: OutfitChoice; options: readonly string[]; lingerie?: boolean }[] = [
   { label: 'Top', item: 'top', color: 'topColor', options: TOPS },
   { label: 'Bottom', item: 'bottom', color: 'bottomColor', options: BOTTOMS },
-  { label: 'Lingerie top', item: 'lingerieTop', color: 'lingerieTopColor', options: LINGERIE_TOPS },
-  { label: 'Lingerie bottom', item: 'lingerieBottom', color: 'lingerieBottomColor', options: LINGERIE_BOTTOMS },
+  { label: 'Lingerie top', item: 'lingerieTop', color: 'lingerieTopColor', options: LINGERIE_TOPS, lingerie: true },
+  { label: 'Lingerie bottom', item: 'lingerieBottom', color: 'lingerieBottomColor', options: LINGERIE_BOTTOMS, lingerie: true },
   { label: 'Outerwear', item: 'outerwear', color: 'outerwearColor', options: OUTERWEAR },
   { label: 'Shoes', item: 'shoes', color: 'shoesColor', options: SHOES },
 ]
 
-export function OutfitStep({ state, setOutfit }: StepProps) {
+export function OutfitStep({ state, mode, setOutfit }: StepProps) {
   const { outfit } = state
+  const safe = isSafeMode(mode)
+  const rows = OUTFIT_ROWS.filter((row) => !safe || !row.lingerie)
   const setAccessory = (index: number, value: string) =>
     setOutfit({ accessories: outfit.accessories.map((item, i) => (i === index ? value : item)) as OutfitState['accessories'] })
   return (
     <>
-      <StepIntro>“Remove” writes the piece as left off, for example “without shoes”. Lingerie needs “Who” and an age range.</StepIntro>
+      <StepIntro>“Remove” writes the piece as left off, for example “without shoes”.{safe ? '' : ' Lingerie needs “Who” and an age range.'}</StepIntro>
       <FieldGrid>
-        {OUTFIT_ROWS.map((row) => (
+        {rows.map((row) => (
           <div key={row.item} className="contents">
             <ChoiceSelect label={row.label} value={outfit[row.item]} groups={one(row.options)} allowRemove onChange={(value) => setOutfit({ [row.item]: value })} />
             <ChoiceSelect label={`${row.label} colour`} value={outfit[row.color]} groups={one(CLOTHING_COLORS)} onChange={(value) => setOutfit({ [row.color]: value })} />

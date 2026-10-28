@@ -1,6 +1,6 @@
 import type { Who } from './extraData'
 import type { Facts } from './facts'
-import type { WeightGroup } from './modes'
+import type { BuilderMode, WeightGroup } from './modes'
 
 const QUALITY_TAGS = ['masterpiece', 'best quality', 'amazing quality']
 
@@ -50,12 +50,13 @@ function settingTags(f: Facts, weights: Weights): string[] {
 }
 
 /**
- * A tag list for models trained on booru tags (WAI, Anime Desire): quality tags, who, then adult content, then the
+ * A tag list for models trained on booru tags (WAI, Anime Desire): quality tags, who, the mode's style tags, then adult content, then the
  * rest. The mode's weights strengthen groups in the "(tag:1.3)" form, which the model server applies.
  */
-export function tagsFrom(f: Facts, weights: Weights = {}): string {
+export function tagsFrom(f: Facts, mode: Pick<BuilderMode, 'weights' | 'focus'>): string {
+  const { weights } = mode
   const tags = [
-    ...QUALITY_TAGS, ...subjectTags(f), ...adultTags(f, weights), f.freeAction, ...personTags(f, weights), f.appearanceExtra, f.body.extra,
+    ...QUALITY_TAGS, ...subjectTags(f), ...mode.focus.tags, ...adultTags(f, weights), f.freeAction, ...personTags(f, weights), f.appearanceExtra, f.body.extra,
     ...f.clothing.map(weighed(weights, 'outfit')), ...f.removed.map((item) => `no ${item}`), f.outfitDetails, ...settingTags(f, weights), f.extraDetails,
   ]
   return [...new Set(tags.map((tag) => tag.trim().replace(/\.+$/, '')).filter(Boolean))].join(', ')

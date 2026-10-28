@@ -108,10 +108,10 @@ describe('tags for models trained on booru tags', () => {
     )
   })
 
-  it('puts adult content right after who, with extra weight', () => {
+  it('puts the mode style tags and adult content right after who, with extra weight', () => {
     const state = adult({ mode: 'explicit', nudity: 'nude', pose: 'legs spread lying back', explicitAction: 'caressing inner thigh', sceneType: 'bedroom' })
     expect(promptOf(state, 'tags')).toBe(
-      'masterpiece, best quality, amazing quality, 1girl, solo, adult woman, late 20s, ' +
+      'masterpiece, best quality, amazing quality, 1girl, solo, adult woman, late 20s, nsfw, explicit, uncensored, ' +
         '(completely nude:1.3), (nipples:1.3), (pussy:1.3), (caressing inner thigh:1.3), (legs spread lying back:1.2), bedroom',
     )
   })
@@ -127,16 +127,16 @@ describe('explicit content', () => {
     ['implied', 'She is nude but nothing explicit is shown, her breasts and intimate areas hidden by hands, sheets or hair', true, true],
     ['topless', 'She is topless with nothing worn above the waist, bare breasts and nipples fully visible', false, true],
     ['nude', 'She is completely nude, fully naked with no clothing at all, bare breasts, nipples and vulva clearly visible', false, false],
-  ] as const)('%s states it plainly, straight after the subject, with matching negatives', (nudity, wording, breastsCovered, intimateCovered) => {
+  ] as const)('%s states it plainly, straight after the opening and the style cues, with matching negatives', (nudity, wording, breastsCovered, intimateCovered) => {
     const result = ready(build(adult({ mode: 'explicit', nudity, eyeColor: 'green' })))
-    expect(result.prompt).toContain(`A photograph of an adult woman in her late 20s. ${wording}. She has green eyes.`)
+    expect(result.prompt).toContain(`An explicit adult photograph of an adult woman in her late 20s. Uncensored and sexually explicit, with intimate detail sharply in focus. ${wording}. She has green eyes.`)
     expect(result.negativePrompt.includes('exposed nipples')).toBe(breastsCovered)
     expect(result.negativePrompt.includes('exposed genitals')).toBe(intimateCovered)
   })
 
   it('puts the explicit pose and action in the opening sentence', () => {
     const state = adult({ mode: 'explicit', nudity: 'nude', pose: 'bent over', explicitAction: 'biting lip', sceneType: 'bedroom' })
-    expect(promptOf(state)).toMatch(/^A photograph of an adult woman in her late 20s, bent over at the waist, ass presented, upper body lowered, biting lower lip seductively\. /)
+    expect(promptOf(state)).toMatch(/^An explicit adult photograph of an adult woman in her late 20s, bent over at the waist, ass presented, upper body lowered, biting lower lip seductively\. /)
   })
 
   it('never describes clothes the nudity level has taken off', () => {
@@ -316,7 +316,7 @@ describe('modes', () => {
   })
 
   it('keeps the age checks for any mode that shows the Intimacy step, whatever its file says', () => {
-    const { modes: [sneaky] } = parseModes([{ ...builderModes[0], id: 'sneaky', adult_only: false, steps: ['subject', 'intimacy'] }])
+    const { modes: [sneaky] } = parseModes([{ ...builderModes[0], id: 'sneaky', content: 'everyday', steps: ['subject', 'intimacy'] }])
     expect(buildPrompt({ ...emptyBuilderState(), who: 'woman' }, sneaky).status).toBe('incomplete')
     expect(buildPrompt(adult({ subject: 'teen' }), sneaky).status).toBe('blocked')
   })
@@ -325,6 +325,31 @@ describe('modes', () => {
     const { modes: kept, problems } = parseModes([{ ...builderModes[0], id: 'odd', defaults: { shotType: 'drone' }, weights: { face: 3 } }])
     expect(kept.map((candidate) => candidate.id)).toEqual(['general'])
     expect(problems).toEqual(['Mode "odd" was left out: unknown shotType default "drone"; the face weight must be between 0.5 and 2.'])
+  })
+})
+
+describe('content levels and focus', () => {
+  it('writes Glamour as sensual, up to topless, with no explicit poses or acts', () => {
+    const glamour = adult({ mode: 'glamour', nudity: 'implied', pose: 'legs spread lying back', explicitAction: 'biting lip' })
+    expect(promptOf(glamour)).toMatch(/^A sensual glamour photograph of an adult woman in her late 20s\. An alluring, confident gaze/)
+    expect(promptOf(glamour)).not.toMatch(/legs spread|biting/)
+    expect(promptOf(glamour, 'tags')).toContain('adult woman, late 20s, glamour photography, sensual, alluring, boudoir, (implied nudity:1.2)')
+    expect(switchMode(adult({ mode: 'explicit', nudity: 'nude' }), modes.find((mode) => mode.id === 'glamour')!).nudity).toBe('clothed')
+  })
+
+  it('keeps Influencer safe: no nudity or lingerie, and safe negatives', () => {
+    const outfit = { ...emptyOutfit(), lingerieTop: 'Lace bralette', top: 'Blouse' }
+    const result = ready(build({ ...emptyBuilderState(), mode: 'influencer', who: 'woman', nudity: 'nude', outfit, photoStyle: 'mirror selfie' }))
+    expect(result.prompt).toMatch(/^An Instagram influencer photo of an adult woman\. A candid lifestyle shot taken on a phone, .*, shot in a mirror selfie style\./)
+    expect(result.prompt).toContain('blouse')
+    expect(result.prompt).not.toMatch(/nude|bralette|topless/i)
+    expect(result.negativePrompt).toMatch(/^nsfw, nude, nudity, topless, lingerie, underwear, see-through, cleavage, /)
+    expect(result.explicit).toBe(false)
+  })
+
+  it('refuses a safe mode that shows the Intimacy step', () => {
+    const { problems } = parseModes([{ ...builderModes[0], id: 'odd', content: 'safe', steps: ['subject', 'intimacy'] }])
+    expect(problems).toEqual(['Mode "odd" was left out: a safe mode cannot show the intimacy step.'])
   })
 })
 

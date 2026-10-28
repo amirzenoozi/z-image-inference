@@ -98,7 +98,7 @@ it('writes weighted tags for tag-based models, and a description for the others'
   await userEvent.click(screen.getByRole('button', { name: 'Fully nude' }))
 
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent(
-    'masterpiece, best quality, amazing quality, 1girl, solo, adult woman, early 30s, (completely nude:1.3), (nipples:1.3), (pussy:1.3)',
+    'masterpiece, best quality, amazing quality, 1girl, solo, adult woman, early 30s, nsfw, explicit, uncensored, (completely nude:1.3), (nipples:1.3), (pussy:1.3)',
   )
 })
 

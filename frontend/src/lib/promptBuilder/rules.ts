@@ -2,7 +2,7 @@ import type { BuilderState } from './build'
 import { CHOICE_OPTIONS, type ChoiceField } from './choices'
 import { EXPLICIT_PARTNER_ACTIONS, EXPLICIT_POSES, EXPLICIT_SOLO_ACTIONS, POSES } from './data'
 import type { Nudity } from './extraData'
-import { isAdultMode, type BuilderMode } from './modes'
+import { allowsExplicitActs, isAdultMode, type BuilderMode } from './modes'
 
 /** Bust options, and poses and actions about breasts or lingerie, only apply when the subject may include a woman. */
 export function includesWoman(who: string): boolean {
@@ -48,12 +48,19 @@ export function partnerActions(who: string, nudity: Nudity): string[] {
   return who === 'couple' ? Object.keys(EXPLICIT_PARTNER_ACTIONS).filter(fitsNudity(nudity)) : []
 }
 
-/** A field's options under the content rules: adult options only in an adult mode, and only those that fit the subject. */
+/** A field's options under the mode's content level, and only those that fit the subject. */
+const SUGGESTIVE_NUDITY: readonly Nudity[] = ['clothed', 'implied', 'topless']
+
+function nudityOptions(mode: BuilderMode): string[] {
+  if (!isAdultMode(mode)) return ['clothed']
+  return mode.content === 'suggestive' ? [...SUGGESTIVE_NUDITY] : [...CHOICE_OPTIONS.nudity]
+}
+
 function fittingOptions(field: ChoiceField, state: BuilderState, mode: BuilderMode): string[] {
-  const adult = isAdultMode(mode)
-  if (field === 'pose') return poseOptions(adult, state.who)
-  if (field === 'explicitAction') return adult ? [...soloActions(state.who, state.nudity), ...partnerActions(state.who, state.nudity)] : []
-  if (field === 'nudity') return adult ? [...CHOICE_OPTIONS.nudity] : ['clothed']
+  const explicit = allowsExplicitActs(mode)
+  if (field === 'pose') return poseOptions(explicit, state.who)
+  if (field === 'explicitAction') return explicit ? [...soloActions(state.who, state.nudity), ...partnerActions(state.who, state.nudity)] : []
+  if (field === 'nudity') return nudityOptions(mode)
   if (field === 'bust') return includesWoman(state.who) ? [...CHOICE_OPTIONS.bust] : []
   return [...CHOICE_OPTIONS[field]]
 }
