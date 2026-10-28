@@ -82,7 +82,7 @@ Open http://127.0.0.1:7860 in your browser.
 
 ### Create
 
-1. Pick a **model** card
+1. The sidebar shows the selected **model**; press **Change** to choose another from the model dialog
 2. Write a **prompt**, or choose one from **Examples**; models that use one also show a **negative prompt**
 3. Choose a **resolution**: pick a category tab, then a size; sizes the model cannot make are greyed out with the reason
 4. Adjust **steps**, **guidance** and **seed** if you like; **Reset to model defaults** undoes your changes
@@ -129,7 +129,7 @@ The **History** tab shows every image, newest first. Open one to see its prompt 
 
 When the model server starts, it queues every model that is not downloaded yet and fetches them one at a time in the background, Z-Image-Turbo first; you can generate with any model that is already ready meanwhile. Each card shows **Queued for download**, **Downloading** or **Download failed** until the model is ready, and choosing a model that is not ready tells you so straight away. Each card also links to the model's page on **Hugging Face**.
 
-Choosing another model keeps your settings where that model allows them, and offers its recommended defaults in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
+Choosing another model (with **Change** next to the selected one) keeps your settings where that model allows them, and offers its recommended defaults in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
 
 The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/` and stores it in float16 (6.6 GB), the precision it runs in anyway.
 
