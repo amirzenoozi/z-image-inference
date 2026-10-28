@@ -3,7 +3,7 @@ import sampleCharacters from '../../../../sample_characters.json'
 import type { CharacterTraits } from '../../types'
 import { character } from '../../test/fixtures'
 import { emptyBuilderState } from './build'
-import { characterProblem, traitsOf, traitsSummary, withTraits } from './character'
+import { characterProblem, surpriseLook, traitsOf, traitsSummary, withTraits } from './character'
 import { NOT_SET } from './constants'
 
 it('keeps who the person is and how they look, not what they wear or do', () => {
@@ -47,5 +47,28 @@ describe('the sample characters every new database starts with', () => {
   it('gives each one a different look', () => {
     const looks = samples.map(({ traits }) => traitsSummary(traits))
     expect(new Set(looks).size).toBe(samples.length)
+  })
+})
+
+describe('a surprise look', () => {
+  const seeds = Array.from({ length: 40 }, (_, index) => index * 7919 + 1)
+
+  it.each(seeds)('is a full adult look that fits who it is for (seed %i)', (seed) => {
+    const look = surpriseLook({ ...emptyBuilderState(), subject: 'a dancer' }, seed)
+    const traits = traitsOf(look)
+    expect(['woman', 'man']).toContain(look.who)
+    expect(characterProblem('Someone', traits)).toBeNull()
+    expect(traitsOf(withTraits(emptyBuilderState(), traits))).toEqual(traits)
+    expect(look.subject).toBe('a dancer')
+    if (look.who === 'man') expect([look.bust, look.makeup]).toEqual([NOT_SET, NOT_SET])
+  })
+
+  it('keeps the chosen "Who"', () => {
+    for (const seed of seeds) expect(surpriseLook({ ...emptyBuilderState(), who: 'man' }, seed).who).toBe('man')
+  })
+
+  it('gives different looks for different rolls', () => {
+    const looks = new Set(seeds.map((seed) => traitsSummary(traitsOf(surpriseLook(emptyBuilderState(), seed)))))
+    expect(looks.size).toBeGreaterThan(30)
   })
 })

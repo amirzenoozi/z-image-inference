@@ -407,3 +407,17 @@ it.each([
   await userEvent.type(prompt, ' at night')
   expect(prompt).toHaveValue('a red fox at night')
 })
+
+it('shows the same gender filter on returning to Characters', async () => {
+  vi.mocked(api.fetchCharacters).mockResolvedValue([character(), character({ id: 4, name: 'Ravi', traits: { ...character().traits, who: 'man', bust: '' } })])
+  render(<App />)
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Characters' }))
+  await userEvent.click(await screen.findByRole('radio', { name: 'Men' }))
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Characters' }))
+
+  expect(await screen.findByRole('radio', { name: 'Men' })).toHaveAttribute('aria-checked', 'true')
+  expect(screen.getAllByRole('listitem').map((card) => card.getAttribute('aria-label'))).toEqual(['Ravi'])
+  expect(window.location.pathname + window.location.search).toBe('/characters?gender=men')
+})

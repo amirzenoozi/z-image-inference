@@ -3,7 +3,7 @@ import { createCharacter, updateCharacter } from '../api'
 import { useCharacters } from '../lib/characters'
 import { errorMessage } from '../lib/hooks'
 import { emptyBuilderState, type BuilderState } from '../lib/promptBuilder/build'
-import { characterProblem, traitsOf, withTraits } from '../lib/promptBuilder/character'
+import { characterProblem, surpriseLook, traitsOf, withTraits } from '../lib/promptBuilder/character'
 import { FALLBACK_MODE } from '../lib/promptBuilder/modes'
 import { fieldLabelClass, secondaryButtonClass } from '../lib/styles'
 import type { Character } from '../types'
@@ -11,6 +11,9 @@ import { CharacterFace, type FaceLock } from './CharacterFace'
 import { TextInput } from './form/TextInput'
 import { Modal } from './Modal'
 import { AppearanceStep, BodyStep, SubjectStep, type StepProps } from './promptBuilder/steps'
+import { Dices } from 'lucide-react'
+
+const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 
 type SaveState = { status: 'idle' } | { status: 'saving' } | { status: 'failed'; error: string }
 
@@ -77,7 +80,7 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
       }
     >
       <div className="max-h-[65vh] space-y-5 overflow-y-auto pr-1">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <label className="block">
             <span className={`${fieldLabelClass} mb-1 block`}>Name</span>
             <TextInput value={name} maxLength={40} onChange={(event) => setName(event.target.value)} placeholder="e.g. Ava" />
@@ -86,6 +89,13 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
             <span className={`${fieldLabelClass} mb-1 block`}>Seed</span>
             <TextInput value={seedText} inputMode="numeric" onChange={(event) => setSeedText(event.target.value)} placeholder="Empty: a new seed each time" />
           </label>
+          <button
+            type="button"
+            onClick={() => setState((current) => surpriseLook(current, newSeed()))}
+            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+          >
+            <Dices /> Surprise me
+          </button>
         </div>
         <EditorSection title="Subject">
           <SubjectStep {...steps} />

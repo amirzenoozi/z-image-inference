@@ -3,6 +3,9 @@ import { minorWordIn, type BuilderState } from './build'
 import { CHOICE_OPTIONS } from './choices'
 import { NOT_SET } from './constants'
 import { EXPLICIT_PIERCINGS, PIERCINGS, SKIN_DETAILS, TATTOOS } from './extraData'
+import { FALLBACK_MODE } from './modes'
+import { pick, pickSome } from './random'
+import { choicesFor, includesWoman } from './rules'
 
 const CHOICE_TRAITS = [
   'who', 'age', 'ethnicity', 'eyeColor', 'makeup', 'skinTone', 'hairColor', 'hairstyle', 'hairLength', 'bodyType', 'height', 'bust', 'hips',
@@ -44,4 +47,35 @@ export function traitsSummary(traits: CharacterTraits): string {
   const hair = [traits.hairLength, traits.hairColor].filter(Boolean).join(' ')
   const parts = [traits.who, traits.age, traits.ethnicity, traits.eyeColor && `${traits.eyeColor} eyes`, hair && `${hair} hair`, traits.bodyType]
   return parts.filter(Boolean).join(', ')
+}
+
+const SURPRISE_TRAITS = CHOICE_TRAITS.filter((trait) => trait !== 'who')
+// One in three looks gets a detail of each kind, so most surprises stay plain
+const DETAIL_ODDS = ['0', '0', '1']
+
+function sometimes(options: readonly string[], seed: number, field: string): string[] {
+  return pick(DETAIL_ODDS, seed, `${field}Count`) === '1' ? pickSome(options, 1, seed, field) : []
+}
+
+/**
+ * A random look for a character: every Subject, Face & hair and Body choice from the builder's options, fitting
+ * "Who" (kept if chosen, else a woman or a man). Free text is kept, and only everyday piercings are picked.
+ */
+export function surpriseLook(state: BuilderState, seed: number): BuilderState {
+  const who = state.who === NOT_SET ? pick(['woman', 'man'], seed, 'who') : state.who
+  const withWho = { ...state, who }
+  const choices = Object.fromEntries(
+    SURPRISE_TRAITS.map((trait) => {
+      const options = choicesFor(trait, withWho, FALLBACK_MODE)
+      return [trait, options.length ? pick(options, seed, trait) : NOT_SET]
+    }),
+  )
+  return {
+    ...withWho,
+    ...choices,
+    makeup: includesWoman(who) ? choices.makeup : NOT_SET,
+    skinDetails: sometimes(SKIN_DETAILS, seed, 'skinDetails'),
+    tattoos: sometimes(TATTOOS, seed, 'tattoos'),
+    piercings: sometimes(PIERCINGS, seed, 'piercings'),
+  }
 }
