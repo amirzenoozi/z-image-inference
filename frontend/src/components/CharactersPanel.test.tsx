@@ -210,3 +210,13 @@ it('keeps a stored photo when saving other changes, and removes it on request', 
   await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit Ava' })).getByRole('button', { name: 'Save' }))
   expect(vi.mocked(api.updateCharacter).mock.calls[1][1]).toMatchObject({ face_id: null, face_upload: null })
 })
+
+it('warns that a face strength above 80% copies the face image', async () => {
+  renderPanel({ status: 'settled', value: [character({ face_id: 12, face_strength: 0.6 })] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  expect(within(dialog).queryByText(/the face image is copied/)).not.toBeInTheDocument()
+
+  fireEvent.change(within(dialog).getByLabelText('Face strength'), { target: { value: '0.85' } })
+  expect(within(dialog).getByText(/Above 80% the face image is copied/)).toBeInTheDocument()
+})

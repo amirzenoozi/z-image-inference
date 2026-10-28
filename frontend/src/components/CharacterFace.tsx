@@ -8,6 +8,8 @@ import { SensitiveImage } from './SensitiveImage'
 const MIN_STRENGTH = 0.1
 const MAX_STRENGTH = 1
 const STRENGTH_STEP = 0.05
+// Above this, IP-Adapter copies the face image (pose and clothes too) and follows little of the prompt
+const COPYING_STRENGTH = 0.8
 
 interface Props {
   face: FaceLock
@@ -70,6 +72,11 @@ function StrengthSlider({ strength, onChange }: { strength: number; onChange: (s
         <span>Follows the prompt</span>
         <span>Keeps the face</span>
       </div>
+      {strength > COPYING_STRENGTH && (
+        <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
+          Above 80% the face image is copied, often with its pose and clothes, and most of the prompt is ignored. 50–65% usually keeps the face and follows the prompt.
+        </p>
+      )}
     </div>
   )
 }

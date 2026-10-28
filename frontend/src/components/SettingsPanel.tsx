@@ -12,6 +12,7 @@ import { ModelPicker } from './ModelPicker'
 import { PromptEditor } from './PromptEditor'
 import { ResolutionPicker } from './ResolutionPicker'
 import { SamplingControls } from './SamplingControls'
+import { SizeHint } from './SizeHint'
 import { StartImageBlock } from './StartImageBlock'
 import { Section, Spinner } from './ui'
 
@@ -71,6 +72,7 @@ export function SettingsPanel(props: Props) {
             limits={catalog.limits}
             onChange={(width, height) => patch({ width, height })}
           />
+          <SizeHint width={settings.width} height={settings.height} model={model} onUseModelSize={() => patch({ width: model.default_width, height: model.default_height })} />
         </Section>
         <Section
           title="Sampling"
