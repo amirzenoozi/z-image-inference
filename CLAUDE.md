@@ -48,6 +48,7 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 - `history_store.py`: SQLite history; images are stored as PNG data in the database.
 - `frontend/src/`: React + TypeScript + Tailwind v4. `lib/` holds logic (settings, API client, prompt builder), `components/` the UI.
 - `frontend/src/lib/promptBuilder/`: the prompt builder. Its option lists (`data.ts`) are generated from ComfyUI Photoreal Prompt Builder (see `THIRD_PARTY_NOTICES.md`); `build.ts` resolves the choices into facts (`facts.ts`), which `prose.ts` writes as a detailed paragraph (Z-Image, MOSS-Image) and `tags.ts` as a weighted tag list (WAI, Anime Desire), chosen by the model's `prompt_style`.
+- `image_edits.py`: rotate, flip and crop recipes, applied with Pillow when an edited copy is saved (`POST /api/history/{id}/edits`); the original image is never changed.
 - `prompt_weights.py`: rewrites `(tag:1.3)` weights for Compel, which encodes SDXL prompts with weights and past 77 tokens (`sdxl_conditioning` in `model_server.py`).
 
 ## Rules to keep
