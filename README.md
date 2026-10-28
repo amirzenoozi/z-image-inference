@@ -8,7 +8,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 |-------|--------|----------|
 | [Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) from Tongyi Lab | [mflux](https://github.com/filipstrand/mflux) (MLX), 4-bit | Photorealistic images and text rendering |
 | [WAI-NSFW-Illustrious v12](https://huggingface.co/votepurchase/waiNSFWIllustrious_v120) (SDXL) | diffusers on MPS, float16 | Anime and illustration styles |
-| [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) (MOSS-Image with a merged LoRA) | diffusers on MPS, bfloat16 | Photorealistic adult content; slow |
+| [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) (MOSS-Image with a merged LoRA) | diffusers on MPS, bfloat16 image model, 8-bit text encoder | Photorealistic adult content; slow |
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -67,7 +67,7 @@ cd frontend && npm ci && npm run build && cd ..
 uv run python model_server.py
 ```
 
-On the first run the server downloads Z-Image-Turbo (about 31 GB) into `models/Z-Image-Turbo/` and builds a 4-bit copy (5.5 GB) in `models/zimage-q4/`. Later starts load the 4-bit copy in a few seconds.
+On the first run the server downloads Z-Image-Turbo (about 31 GB) into `models/Z-Image-Turbo/`, builds a 4-bit copy (5.5 GB) in `models/zimage-q4/`, then deletes the download. Later starts load the 4-bit copy in a few seconds.
 
 **Step 2: in a new terminal, start the web UI**
 
@@ -128,9 +128,9 @@ The **History** tab shows every image, newest first. Open one to see its prompt 
 
 Choosing another model keeps your settings where that model allows them, and offers its recommended defaults in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
 
-The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/`. This can take longer than the UI is willing to wait; if the request times out, wait for the download to finish in the server terminal and generate again.
+The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/` and stores it in float16 (6.6 GB), the precision it runs in anyway. This can take longer than the UI is willing to wait; if the request times out, wait for the download to finish in the server terminal and generate again.
 
-The first image from MOSS-Image downloads it (about 26 GB) into `models/moss-image-nsfw/`. Each image takes minutes rather than seconds; see [Performance](#performance).
+The first image from MOSS-Image downloads it (about 26 GB) into `models/moss-image-nsfw/` and replaces its text encoder with an 8-bit copy, leaving 18.5 GB. Each image takes minutes rather than seconds; see [Performance](#performance).
 
 WAI-Illustrious and MOSS-Image are labelled "not for all audiences" on Hugging Face. WAI-Illustrious's default negative prompt starts with `nsfw` to keep results safe for work; its licence is CreativeML OpenRAIL-M, which restricts some uses. MOSS-Image is Apache 2.0, and the server adds its trigger word `moss_xvstyle` to prompts that lack it.
 
@@ -169,13 +169,13 @@ Switching models takes about 10 seconds. A MOSS-Image request with a new prompt 
 |-----------|-----------|
 | Chip | Apple M5 |
 | Memory | 24 GB |
-| Storage | about 80 GB free for all three models |
+| Storage | about 31 GB for all three models (up to 60 GB free during first downloads) |
 
 ## Technical Notes
 
 - **Z-Image-Turbo** runs as a 4-bit MLX model built from the original weights. In bfloat16 it needs about 20 GB, which does not fit beside macOS on a 24 GB Mac.
-- **WAI-Illustrious** runs in float16 on MPS, with the VAE decoding in float32 to avoid overflow.
-- **MOSS-Image** needs 27 GB in bfloat16, so its text encoder (17 GB) and image model (10 GB) take turns in memory. Its pipeline code is vendored in `moss_pipeline.py` with one fix for MPS, which has no float64.
+- **WAI-Illustrious** runs in float16 on MPS, with the VAE decoding in float32 to avoid overflow. Its upstream files are float32, so the server rewrites them as float16 once: half the size, identical images.
+- **MOSS-Image**'s text encoder is stored and run in 8-bit with [optimum-quanto](https://github.com/huggingface/optimum-quanto): 9.4 GB instead of 16 GB, 10 GB of memory instead of 17 GB, three times faster to encode, and near-identical images. It and the bfloat16 image model (10 GB) take turns in memory. Its pipeline code is vendored in `moss_pipeline.py` with one fix for MPS, which has no float64.
 - All model work runs on one server thread, because MLX only works on the thread that created it. Requests are handled one at a time.
 - Seeds use a CPU generator for SDXL, so they are reproducible.
 
@@ -221,8 +221,8 @@ cd frontend && npm test        # frontend
 - Run `cd frontend && npm ci && npm run build`, then reload
 
 
-**The model server fails to start after an interrupted first run?**
-- Delete `models/zimage-q4/` and start the server again to rebuild it
+**A first run was interrupted?**
+- Builds are written to a `.building` folder and renamed when complete, so an interrupted build is redone on the next start; delete any leftover `*.building` folder if you want the space back
 
 **Generation is very slow?**
 - Close other memory-hungry apps; both models need most of a 24 GB Mac's memory
