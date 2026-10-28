@@ -18,6 +18,8 @@ The app is two Python processes and a React interface, all on your Mac.
 
 ## The two servers
 
+Both are in `backend/`; the data they use (`models/`, `history.db`, `.env` and the editable JSON files) is at the top of the project, beside `frontend/`.
+
 **`model_server.py`** (port 8000) loads one model at a time and generates images. All model work runs on one thread (`model_thread`), because MLX only works on the thread that created it, so requests are handled one at a time. Downloads run on a separate thread, so a download never blocks generating with a model that is already there.
 
 **`main.py`** (port 7860) is the web app. It serves the built UI from `frontend/dist`, offers the `/api` endpoints, and keeps History in `history.db`. It forwards generation, progress and model actions to the model server.

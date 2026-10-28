@@ -5,8 +5,8 @@
 Run the two servers as usual, then the UI with live reload:
 
 ```bash
-uv run python model_server.py
-uv run python main.py
+uv run python backend/model_server.py
+uv run python backend/main.py
 cd frontend && npm run dev
 ```
 
@@ -26,34 +26,36 @@ The backend tests use fake models, so they run in seconds without any model down
 
 ```
 z-image-inference/
-├── main.py                 # Web app: serves the UI and the /api endpoints
-├── model_server.py         # Loads the models and generates images
-├── model_catalog.py        # The five models and their defaults, shared by both servers
-├── generation_request.py   # Request checks shared by both servers
-├── resolutions.py          # Resolution presets and their categories
-├── history_store.py        # History database
-├── character_store.py      # Characters, kept in the History database
-├── history_export.py       # History zip export
-├── image_edits.py          # Rotate, flip and crop, applied with Pillow
-├── palette.py              # Colour palette of an image
-├── prompt_weights.py       # Rewrites (tag:1.3) weights for Compel
-├── sensitive.py            # Which prompts mark an image as sensitive (blurred in lists)
-├── nsfw_detector.py        # The image classifier that checks each image for nudity
-├── safe_for_work.py        # The rules for characters with an uploaded face photo
-├── moss_pipeline.py        # Vendored MOSS-Image pipeline (Apache 2.0)
-├── grok_client.py          # xAI Grok client
-├── example_prompts.json    # Each model's example prompts
-├── sample_characters.json  # The characters a new database starts with
-├── prompt_modes.json       # The prompt builder's purposes
-├── frontend/               # React, TypeScript and Tailwind UI (Vite)
+├── backend/                   # All the Python code
+│   ├── paths.py               # Where the data lives: the project folder above backend/
+│   ├── main.py                # Web app: serves the UI and the /api endpoints
+│   ├── model_server.py        # Loads the models and generates images
+│   ├── model_catalog.py       # The five models and their defaults, shared by both servers
+│   ├── generation_request.py  # Request checks shared by both servers
+│   ├── resolutions.py         # Resolution presets and their categories
+│   ├── history_store.py       # History database
+│   ├── character_store.py     # Characters, kept in the History database
+│   ├── history_export.py      # History zip export
+│   ├── image_edits.py         # Rotate, flip and crop, applied with Pillow
+│   ├── palette.py             # Colour palette of an image
+│   ├── prompt_weights.py      # Rewrites (tag:1.3) weights for Compel
+│   ├── sensitive.py           # Which prompts mark an image as sensitive (blurred in lists)
+│   ├── nsfw_detector.py       # The image classifier that checks each image for nudity
+│   ├── safe_for_work.py       # The rules for characters with an uploaded face photo
+│   ├── moss_pipeline.py       # Vendored MOSS-Image pipeline (Apache 2.0)
+│   ├── grok_client.py         # xAI Grok client
+│   ├── tests/                 # Backend tests
+│   └── tools/                 # Z-Image-Turbo compression level comparison
+├── example_prompts.json       # Each model's example prompts
+├── sample_characters.json     # The characters a new database starts with
+├── prompt_modes.json          # The prompt builder's purposes
+├── frontend/                  # React, TypeScript and Tailwind UI (Vite)
 │   └── src/
-│       ├── components/     # The UI; form/ holds the shared field components
-│       └── lib/            # Logic: settings, API client, prompt builder, edits
-├── tests/                  # Backend tests
-├── tools/                  # Z-Image-Turbo compression level comparison
-├── docs/                   # This documentation
-├── models/                 # Downloaded models (not in git)
-└── history.db              # Generated images (not in git)
+│       ├── components/        # The UI; form/ holds the shared field components
+│       └── lib/               # Logic: settings, API client, prompt builder, edits
+├── docs/                      # This documentation
+├── models/                    # Downloaded models (not in git)
+└── history.db                 # Generated images (not in git)
 ```
 
 `CLAUDE.md` describes the conventions the code follows, such as how dialogs, icons and icon buttons are built, and the rules to keep, such as the prompt builder's adult-only checks.
