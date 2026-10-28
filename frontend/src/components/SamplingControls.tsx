@@ -4,6 +4,7 @@ import { fieldButtonClass, fieldLabelClass } from '../lib/styles'
 import { Checkbox } from './form/Checkbox'
 import { NumberInput } from './form/NumberInput'
 import { Slider } from './form/Slider'
+import { Dices } from 'lucide-react'
 
 type SamplingPatch = Partial<Pick<GenerationSettings, 'steps' | 'guidance' | 'seed' | 'randomSeed'>>
 
@@ -112,7 +113,7 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
           className="min-w-0 flex-1"
         />
         <IconButton label="Pick a random seed" onClick={rollDice} className={fieldButtonClass}>
-          🎲
+          <Dices />
         </IconButton>
         <button
           type="button"

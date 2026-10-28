@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
-import { IconButton } from './IconButton'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type Ref, type RefObject } from 'react'
+import { IconButton, IconLink } from './IconButton'
 import { deleteHistoryItem, fetchHistory, imageUrl } from '../api'
 import { errorMessage } from '../lib/hooks'
 import { secondaryButtonClass } from '../lib/styles'
@@ -10,6 +10,7 @@ import { FavouriteButton } from './FavouriteButton'
 import { ImageFacts } from './ImageFacts'
 import { Modal } from './Modal'
 import { ErrorNotice, PromptBlock, Spinner } from './ui'
+import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, Pencil, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 
 /** The image the viewer opens on, and its position among all images matching the filters. */
 export interface ViewerStart {
@@ -232,11 +233,20 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
                 {index + 1} of {image.total}
               </p>
               <div className="absolute top-3 right-3 flex gap-2">
+                {item && (
+                  <ImageTools
+                    item={item}
+                    deleting={deleteState.status === 'deleting'}
+                    deleteButton={deleteButton}
+                    onDelete={() => void remove(item)}
+                    onEdit={() => setEditing(true)}
+                  />
+                )}
                 <OverlayButton label={zoomed ? 'Fit to window' : 'Zoom to 100%'} onClick={() => setZoomed(!zoomed)} disabled={!item}>
-                  {zoomed ? '⤡' : '⤢'}
+                  {zoomed ? <ZoomOut /> : <ZoomIn />}
                 </OverlayButton>
                 <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} shortcut="Z" onClick={fullScreen.toggle}>
-                  ⛶
+                  {fullScreen.active ? <Minimize /> : <Maximize />}
                 </OverlayButton>
                 {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setFavouriteError} />}
               </div>
@@ -251,15 +261,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
                 deleteError={deleteState.status === 'failed' ? deleteState.error : null}
                 armed={armed}
                 actions={
-                  <ViewerActions
-                    item={item}
-                    deleting={deleteState.status === 'deleting'}
-                    deleteButton={deleteButton}
-                    onDelete={() => void remove(item)}
-                    onEdit={() => setEditing(true)}
-                    onVary={() => onVary(item)}
-                    onReuse={() => onReuse(item)}
-                  />
+                  <ViewerActions onVary={() => onVary(item)} onReuse={() => onReuse(item)} />
                 }
               />
             )}
@@ -343,25 +345,49 @@ function ZoomableImage({ item, zoomed, onZoomedChange }: { item: HistoryItem; zo
   )
 }
 
+const overlayClass =
+  'flex size-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm hover:bg-black/60 disabled:opacity-40 [&_svg]:size-[18px]'
+
 interface OverlayButtonProps {
   label: string
   shortcut?: string
   onClick: () => void
   disabled?: boolean
+  className?: string
+  ref?: Ref<HTMLButtonElement>
   children: ReactNode
 }
 
-function OverlayButton({ label, shortcut, onClick, disabled = false, children }: OverlayButtonProps) {
+function OverlayButton({ label, shortcut, onClick, disabled = false, className = '', ref, children }: OverlayButtonProps) {
   return (
-    <IconButton
-      label={label}
-      shortcut={shortcut}
-      onClick={onClick}
-      disabled={disabled}
-      className="flex size-8 items-center justify-center rounded-full bg-black/45 text-base leading-none text-white backdrop-blur-sm hover:bg-black/60 disabled:opacity-40"
-    >
+    <IconButton ref={ref} label={label} shortcut={shortcut} onClick={onClick} disabled={disabled} className={`${overlayClass} ${className}`}>
       {children}
     </IconButton>
+  )
+}
+
+interface ImageToolsProps {
+  item: HistoryItem
+  deleting: boolean
+  deleteButton: RefObject<HTMLButtonElement | null>
+  onDelete: () => void
+  onEdit: () => void
+}
+
+/** Download, Edit and Delete, as icons on the image beside zoom, full screen and the star. */
+function ImageTools({ item, deleting, deleteButton, onDelete, onEdit }: ImageToolsProps) {
+  return (
+    <>
+      <IconLink label="Download" href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={overlayClass}>
+        <Download />
+      </IconLink>
+      <OverlayButton label="Edit" onClick={onEdit}>
+        <Pencil />
+      </OverlayButton>
+      <OverlayButton ref={deleteButton} label={deleting ? 'Deleting…' : 'Delete'} shortcut="Delete ×2" onClick={onDelete} disabled={deleting} className="hover:bg-red-600/80">
+        <Trash2 />
+      </OverlayButton>
+    </>
   )
 }
 
@@ -376,7 +402,7 @@ function SideButton({ side, disabled, onClick }: { side: 'previous' | 'next'; di
         side === 'previous' ? 'left-3' : 'right-3'
       }`}
     >
-      {side === 'previous' ? '‹' : '›'}
+      {side === 'previous' ? <ChevronLeft className="size-6" /> : <ChevronRight className="size-6" />}
     </IconButton>
   )
 }
@@ -420,30 +446,11 @@ function ViewerDetails({ item, label, favouriteError, deleteError, armed, action
   )
 }
 
-interface ActionsProps {
-  item: HistoryItem
-  deleting: boolean
-  deleteButton: RefObject<HTMLButtonElement | null>
-  onDelete: () => void
-  onEdit: () => void
-  onVary: () => void
-  onReuse: () => void
-}
-
-function ViewerActions({ item, deleting, deleteButton, onDelete, onEdit, onVary, onReuse }: ActionsProps) {
+function ViewerActions({ onVary, onReuse }: { onVary: () => void; onReuse: () => void }) {
   return (
     <>
-      <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
-        Download
-      </a>
-      <button type="button" onClick={onEdit} className={secondaryButtonClass}>
-        Edit
-      </button>
       <button type="button" onClick={onVary} className={secondaryButtonClass}>
         Make variations
-      </button>
-      <button ref={deleteButton} type="button" onClick={onDelete} disabled={deleting} className={`${secondaryButtonClass} text-red-600 dark:text-red-400`}>
-        {deleting ? 'Deleting…' : 'Delete'}
       </button>
       <button type="button" onClick={onReuse} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
         Reuse settings

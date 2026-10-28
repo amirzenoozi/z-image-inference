@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { useTooltip } from '../lib/useTooltip'
 
 interface Props extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-label' | 'title' | 'children'> {
@@ -42,6 +42,24 @@ export function IconButton({ label, shortcut, children, type = 'button', onMouse
       >
         {children}
       </button>
+      {tooltip}
+    </>
+  )
+}
+
+interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'aria-label' | 'title' | 'children'> {
+  label: string
+  children: ReactNode
+}
+
+/** A link that shows only an icon, such as a download, with a tooltip saying what it does. */
+export function IconLink({ label, children, ...link }: LinkProps) {
+  const { trigger, tooltip } = useTooltip(label)
+  return (
+    <>
+      <a aria-label={label} {...link} {...trigger}>
+        {children}
+      </a>
       {tooltip}
     </>
   )

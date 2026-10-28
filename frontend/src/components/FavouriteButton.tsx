@@ -3,6 +3,7 @@ import { IconButton } from './IconButton'
 import { setFavourite } from '../api'
 import { errorMessage } from '../lib/hooks'
 import type { HistoryItem } from '../types'
+import { Star } from 'lucide-react'
 
 interface Props {
   item: HistoryItem
@@ -35,11 +36,11 @@ export function FavouriteButton({ item, onChanged, onFailed, className = '', sho
       aria-pressed={item.favourite}
       label={item.favourite ? 'Remove from favourites' : 'Add to favourites'}
       shortcut={shortcut}
-      className={`flex size-8 items-center justify-center rounded-full bg-black/45 text-lg leading-none backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-50 ${
+      className={`flex size-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm [&_svg]:size-[18px] transition hover:bg-black/60 disabled:opacity-50 ${
         item.favourite ? 'text-amber-300' : 'text-white'
       } ${className}`}
     >
-      {item.favourite ? '★' : '☆'}
+      <Star className={item.favourite ? 'fill-current' : ''} />
     </IconButton>
   )
 }

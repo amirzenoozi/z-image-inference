@@ -5,6 +5,7 @@ import type { GenerationState, HistoryItem, JobPhase, JobProgress, ModelInfo } f
 import { secondaryButtonClass } from '../lib/styles'
 import { ImageFacts } from './ImageFacts'
 import { ErrorNotice, Spinner } from './ui'
+import { Sparkles } from 'lucide-react'
 
 interface Props {
   state: GenerationState
@@ -38,7 +39,7 @@ export function ResultPanel({ state, models, onRetry, onCancel, onUseSeed }: Pro
 function EmptyResult() {
   return (
     <div className="text-center text-zinc-400 dark:text-zinc-500">
-      <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl border-2 border-dashed border-current text-2xl">✦</div>
+      <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl border-2 border-dashed border-current"><Sparkles className="size-6" /></div>
       <p className="text-sm">Your image will appear here.</p>
       <p className="mt-1 text-xs">Pick a model, write a prompt and press Generate.</p>
     </div>

@@ -7,6 +7,7 @@ import type { HistoryItem } from '../types'
 import { IconButton } from './IconButton'
 import { ImageEditor } from './ImageEditor'
 import { ErrorNotice } from './ui'
+import { FlipHorizontal2, FlipVertical2, Redo2, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
 
 type SaveState = { status: 'idle' } | { status: 'saving' } | { status: 'failed'; error: string }
 
@@ -124,7 +125,7 @@ function ToolGroup({ label, children }: { label: string; children: ReactNode }) 
   )
 }
 
-const toolClass = `${secondaryButtonClass} min-w-10 text-base`
+const toolClass = `${secondaryButtonClass} inline-flex min-w-10 items-center justify-center`
 
 function Tools({ item, history }: { item: HistoryItem; history: ReturnType<typeof useEditHistory> }) {
   const { edits, commit } = history
@@ -132,18 +133,18 @@ function Tools({ item, history }: { item: HistoryItem; history: ReturnType<typeo
     <>
       <ToolGroup label="Rotate">
         <IconButton label="Rotate left" onClick={() => commit(turn(edits, -1))} className={toolClass}>
-          ↺
+          <RotateCcw />
         </IconButton>
         <IconButton label="Rotate right" onClick={() => commit(turn(edits, 1))} className={toolClass}>
-          ↻
+          <RotateCw />
         </IconButton>
       </ToolGroup>
       <ToolGroup label="Flip">
         <IconButton label="Flip horizontally" onClick={() => commit(flip(edits, 'horizontal'))} className={toolClass}>
-          ⇋
+          <FlipHorizontal2 />
         </IconButton>
         <IconButton label="Flip vertically" onClick={() => commit(flip(edits, 'vertical'))} className={toolClass}>
-          ⇵
+          <FlipVertical2 />
         </IconButton>
       </ToolGroup>
       <ToolGroup label="Crop">
@@ -158,10 +159,10 @@ function Tools({ item, history }: { item: HistoryItem; history: ReturnType<typeo
       </ToolGroup>
       <ToolGroup label="History">
         <IconButton label="Undo" shortcut="⌘Z" onClick={history.undo} disabled={!history.canUndo} className={toolClass}>
-          ↶
+          <Undo2 />
         </IconButton>
         <IconButton label="Redo" shortcut="⇧⌘Z" onClick={history.redo} disabled={!history.canRedo} className={toolClass}>
-          ↷
+          <Redo2 />
         </IconButton>
         <button type="button" onClick={history.reset} disabled={!isChanged(edits)} className={secondaryButtonClass}>
           Reset

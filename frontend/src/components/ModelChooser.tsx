@@ -7,6 +7,7 @@ import { chipClass, secondaryButtonClass, tabClass } from '../lib/styles'
 import type { Loadable, ModelCategory, ModelInfo, ModelStatus, ModelStatusReport } from '../types'
 import { DownloadBadge, HuggingFaceLink } from './modelParts'
 import { Spinner } from './ui'
+import { Check, X } from 'lucide-react'
 
 const ALL = 'all'
 
@@ -176,7 +177,7 @@ function ActionButton({ model, state, selected, onDownload, onRemove }: ActionBu
     )
   }
   if (state.status !== 'ready') return <span />
-  if (selected) return <span className="text-[11px] font-medium text-violet-700 dark:text-violet-300">✓ In use</span>
+  if (selected) return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700 dark:text-violet-300"><Check className="size-3.5" /> In use</span>
   return (
     <button type="button" onClick={onRemove} aria-label={`Remove ${model.label}`} className={`${small} text-zinc-500`}>
       Remove · {formatGb(state.sizeBytes)}
@@ -214,8 +215,8 @@ function ActionError({ message, onDismiss }: { message: string; onDismiss: () =>
   return (
     <span role="alert" className="flex items-center gap-1.5 text-[11px] text-red-600 dark:text-red-400">
       {message}
-      <IconButton label="Dismiss" onClick={onDismiss} className="font-semibold">
-        ×
+      <IconButton label="Dismiss" onClick={onDismiss} className="inline-flex items-center">
+        <X className="size-3.5" />
       </IconButton>
     </span>
   )

@@ -249,3 +249,19 @@ it('blocks Generate, saying why, when the model can\'t start from an image', asy
   expect(within(block).queryByRole('slider')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Generate' })).toBeDisabled()
 })
+
+it('gives every button a name, including those that show only an icon', async () => {
+  const unnamed = () => screen.queryAllByRole('button').filter((button) => !button.getAttribute('aria-label') && !button.textContent?.trim())
+  vi.mocked(api.fetchHistory).mockResolvedValue({ items: [historyItem({ id: 5, prompt: 'a lighthouse' })], total: 1 })
+  render(<App />)
+
+  await screen.findByRole('button', { name: 'Generate' })
+  expect(unnamed()).toEqual([])
+
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: a lighthouse' }))
+  expect(unnamed()).toEqual([])
+
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  expect(unnamed()).toEqual([])
+})

@@ -20,6 +20,14 @@ body {
   button:disabled {
     cursor: not-allowed;
   }
+
+  /* Every Lucide icon: one size and line weight, in the text colour; a size class on an icon still wins */
+  .lucide {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    stroke-width: 1.75;
+  }
 }
 
 /* The image editor's crop frame, in the app's colours */

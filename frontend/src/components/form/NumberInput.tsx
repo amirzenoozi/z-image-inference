@@ -1,6 +1,7 @@
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import { IconButton } from '../IconButton'
 import { controlHeight, fieldFrameClass } from '../../lib/styles'
+import { Minus, Plus } from 'lucide-react'
 
 interface Props {
   id?: string
@@ -40,7 +41,7 @@ export function NumberInput({ id, label, value, min, max, step = 1, disabled = f
   return (
     <div className={`${fieldFrameClass} ${controlHeight} flex items-center ${className}`}>
       <StepButton label={`Decrease ${label ?? 'value'}`} disabled={disabled || current <= min} onClick={() => stepBy(-1)}>
-        −
+        <Minus />
       </StepButton>
       <input
         id={id}
@@ -58,13 +59,13 @@ export function NumberInput({ id, label, value, min, max, step = 1, disabled = f
         className="no-native-spinner h-full w-full min-w-0 bg-transparent text-center tabular-nums outline-none disabled:cursor-not-allowed"
       />
       <StepButton label={`Increase ${label ?? 'value'}`} disabled={disabled || current >= max} onClick={() => stepBy(1)}>
-        +
+        <Plus />
       </StepButton>
     </div>
   )
 }
 
-function StepButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: string }) {
+function StepButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <IconButton
       tabIndex={-1}
