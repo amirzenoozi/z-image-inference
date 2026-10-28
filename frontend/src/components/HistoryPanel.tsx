@@ -1,20 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { clearHistory, deleteHistoryItem, fetchHistory, historyExportUrl, imageUrl } from '../api'
+import { clearHistory, fetchHistory, historyExportUrl } from '../api'
 import { useHistoryAddress, type AddressChange } from '../lib/historyAddress'
 import { NO_FILTERS, isFiltered } from '../lib/historyFilters'
 import { errorMessage } from '../lib/hooks'
 import { secondaryButtonClass } from '../lib/styles'
 import type { HistoryFilters, HistoryItem, HistoryPage, Loadable, ModelInfo } from '../types'
-import { ColourPalette } from './ColourPalette'
 import { CompareDialog } from './CompareDialog'
-import { FavouriteButton } from './FavouriteButton'
+import { HistoryViewer, type ViewerStart } from './HistoryViewer'
 import { HistoryCleanUp } from './HistoryCleanUp'
 import { HistoryFilterBar } from './HistoryFilters'
 import { HistoryGrid } from './HistoryGrid'
-import { ImageFacts } from './ImageFacts'
 import { Modal } from './Modal'
 import { Pagination } from './Pagination'
-import { ErrorNotice, PromptBlock } from './ui'
+import { ErrorNotice } from './ui'
 
 export const PAGE_SIZE = 30
 
@@ -61,6 +59,11 @@ export function HistoryPanel({ models, onReuse }: Props) {
   // Kept across filter changes, so two images found by different searches can be compared
   const [selection, setSelection] = useState<HistoryItem[] | null>(null)
   const [comparing, setComparing] = useState<[HistoryItem, HistoryItem] | null>(null)
+  // The viewer belongs to the filters it opened with; it closes if Back or Forward changes them
+  const [viewing, setViewing] = useState<(ViewerStart & { filtersKey: string }) | null>(null)
+  // Bumped after the viewer stars or deletes, so the page behind it reloads
+  const [listVersion, setListVersion] = useState(0)
+  const filtersKey = JSON.stringify(filters)
   const labelOf = (id: string) => models.find((model) => model.id === id)?.label ?? id
   const top = useRef<HTMLDivElement>(null)
 
@@ -80,6 +83,11 @@ export function HistoryPanel({ models, onReuse }: Props) {
   const compare = () => {
     if (selection?.length === 2) setComparing([selection[0], selection[1]])
   }
+  // The page behind the viewer follows it, so closing the viewer shows where it ended
+  const followViewer = (index: number) => {
+    const pageOfImage = Math.floor(index / PAGE_SIZE) + 1
+    if (pageOfImage !== page) go({ filters, page: pageOfImage })
+  }
 
   return (
     <div ref={top} className="space-y-5 p-6">
@@ -95,17 +103,28 @@ export function HistoryPanel({ models, onReuse }: Props) {
       />
       {/* Each page and set of filters starts fresh, with its placeholder; results of the old ones are dropped */}
       <HistoryResults
-        key={`${JSON.stringify(filters)}-${page}`}
+        key={`${filtersKey}-${page}-${listVersion}`}
         filters={filters}
         pageNumber={page}
         labelOf={labelOf}
-        onReuse={onReuse}
+        onOpen={(item, indexOnPage, total) => setViewing({ index: (page - 1) * PAGE_SIZE + indexOnPage, item, total, filtersKey })}
         onClearFilters={clearFilters}
         selectedIds={selection?.map((item) => item.id) ?? null}
         onSelect={(item) => setSelection((current) => toggleInSelection(current ?? [], item))}
         onPageChange={changePage}
       />
       {comparing && <CompareDialog items={comparing} labelOf={labelOf} onClose={() => setComparing(null)} />}
+      {viewing?.filtersKey === filtersKey && (
+        <HistoryViewer
+          filters={filters}
+          start={viewing}
+          labelOf={labelOf}
+          onIndexChange={followViewer}
+          onListChanged={() => setListVersion((n) => n + 1)}
+          onReuse={onReuse}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   )
 }
@@ -114,16 +133,15 @@ interface ResultsProps {
   filters: HistoryFilters
   pageNumber: number
   labelOf: (id: string) => string
-  onReuse: (item: HistoryItem) => void
+  onOpen: (item: HistoryItem, indexOnPage: number, total: number) => void
   onClearFilters: () => void
   selectedIds: number[] | null
   onSelect: (item: HistoryItem) => void
   onPageChange: (page: number, change?: AddressChange) => void
 }
 
-function HistoryResults({ filters, pageNumber, labelOf, onReuse, onClearFilters, selectedIds, onSelect, onPageChange }: ResultsProps) {
+function HistoryResults({ filters, pageNumber, labelOf, onOpen, onClearFilters, selectedIds, onSelect, onPageChange }: ResultsProps) {
   const { page, reload, replace } = useHistoryPage(filters, pageNumber)
-  const [opened, setOpened] = useState<HistoryItem | null>(null)
   const [favouriteError, setFavouriteError] = useState<string | null>(null)
   const lastPage = page.status === 'settled' ? Math.max(1, Math.ceil(page.value.total / PAGE_SIZE)) : null
 
@@ -142,7 +160,6 @@ function HistoryResults({ filters, pageNumber, labelOf, onReuse, onClearFilters,
   const removeItem = () => showPage(items.length === 1 && pageNumber > 1 ? pageNumber - 1 : pageNumber)
   const updateItem = (item: HistoryItem) => {
     setFavouriteError(null)
-    setOpened((current) => (current?.id === item.id ? item : current))
     // With the Favourites filter on, an unstarred image no longer belongs in the list
     if (filters.favouritesOnly && !item.favourite) removeItem()
     else replace({ items: items.map((current) => (current.id === item.id ? item : current)), total })
@@ -167,26 +184,12 @@ function HistoryResults({ filters, pageNumber, labelOf, onReuse, onClearFilters,
           items={items}
           labelOf={labelOf}
           selectedIds={selectedIds}
-          onActivate={selectedIds === null ? setOpened : onSelect}
+          onActivate={selectedIds === null ? (item) => onOpen(item, items.indexOf(item), total) : onSelect}
           onFavouriteChanged={updateItem}
           onFavouriteFailed={setFavouriteError}
         />
       )}
       <Pagination page={pageNumber} pageCount={Math.ceil(total / PAGE_SIZE)} onChange={onPageChange} />
-      {opened && (
-        <HistoryDetail
-          item={opened}
-          label={labelOf(opened.model)}
-          onClose={() => setOpened(null)}
-          onReuse={() => onReuse(opened)}
-          onDeleted={() => {
-            removeItem()
-            setOpened(null)
-          }}
-          onFavouriteChanged={updateItem}
-          onFavouriteFailed={setFavouriteError}
-        />
-      )}
     </>
   )
 }
@@ -264,58 +267,6 @@ function EmptyHistory() {
     <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
       No images yet. Everything you generate is saved here.
     </div>
-  )
-}
-
-interface DetailProps {
-  item: HistoryItem
-  label: string
-  onClose: () => void
-  onReuse: () => void
-  onDeleted: () => void
-  onFavouriteChanged: (item: HistoryItem) => void
-  onFavouriteFailed: (message: string) => void
-}
-
-function HistoryDetail({ item, label, onClose, onReuse, onDeleted, ...favourite }: DetailProps) {
-  const [deleteState, setDeleteState] = useState<ActionState>({ status: 'idle' })
-  const remove = async () => {
-    setDeleteState({ status: 'loading' })
-    try {
-      await deleteHistoryItem(item.id)
-      onDeleted()
-    } catch (error) {
-      setDeleteState({ status: 'failed', error: errorMessage(error) })
-    }
-  }
-  return (
-    <Modal title="Image details" onClose={onClose} size="lg">
-      <div className="grid gap-5 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="relative">
-          <img src={imageUrl(item.id)} alt={item.prompt} className="max-h-[70vh] w-full rounded-xl bg-zinc-100 object-contain dark:bg-zinc-800" />
-          <FavouriteButton item={item} onChanged={favourite.onFavouriteChanged} onFailed={favourite.onFavouriteFailed} className="absolute top-3 right-3" />
-        </div>
-        <div className="space-y-4 text-sm">
-          <ImageFacts item={item} label={label} />
-          <ColourPalette itemId={item.id} />
-          <PromptBlock title="Prompt" text={item.prompt} />
-          {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}
-          <p className="text-xs text-zinc-400">Created {new Date(`${item.created_at}Z`).toLocaleString()}</p>
-          {deleteState.status === 'failed' && <ErrorNotice message={deleteState.error} />}
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={onReuse} className="rounded-lg bg-violet-600 px-3 py-1.5 font-semibold text-white hover:bg-violet-500">
-              Reuse settings
-            </button>
-            <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
-              Download
-            </a>
-            <button type="button" onClick={() => void remove()} disabled={deleteState.status === 'loading'} className={`${secondaryButtonClass} text-red-600 dark:text-red-400`}>
-              {deleteState.status === 'loading' ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Modal>
   )
 }
 
