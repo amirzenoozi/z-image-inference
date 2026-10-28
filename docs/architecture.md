@@ -42,7 +42,8 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | `POST /api/history/{id}/edits` | save a rotated, flipped or cropped copy |
 | `DELETE /api/history/{id}` | delete one image |
 | `GET /api/characters`, `POST /api/characters` | list or create characters |
-| `PATCH /api/characters/{id}`, `DELETE /api/characters/{id}` | change a character (only the fields sent), or delete it and keep its images |
+| `PATCH /api/characters/{id}`, `DELETE /api/characters/{id}` | change a character (only the fields sent, including `face_upload`, a photo as base64), or delete it and keep its images |
+| `GET /api/characters/{id}/face-upload` | a character's uploaded face photo (`?thumb=true` for a small WebP) |
 | `POST /api/chat` | Chat with Grok, streamed |
 
 The model server's own endpoints (`/generate`, `/jobs/{id}`, `/models/...`, `/health`) are for the web app only.

@@ -186,3 +186,16 @@ With **WAI-Illustrious** and **Anime Desire**, a character can keep one face acr
 - The image viewer shows which image a render's face came from. Deleting that image ends the face lock; **Remove face** in the character's **Edit** does too.
 - Z-Image-Turbo and MOSS-Image can't lock a face; with them the character's look comes from the description only, and Create says so.
 - The face lock adds about 2 GB of memory while it is in use, and a few seconds to the first render that uses it.
+
+#### Your own photo
+
+In a character's **Edit**, **Upload a photo…** uses a photo (JPEG, PNG or WebP, up to 10 MB) as the face instead of a History image; it is saved with the character, made no larger than 1024 px. A character has one face at a time, so choosing **Use as face** later replaces the photo, and the other way round.
+
+A photo can show a real person, so a character with an uploaded face is kept **safe for work**, enforced by the app's server for every render of that character, with any model:
+
+- a prompt with a sensitive word (*nude*, *explicit*, *lingerie*, *sensual* and the like) is refused, and so is a variation of a sensitive image;
+- safe-for-work terms (*nsfw, nude, naked, topless, lingerie* and more) are added to the negative prompt;
+- every result goes through the image check, and an image that comes out with nudity is discarded, never saved; until the check is ready (a few seconds after the app starts), nothing is rendered for that character;
+- the 18+ purposes are hidden in the prompt builder.
+
+Remove the photo (or switch to a History face) to lift these rules.
