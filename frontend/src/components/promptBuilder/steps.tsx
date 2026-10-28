@@ -6,9 +6,6 @@ import {
   CLOTHING_COLORS,
   COLOR_GRADINGS,
   DEPTH_OF_FIELD,
-  EXPLICIT_PARTNER_ACTIONS,
-  EXPLICIT_POSES,
-  EXPLICIT_SOLO_ACTIONS,
   HAIRSTYLES,
   HAIR_COLORS,
   LENSES,
@@ -45,7 +42,7 @@ import {
   WEATHER,
   WHO_OPTIONS,
 } from '../../lib/promptBuilder/extraData'
-import { LIGHTING_SETUPS, NOT_SET, includesWoman, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
+import { LIGHTING_SETUPS, NOT_SET, includesWoman, partnerActions, poseOptions, soloActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
 import { ChipGroup, ChoiceSelect, FieldGrid, Segmented, StepIntro, TextField } from './fields'
 
 export interface StepProps {
@@ -149,7 +146,9 @@ export function OutfitStep({ state, setOutfit }: StepProps) {
 }
 
 export function PoseStep({ state, set }: StepProps) {
-  const poseGroups = [{ options: POSES }, ...(state.explicit ? [{ label: 'Explicit (18+)', options: Object.keys(EXPLICIT_POSES) }] : [])]
+  const explicitPoses = poseOptions(true, state.who).filter((pose) => !POSES.includes(pose))
+  const poseGroups = [{ options: POSES }, ...(state.explicit ? [{ label: 'Explicit (18+)', options: explicitPoses }] : [])]
+  const partner = partnerActions(state.who)
   return (
     <FieldGrid>
       <ChoiceSelect label="Pose" value={state.pose} groups={poseGroups} onChange={(pose) => set({ pose })} />
@@ -157,10 +156,7 @@ export function PoseStep({ state, set }: StepProps) {
         <ChoiceSelect
           label="Explicit action"
           value={state.explicitAction}
-          groups={[
-            { label: 'Solo', options: Object.keys(EXPLICIT_SOLO_ACTIONS) },
-            { label: 'With a partner', options: Object.keys(EXPLICIT_PARTNER_ACTIONS) },
-          ]}
+          groups={[{ label: 'Solo', options: soloActions(state.who) }, ...(partner.length ? [{ label: 'With a partner', options: partner }] : [])]}
           onChange={(explicitAction) => set({ explicitAction })}
         />
       )}

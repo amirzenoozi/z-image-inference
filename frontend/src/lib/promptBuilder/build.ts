@@ -1,6 +1,6 @@
-// Prompt assembly ported from ComfyUI Photoreal Prompt Builder's build_prompt and compose_outfit
-// (MIT License, Copyright (c) 2025 artokun); see data.ts for the source links. The subject, appearance,
-// body, nudity, time, weather and realism parts are additions; with them unset the output matches upstream.
+// Builder state, choices and the age safeguard. The option lists come from ComfyUI Photoreal Prompt Builder
+// (MIT License, Copyright (c) 2025 artokun; see data.ts for the source links); the wording is written here, as
+// a flowing paragraph (prose.ts) or a weighted tag list (tags.ts), depending on the model.
 import {
   ACCESSORIES,
   BOTTOMS,
@@ -46,6 +46,12 @@ import {
   type Nudity,
   type Who,
 } from './extraData'
+import { pronounFor, withArticle, type Facts, type Labelled, type Pronoun } from './facts'
+import { proseFrom } from './prose'
+import { tagsFrom } from './tags'
+import type { ModelInfo } from '../../types'
+
+export type PromptStyle = ModelInfo['prompt_style']
 
 export const NOT_SET = ''
 export const RANDOM = 'random'
@@ -124,7 +130,7 @@ export interface BuilderState {
 export type BuildResult =
   | { status: 'incomplete'; reason: string }
   | { status: 'blocked'; reason: string }
-  | { status: 'ready'; prompt: string; negativePrompt: string }
+  | { status: 'ready'; prompt: string; negativePrompt: string; explicit: boolean }
 
 export function emptyOutfit(): OutfitState {
   return {
@@ -149,13 +155,38 @@ export function emptyBuilderState(): BuilderState {
   }
 }
 
-export function poseOptions(explicit: boolean): string[] {
-  return explicit ? [...POSES, ...Object.keys(EXPLICIT_POSES)] : [...POSES]
-}
-
-/** Bust options only apply when the subject may include a woman. */
+/** Bust options, and poses and actions about breasts or lingerie, only apply when the subject may include a woman. */
 export function includesWoman(who: string): boolean {
   return !['man', 'two men'].includes(who)
+}
+
+function includesMan(who: string): boolean {
+  return ['man', 'couple', 'two men'].includes(who)
+}
+
+// Poses and solo actions about breasts, bras or panties
+const WOMAN_ONLY = new Set([
+  'chest pressed together arms', 'topless covering with hands', 'topless hair covering',
+  'cupping breasts', 'squeezing breasts together', 'pulling panties aside', 'stepping out of panties', 'undoing bra clasp', 'pulling down strap',
+])
+
+const fitsWho = (who: string) => (option: string) => includesWoman(who) || !WOMAN_ONLY.has(option)
+
+export function poseOptions(explicit: boolean, who: string = NOT_SET): string[] {
+  return explicit ? [...POSES, ...Object.keys(EXPLICIT_POSES).filter(fitsWho(who))] : [...POSES]
+}
+
+export function soloActions(who: string): string[] {
+  return Object.keys(EXPLICIT_SOLO_ACTIONS).filter(fitsWho(who))
+}
+
+/** Partner actions are written for a woman with a man, so they are only offered for a couple. */
+export function partnerActions(who: string): string[] {
+  return who === 'couple' ? Object.keys(EXPLICIT_PARTNER_ACTIONS) : []
+}
+
+function explicitActions(who: string): string[] {
+  return [...soloActions(who), ...partnerActions(who)]
 }
 
 // ── Age safeguard ────────────────────────────────────────────────────────────
@@ -235,7 +266,7 @@ export function hasRandomChoice(state: BuilderState): boolean {
 function surpriseExplicit(state: BuilderState, who: string, seed: number): Partial<BuilderState> {
   const p = (options: readonly string[], field: string) => pick(options, seed, field)
   return {
-    explicitAction: p(Object.keys(EXPLICIT_SOLO_ACTIONS), 'explicitAction'),
+    explicitAction: p(soloActions(who), 'explicitAction'),
     nudity: p(NUDITY_LEVELS.map((level) => level.value), 'nudity') as Nudity,
     intimacy: pickSome(INTIMACY_CUES, 2, seed, 'intimacy'),
     bust: includesWoman(who) ? p(BUST_SIZES, 'bust') : NOT_SET,
@@ -264,7 +295,7 @@ export function surprise(state: BuilderState, seed: number): BuilderState {
     age: state.age === NOT_SET ? p(AGE_RANGES, 'age') : state.age,
     eyeColor: p(EYE_COLORS, 'eyeColor'), expression: p(EXPRESSIONS, 'expression'), makeup: p(MAKEUP, 'makeup'),
     skinTone: p(SKIN_TONES, 'skinTone'), hairColor: p(HAIR_COLORS, 'hairColor'), hairstyle: p(HAIRSTYLES, 'hairstyle'),
-    hairLength: p(HAIR_LENGTHS, 'hairLength'), bodyType: p(BODY_TYPES, 'bodyType'), pose: p(poseOptions(state.explicit), 'pose'),
+    hairLength: p(HAIR_LENGTHS, 'hairLength'), bodyType: p(BODY_TYPES, 'bodyType'), pose: p(poseOptions(state.explicit, who), 'pose'),
     sceneType: p(SCENE_TYPES, 'sceneType'), timeOfDay: p(TIMES_OF_DAY, 'timeOfDay'), lightingSetup: p(LIGHTING_SETUPS, 'lightingSetup'),
     photoStyle: p(PHOTO_STYLES, 'photoStyle'), shotType: p(SHOT_TYPES, 'shotType'), cameraAngle: p(CAMERA_ANGLES, 'cameraAngle'),
     lens: p(LENSES, 'lens'), depthOfField: p(DEPTH_OF_FIELD, 'depthOfField'), colorGrading: p(COLOR_GRADINGS, 'colorGrading'),
@@ -273,80 +304,32 @@ export function surprise(state: BuilderState, seed: number): BuilderState {
   }
 }
 
-// ── Sentences ────────────────────────────────────────────────────────────────
-const capitalise = (text: string) => (text ? text[0].toUpperCase() + text.slice(1) : text)
+// ── Facts ────────────────────────────────────────────────────────────────────
 const isSet = (value: string) => value !== NOT_SET
-const listOf = (...parts: string[]) => parts.filter(Boolean).join(', ')
 
-function expand(label: string): string {
-  return EXPLICIT_POSES[label] ?? EXPLICIT_ACTIONS[label] ?? label
-}
-
-const POSSESSIVE: Record<Who, string> = { woman: 'her', man: 'his', couple: 'their', 'two women': 'their', 'two men': 'their' }
-
-function describeWho(who: Who, age: string, ethnicity: string): string {
+function describeWho(who: Who, age: string, ethnicity: string, pronoun: Pronoun): string {
   const eth = isSet(ethnicity) ? `${ethnicity} ` : ''
-  const ageText = isSet(age) ? ` in ${POSSESSIVE[who]} ${age}` : ''
+  const ageText = isSet(age) ? ` in ${pronoun.their} ${age}` : ''
   if (who === 'couple') return `an adult ${eth}couple, a woman and a man${ageText}`
   if (who === 'two women' || who === 'two men') return `two adult ${eth}${who.slice(4)}${ageText}`
   return `an adult ${eth}${who}${ageText}`
 }
 
-function subjectPhrase(state: BuilderState, seed: number): string {
-  const who = resolve(state.who, WHO_OPTIONS, seed, 'who')
-  const extra = state.subject.trim()
-  if (!isSet(who)) return extra
-  const core = describeWho(who as Who, resolve(state.age, AGE_RANGES, seed, 'age'), resolve(state.ethnicity, ETHNICITIES, seed, 'ethnicity'))
-  return extra ? `${core}, ${extra}` : core
+function knownWho(value: string): Who | null {
+  return (WHO_OPTIONS as readonly string[]).includes(value) ? (value as Who) : null
 }
 
-function openerSentence(state: BuilderState, seed: number): string {
-  const style = resolve(state.photoStyle, PHOTO_STYLES, seed, 'photoStyle')
-  const pose = resolve(state.pose, poseOptions(state.explicit), seed, 'pose')
-  const subject = subjectPhrase(state, seed)
-  const opener = isSet(style) ? `${capitalise(style)} photo of ${subject}` : `Photo of ${subject}`
-  return isSet(pose) ? `${opener}, ${expand(pose)}` : opener
+function explicitPose(state: BuilderState, who: string, seed: number): Labelled & { explicit: boolean } {
+  const label = resolve(state.pose, poseOptions(state.explicit, who), seed, 'pose')
+  const text = EXPLICIT_POSES[label]
+  return { label, text: text ?? label, explicit: text !== undefined }
 }
 
-function appearanceSentence(state: BuilderState, seed: number): string {
-  const eyes = resolve(state.eyeColor, EYE_COLORS, seed, 'eyeColor')
-  const tone = resolve(state.skinTone, SKIN_TONES, seed, 'skinTone')
-  return capitalise(listOf(
-    isSet(eyes) ? `${eyes} eyes` : '',
-    resolve(state.expression, EXPRESSIONS, seed, 'expression'),
-    resolve(state.makeup, MAKEUP, seed, 'makeup'),
-    isSet(tone) ? `${tone} skin` : '',
-    ...state.skinDetails,
-    state.appearanceExtra.trim(),
-  ))
-}
-
-function bodySentence(state: BuilderState, seed: number): string {
-  const who = resolve(state.who, WHO_OPTIONS, seed, 'who')
-  const bust = includesWoman(who) ? resolve(state.bust, BUST_SIZES, seed, 'bust') : NOT_SET
-  return capitalise(listOf(
-    resolve(state.bodyType, BODY_TYPES, seed, 'bodyType'),
-    resolve(state.height, HEIGHTS, seed, 'height'),
-    bust,
-    resolve(state.hips, HIPS, seed, 'hips'),
-    ...state.tattoos,
-    ...state.piercings,
-    state.bodyExtra.trim(),
-  ))
-}
-
-function actionSentences(state: BuilderState, seed: number): string[] {
-  const explicitAction = state.explicit ? resolve(state.explicitAction, Object.keys(EXPLICIT_ACTIONS), seed, 'explicitAction') : NOT_SET
-  return [isSet(explicitAction) ? expand(explicitAction) : '', expand(state.action.trim())]
-}
-
-function hairSentence(state: BuilderState, seed: number): string {
-  const length = resolve(state.hairLength, HAIR_LENGTHS, seed, 'hairLength')
-  const color = resolve(state.hairColor, HAIR_COLORS, seed, 'hairColor')
-  const style = resolve(state.hairstyle, HAIRSTYLES, seed, 'hairstyle')
-  // Upstream leaves a lone colour as just "Auburn"; naming the hair makes the prompt clearer
-  const hair = isSet(style) ? `${style} hair` : isSet(color) || isSet(length) ? 'hair' : ''
-  return capitalise([length, color, hair].filter(Boolean).join(' '))
+function explicitAction(state: BuilderState, who: string, seed: number): Labelled {
+  if (!state.explicit) return { label: '', text: '' }
+  const label = resolve(state.explicitAction, explicitActions(who), seed, 'explicitAction')
+  // A choice kept from an earlier "Who" that no longer fits is left out rather than contradicting the subject
+  return explicitActions(who).includes(label) ? { label, text: EXPLICIT_ACTIONS[label] } : { label: '', text: '' }
 }
 
 const OUTFIT_SLOTS = [
@@ -358,91 +341,122 @@ const OUTFIT_SLOTS = [
   { label: 'shoes', item: 'shoes', color: 'shoesColor', options: SHOES },
 ] as const
 
-function joinPieces(pieces: string[]): string {
-  if (pieces.length <= 2) return pieces.join(' and ')
-  return `${pieces.slice(0, -1).join(', ')}, and ${pieces[pieces.length - 1]}`
+type OutfitSlot = (typeof OUTFIT_SLOTS)[number]['item']
+
+// The garments each nudity level leaves on; a prompt never describes clothes the nudity level has taken off
+const WORN_WITH: Record<Nudity, ReadonlySet<OutfitSlot>> = {
+  clothed: new Set(OUTFIT_SLOTS.map((slot) => slot.item)),
+  implied: new Set(['shoes']),
+  topless: new Set(['lingerieBottom', 'bottom', 'shoes']),
+  nude: new Set(['shoes']),
 }
 
-export function composeOutfit(outfit: OutfitState, seed: number): string {
-  const pieces: string[] = []
+function outfitFacts(outfit: OutfitState, nudity: Nudity | null, seed: number): { clothing: string[]; removed: string[] } {
+  const clothing: string[] = []
   const removed: string[] = []
   for (const slot of OUTFIT_SLOTS) {
     const item = resolve(outfit[slot.item], slot.options, seed, slot.item)
     const color = resolve(outfit[slot.color], CLOTHING_COLORS, seed, slot.color)
+    const worn = nudity === null || WORN_WITH[nudity].has(slot.item)
     if (item === REMOVE) removed.push(slot.label)
-    else if (isSet(item)) pieces.push(isSet(color) ? `${color} ${item.toLowerCase()}` : item.toLowerCase())
+    else if (isSet(item) && worn) clothing.push(isSet(color) ? `${color} ${item.toLowerCase()}` : item.toLowerCase())
   }
   const accessories = outfit.accessories.map((item, index) => resolve(item, ACCESSORIES, seed, `accessory${index}`).toLowerCase())
-  pieces.push(...new Set(accessories.filter(isSet)))
-
-  const wearing = pieces.length ? `Wearing ${joinPieces(pieces)}` : ''
-  const without = removed.length ? `without ${removed.join(', without ')}` : ''
-  const clothing = wearing && without ? `${wearing}, ${without}` : wearing || capitalise(without)
-  const details = outfit.details.trim()
-  return clothing && details ? `${clothing}. ${details}` : clothing || details
-}
-
-const COVERED_BREASTS = 'nipples fully concealed by clothing, fabric, hands, or hair, breasts fully covered by outfit'
-const COVERED_INTIMATE = 'underwear or lingerie covering intimate areas'
-
-const EXPOSURE: Record<Nudity, string> = {
-  clothed: `${COVERED_BREASTS}, ${COVERED_INTIMATE}`,
-  implied: 'implied nudity, nipples and intimate areas hidden by hands, sheets, or hair',
-  topless: `clothing adjusted to expose breasts, no bra, ${COVERED_INTIMATE}`,
-  nude: 'clothing adjusted to expose breasts, no bra, not wearing panties',
-}
-
-function explicitSentences(state: BuilderState): string[] {
-  if (!state.explicit) return []
-  return [capitalise(EXPOSURE[state.nudity]), capitalise(listOf(...state.intimacy))]
+  return { clothing: [...clothing, ...new Set(accessories.filter(isSet))], removed }
 }
 
 const PREPOSITIONS = ['in ', 'at ', 'on ', 'near ', 'by ', 'inside ', 'outside ', 'under ', 'above ', 'along ', 'within ']
 
-function placeSentence(environment: string, sceneType: string): string {
+function placeOf(environment: string, sceneType: string): string {
   const env = environment.trim()
-  if (env) return PREPOSITIONS.some((p) => env.toLowerCase().startsWith(p)) ? capitalise(env) : `In ${env}`
-  if (!isSet(sceneType)) return ''
-  return `In ${'aeiou'.includes(sceneType[0].toLowerCase()) ? 'an' : 'a'} ${sceneType} setting`
+  if (env) return PREPOSITIONS.some((p) => env.toLowerCase().startsWith(p)) ? env : `in ${env}`
+  return isSet(sceneType) ? `in ${withArticle(sceneType)} setting` : ''
 }
 
-function sceneSentence(state: BuilderState, sceneType: string, seed: number): string {
-  const time = resolve(state.timeOfDay, TIMES_OF_DAY, seed, 'timeOfDay')
-  const weather = resolve(state.weather, WEATHER, seed, 'weather')
-  const place = placeSentence(state.environment, sceneType)
-  const when = isSet(time) ? (place ? ` at ${time}` : `At ${time}`) : ''
-  return capitalise(listOf(`${place}${when}`, weather))
-}
-
-function lightingSentence(state: BuilderState, sceneType: string, seed: number): string {
+function lightingOf(state: BuilderState, sceneType: string, seed: number): Labelled {
   const setup = resolve(state.lightingSetup, LIGHTING_SETUPS, seed, 'lightingSetup')
-  const fromScene = isSet(sceneType) ? `lighting natural to a ${sceneType} setting` : ''
-  const prose = setup === INHERIT_SCENE ? fromScene : LIGHTING_EXPANSIONS[setup] ?? ''
-  return capitalise(listOf(prose, state.lightingCustom.trim()))
+  if (setup !== INHERIT_SCENE) return { label: setup, text: LIGHTING_EXPANSIONS[setup] ?? '' }
+  return isSet(sceneType) ? { label: `${sceneType} lighting`, text: `the natural light of the ${sceneType} setting` } : { label: '', text: '' }
 }
 
-function technicalSentence(state: BuilderState, seed: number): string {
-  const shot = resolve(state.shotType, SHOT_TYPES, seed, 'shotType')
-  const lens = resolve(state.lens, LENSES, seed, 'lens')
-  const dof = resolve(state.depthOfField, DEPTH_OF_FIELD, seed, 'depthOfField')
-  const words = dof.split(' ')
-  return listOf(
-    capitalise(shot),
-    resolve(state.cameraAngle, CAMERA_ANGLES, seed, 'cameraAngle'),
-    isSet(lens) ? `${lens} lens` : '',
-    isSet(dof) ? `${words[0]} depth of field at ${words[words.length - 1]}` : '',
-  )
+/** "razor thin f/1.4" → "razor thin depth of field at f/1.4". */
+function depthOfField(value: string): string {
+  if (!isSet(value)) return ''
+  const words = value.split(' ')
+  return `${words.slice(0, -1).join(' ')} depth of field at ${words[words.length - 1]}`
 }
 
-function moodSentence(state: BuilderState, seed: number): string {
-  const grading = resolve(state.colorGrading, COLOR_GRADINGS, seed, 'colorGrading')
-  const mood = state.mood.trim()
-  return [
-    mood ? `${capitalise(mood)} mood` : '',
-    isSet(grading) && grading !== 'natural' ? `${capitalise(grading)} color grading` : '',
-  ].filter(Boolean).join('. ')
+function personFacts(state: BuilderState, who: string, seed: number) {
+  const r = (value: string, options: readonly string[], field: string) => resolve(value, options, seed, field)
+  return {
+    eyes: r(state.eyeColor, EYE_COLORS, 'eyeColor'),
+    expression: r(state.expression, EXPRESSIONS, 'expression'),
+    makeup: r(state.makeup, MAKEUP, 'makeup'),
+    skinTone: r(state.skinTone, SKIN_TONES, 'skinTone'),
+    skinDetails: state.skinDetails,
+    appearanceExtra: state.appearanceExtra.trim(),
+    hair: { length: r(state.hairLength, HAIR_LENGTHS, 'hairLength'), color: r(state.hairColor, HAIR_COLORS, 'hairColor'), style: r(state.hairstyle, HAIRSTYLES, 'hairstyle') },
+    body: {
+      type: r(state.bodyType, BODY_TYPES, 'bodyType'),
+      height: r(state.height, HEIGHTS, 'height'),
+      bust: includesWoman(who) ? r(state.bust, BUST_SIZES, 'bust') : NOT_SET,
+      hips: r(state.hips, HIPS, 'hips'),
+      marks: [...state.tattoos, ...state.piercings],
+      extra: state.bodyExtra.trim(),
+    },
+  }
 }
 
+function settingFacts(state: BuilderState, seed: number) {
+  const r = (value: string, options: readonly string[], field: string) => resolve(value, options, seed, field)
+  const sceneType = r(state.sceneType, SCENE_TYPES, 'sceneType')
+  return {
+    place: placeOf(state.environment, sceneType),
+    sceneType,
+    time: r(state.timeOfDay, TIMES_OF_DAY, 'timeOfDay'),
+    weather: r(state.weather, WEATHER, 'weather'),
+    extraDetails: state.extraDetails.trim(),
+    lighting: lightingOf(state, sceneType, seed),
+    lightingCustom: state.lightingCustom.trim(),
+    photoStyle: r(state.photoStyle, PHOTO_STYLES, 'photoStyle'),
+    shot: r(state.shotType, SHOT_TYPES, 'shotType'),
+    angle: r(state.cameraAngle, CAMERA_ANGLES, 'cameraAngle'),
+    lens: r(state.lens, LENSES, 'lens'),
+    depthOfField: depthOfField(r(state.depthOfField, DEPTH_OF_FIELD, 'depthOfField')),
+    mood: state.mood.trim(),
+    grading: r(state.colorGrading, COLOR_GRADINGS, 'colorGrading'),
+    realism: state.realism,
+  }
+}
+
+function resolveFacts(state: BuilderState): Facts {
+  const seed = state.rollSeed
+  const whoChoice = resolve(state.who, WHO_OPTIONS, seed, 'who')
+  const who = knownWho(whoChoice)
+  const pronoun = pronounFor(who)
+  const age = resolve(state.age, AGE_RANGES, seed, 'age')
+  const ethnicity = resolve(state.ethnicity, ETHNICITIES, seed, 'ethnicity')
+  const subjectExtra = state.subject.trim()
+  const core = who ? describeWho(who, age, ethnicity, pronoun) : ''
+  const nudity = state.explicit ? state.nudity : null
+  return {
+    who, pronoun, age, ethnicity, subjectExtra,
+    hasWoman: who !== null && includesWoman(who),
+    hasMan: who !== null && includesMan(who),
+    subject: [core, subjectExtra].filter(Boolean).join(', '),
+    pose: explicitPose(state, whoChoice, seed),
+    action: explicitAction(state, whoChoice, seed),
+    freeAction: state.action.trim(),
+    nudity,
+    intimacy: state.explicit ? state.intimacy : [],
+    ...personFacts(state, whoChoice, seed),
+    ...outfitFacts(state.outfit, nudity, seed),
+    outfitDetails: state.outfit.details.trim(),
+    ...settingFacts(state, seed),
+  }
+}
+
+// ── Negative prompt ──────────────────────────────────────────────────────────
 const ANATOMY_NEGATIVES =
   'extra fingers, extra hands, extra limbs, missing fingers, fused fingers, mutated hands, deformed hands, phantom limb, ' +
   'floating hand, disembodied hand, extra arms, bad anatomy, malformed limbs, wrong number of fingers, six fingers, ' +
@@ -450,6 +464,8 @@ const ANATOMY_NEGATIVES =
 const BODY_NEGATIVES = 'saggy breasts, torpedo breasts, droopy breasts, pendulous breasts, tubular breasts, uneven breasts, deflated breasts'
 const BREAST_COVER_NEGATIVES = 'exposed nipples, bare breasts, lifted shirt, shirt pulled up, topless, areola visible'
 const INTIMATE_COVER_NEGATIVES = 'exposed genitals, no underwear, pantyless, bottomless'
+// Negatives that would fight explicit content; removed from the user's own negative prompt when it is on
+const SAFE_FOR_WORK_TERMS = new Set(['nsfw', 'censored', 'nude', 'nudity', 'naked'])
 
 function coverageNegatives(state: BuilderState): string[] {
   if (!state.explicit) return []
@@ -457,38 +473,29 @@ function coverageNegatives(state: BuilderState): string[] {
   return [breastsCovered ? BREAST_COVER_NEGATIVES : '', state.nudity === 'nude' ? '' : INTIMATE_COVER_NEGATIVES]
 }
 
+/** Drops terms such as "nsfw" from a negative prompt, so it does not work against explicit content. */
+export function withoutSafeForWorkTerms(negativePrompt: string): string {
+  return negativePrompt
+    .split(',')
+    .map((term) => term.trim())
+    .filter((term) => term && !SAFE_FOR_WORK_TERMS.has(term.toLowerCase()))
+    .join(', ')
+}
+
 function negativePrompt(state: BuilderState): string {
+  const own = state.explicit ? withoutSafeForWorkTerms(state.negativePrompt) : state.negativePrompt.trim()
   // Upstream always adds the body terms; here they only apply to explicit prompts
-  const parts = [state.negativePrompt.trim(), state.explicit ? BODY_NEGATIVES : '', ANATOMY_NEGATIVES, ...coverageNegatives(state)]
+  const parts = [own, state.explicit ? BODY_NEGATIVES : '', ANATOMY_NEGATIVES, ...coverageNegatives(state)]
   return parts.filter(Boolean).join(', ')
 }
 
-export function buildPrompt(state: BuilderState): BuildResult {
+export function buildPrompt(state: BuilderState, style: PromptStyle = 'prose'): BuildResult {
   if (!state.subject.trim() && state.who === NOT_SET) {
     return { status: 'incomplete', reason: 'Choose who the photo is of, or describe the subject, to start.' }
   }
   const problem = adultContentProblem(state)
   if (problem) return problem
-  const seed = state.rollSeed
-  const sceneType = resolve(state.sceneType, SCENE_TYPES, seed, 'sceneType')
-  const sentences = [
-    openerSentence(state, seed),
-    appearanceSentence(state, seed),
-    bodySentence(state, seed),
-    ...actionSentences(state, seed),
-    hairSentence(state, seed),
-    composeOutfit(state.outfit, seed),
-    ...explicitSentences(state),
-    sceneSentence(state, sceneType, seed),
-    capitalise(state.extraDetails.trim()),
-    lightingSentence(state, sceneType, seed),
-    technicalSentence(state, seed),
-    moodSentence(state, seed),
-    capitalise(listOf(...state.realism)),
-  ]
-  const prompt = sentences
-    .map((sentence) => sentence.trim().replace(/\.+$/, ''))
-    .filter(Boolean)
-    .join('. ')
-  return { status: 'ready', prompt: `${prompt}.`, negativePrompt: negativePrompt(state) }
+  const facts = resolveFacts(state)
+  const prompt = style === 'tags' ? tagsFrom(facts) : proseFrom(facts)
+  return { status: 'ready', prompt, negativePrompt: negativePrompt(state), explicit: state.explicit }
 }

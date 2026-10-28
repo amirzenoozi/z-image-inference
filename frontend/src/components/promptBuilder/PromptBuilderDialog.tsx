@@ -34,14 +34,15 @@ interface Props {
   hasExistingPrompt: boolean
   maxPromptLength: number
   onClose: () => void
-  onConfirm: (prompt: string, negativePrompt: string, mode: InsertMode) => void
+  /** `explicit` says the prompt has explicit content, so the editor can drop negatives such as "nsfw" that fight it. */
+  onConfirm: (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => void
 }
 
 export function PromptBuilderDialog({ model, hasExistingPrompt, maxPromptLength, onClose, onConfirm }: Props) {
   const [state, setState] = useState<BuilderState>(loadBuilderState)
   const [stepId, setStepId] = useState(STEPS[0].id)
   useEffect(() => saveBuilderState(state), [state])
-  const result = useMemo(() => buildPrompt(state), [state])
+  const result = useMemo(() => buildPrompt(state, model.prompt_style), [state, model.prompt_style])
 
   const steps = STEPS.filter((step) => !step.explicitOnly || state.explicit)
   const step = steps.find((candidate) => candidate.id === stepId) ?? steps[0]
@@ -49,7 +50,7 @@ export function PromptBuilderDialog({ model, hasExistingPrompt, maxPromptLength,
   const setOutfit = (patch: Partial<OutfitState>) => setState((current) => ({ ...current, outfit: { ...current.outfit, ...patch } }))
   const confirm = (mode: InsertMode) => {
     if (result.status !== 'ready') return
-    onConfirm(result.prompt, result.negativePrompt, mode)
+    onConfirm(result.prompt, result.negativePrompt, mode, result.explicit)
     onClose()
   }
 
@@ -137,11 +138,11 @@ function PreviewPane({ result, model, maxPromptLength, canReroll, onSurprise, on
       <div className="min-h-0 flex-1 overflow-y-auto">
         <PreviewBody result={result} maxPromptLength={maxPromptLength} />
       </div>
-      {model.prompt_style === 'tags' && (
-        <p className="rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          {model.label} reads short tags best, so it may follow this sentence-style prompt less closely.
-        </p>
-      )}
+      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+        {model.prompt_style === 'tags'
+          ? `Written as tags for ${model.label}, with adult tags weighted higher.`
+          : `Written as a detailed description for ${model.label}.`}
+      </p>
     </aside>
   )
 }
