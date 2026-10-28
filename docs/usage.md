@@ -48,14 +48,14 @@ First pick a **purpose** at the top. Each one shows only the steps it needs, sta
 | **Explicit (18+)** | every step and option | "An explicit adult photograph of …", nudity, explicit poses and acts |
 | **Scene** | Scene & light, Camera, Mood & finish; no people | the place and light |
 
-The steps:
+The steps (lists such as tattoos and skin details are checkboxes, ticked in the order they go into the prompt; **Makeup**, **Facial hair** and **Lighting** take several picks from one select, where "No makeup", "Clean-shaven" and Random replace the others):
 
 1. **Subject**: who (woman, man, couple, two women, two men), an adult age range, ethnicity and your own details
-2. **Face & hair**: eye colour, expression, makeup, skin tone and details, hair length, colour and style
-3. **Body**: body type, height, bust, hips and legs, tattoos and piercings
+2. **Face & hair**: eye colour, expression, makeup, skin tone and details, hair length, colour and style, and for a man facial hair
+3. **Body**: body type, height, bust (up to gigantic), hips and legs (up to a huge butt), muscles, stomach (up to an eight-pack), tattoos and piercings; for a man his chest (shown only when it is bare or in an open top), and in both 18+ purposes body hair and, when he is clothed below, a bulge; in the Explicit purpose also penis size and pubic hair, and in both 18+ purposes nipples, offered whenever the subject fits and written into the prompt only when the nudity shows them
 4. **Outfit**: tops, bottoms, lingerie, outerwear, shoes, a colour for each, accessories
 5. **Pose & action**
-6. **Intimacy (18+)**: nudity level (clothed, implied, topless, fully nude) and intimacy details; shown only in an 18+ purpose
+6. **Intimacy (18+)**: nudity level (clothed, implied, topless, fully nude) and intimacy details; shown only in an 18+ purpose. In the Explicit purpose it also has **explicit details** (cum in several places, creampie, squirting, wetness, erection, precum, drool, lube, hickeys, a red handprint, smeared makeup, an after-sex look), each offered only when it fits who is in the scene and the nudity
 7. **Scene & light**: a scene or your own environment, time of day, weather, lighting
 8. **Camera**: photo style, shot type, angle, lens, depth of field
 9. **Mood & finish**: mood, colour grading, realism details, extra details and negative terms
@@ -63,6 +63,7 @@ The steps:
 - **Surprise me** fills the main choices with random values you can then adjust. Any choice can also be set to **Random**, and **Re-roll** picks new values for those.
 - **Use this prompt** puts the prompt and negative prompt into the prompt box, replacing what is there; **Append to prompt** adds to it instead.
 - **It writes for the selected model.** For Z-Image-Turbo and MOSS-Image, one detailed paragraph: who and what is happening first, then the person, the outfit, the setting, the light and the camera, each tied to the subject. For WAI-Illustrious and Anime Desire, a tag list: quality tags, who, then adult content, then the rest, with what the purpose stresses weighted higher (for example `(completely nude:1.3)` in Explicit).
+- **Choices that contradict each other** (two things for the same hands, a pose and an act in different body positions, a smile while the mouth is busy, a face turned away in a close-up, a hairstyle the hair length can't hold, sunlight at night, rain indoors, two hats) are never picked by **Random** or **Surprise me**: each choice is picked to fit the ones before it. If your own choices clash, the preview says which and why, since the model would try to draw both (often as an extra hand or a twisted body).
 - **It never contradicts itself.** The nudity level decides the outfit (topless leaves out tops and bras; fully nude and implied nudity leave only shoes and accessories). Partner actions are offered only for a couple, poses and actions about breasts or lingerie only when the subject includes a woman, and actions about taking clothes off only while those clothes are still on.
 - In an 18+ purpose, terms such as `nsfw` are taken out of the negative prompt, since they would work against it.
 - **Adults only**: explicit content, nudity and lingerie need "Who" and an adult age range, and the builder refuses any detail that suggests a minor.
@@ -176,15 +177,15 @@ Z-Image-Turbo, WAI-Illustrious, Anime Desire and RealVisXL can make variations. 
 
 ## Characters
 
-A **character** is a named person you make many images of, such as "Ava". It keeps the prompt builder's **Subject**, **Face & hair** and **Body** choices (who, age, ethnicity, eyes, skin, hair, makeup, body, tattoos and piercings), but not the outfit, pose or scene, so the same person can go anywhere.
+A **character** is a named person you make many images of, such as "Ava". It keeps the prompt builder's **Subject**, **Face & hair** and **Body** choices (who, age, ethnicity, eyes, skin, hair, facial hair, makeup, body, muscles, stomach, chest, tattoos and piercings), but not the outfit, pose or scene, so the same person can go anywhere. Pubic hair, penis size, nipples, body hair and a bulge are not part of a character either: they are chosen for each image.
 
 - **Samples**: the app starts with thirteen sample characters, each with a different look, to try right away: Mei, Amara, Sofia, Freya, Elena, Ravi and Kai, and six young adults with one bold feature each: Nova (pastel pink hair), Jax (big tattoos), Tank (huge muscles), Ruby (very large breasts), Zara (blue hair and many piercings) and Ivy (lavender hair and tattoos). They are added once, the first time the app starts with a database; edit or delete them like any other, and a deleted one does not come back. They live in `sample_characters.json`: edit it before the first start to change them.
 - **Browse them** on the Characters page; **All / Women / Men** at the top filters the cards; the choice is kept when you go to another view and come back, and across reloads.
 - **Make one** with **New character** on the Characters page (**Surprise me** there fills in a random adult look you can then adjust; it keeps "Who", the name and anything you typed), or with **Save as character…** under the prompt builder's Subject step.
-- **Use it** by picking it in **Character** at the top of Create's prompt (or **Use** on its card). Every image you then generate is linked to it. In the prompt builder, its look replaces the Subject, Face & hair and Body steps, which become one **Character** step. A prompt you type yourself gets the character's look added to its start when you generate (as a sentence, or as tags for the SDXL models), so "a girl under the rain" still shows that person; Create says "Ivy's look is added to the start of your prompt". The prompt box keeps your own text, and History saves the full prompt. A prompt from the prompt builder, or reused from an image of the character, already has the look and is sent as it is.
+- **Use it** by picking it in **Character** at the top of Create's prompt (or **Use** on its card). Every image you then generate is linked to it. In the prompt builder, its look replaces the Subject, Face & hair and Body steps, which become one **Character** step; in the 18+ purposes it also has a **For this image** group for the body choices a character leaves out, such as pubic hair. A prompt you type yourself gets the character's look added to its start when you generate (as a sentence, or as tags for the SDXL models), so "a girl under the rain" still shows that person; Create says "Ivy's look is added to the start of your prompt". The prompt box keeps your own text, and History saves the full prompt. A prompt from the prompt builder, or reused from an image of the character, already has the look and is sent as it is.
 - **Seed**: a character can have its own seed, used for every render of it, which keeps the face closer between images of similar prompts. Leave it empty for a new seed each time.
 - **Find its images** with **Show images** on its card, or the **Character** filter in History. The image viewer shows the character an image belongs to; **Set as cover** puts that image on the character's card (otherwise its newest image is used).
-- **Edit** changes its name, seed and look; images already made keep the look they had. **Delete** removes the character but keeps its images in History.
+- **Edit** changes its name, seed and look, in tabs (**Subject**, **Face & hair**, **Body**, **Face lock**; the arrow keys move between them); images already made keep the look they had. **Delete** removes the character but keeps its images in History.
 - Characters are adults only: each needs "Who" and an adult age range, and a name or detail that suggests a minor is refused.
 
 The description only keeps a face similar, not identical; models draw a new face for each image that fits the words. For the same face every time, use the face lock.
@@ -197,7 +198,7 @@ With **RealVisXL** (in photo style), **WAI-Illustrious** and **Anime Desire** (i
 2. In the image viewer, choose **Use as face**.
 3. Pick the character in Create and generate with RealVisXL, WAI-Illustrious or Anime Desire. Create says "Face locked to image #12 at 60%".
 
-- **Face strength** (in the character's **Edit**, 10% to 100%, 60% to start) sets how closely the face is kept. Higher keeps it closer but follows the prompt less: try 50% to 70%.
+- **Face strength** (on the **Face lock** tab of the character's **Edit**, 10% to 100%, 60% to start) sets how closely the face is kept. Higher keeps it closer but follows the prompt less: try 50% to 70%.
 - The first face-locked render downloads the face lock files once (3.4 GB) and asks you to try again when they are there.
 - The image viewer shows which image a render's face came from. Deleting that image ends the face lock; **Remove face** in the character's **Edit** does too.
 - Z-Image-Turbo and MOSS-Image can't lock a face; with them the character's look comes from the description only, and Create says so.
