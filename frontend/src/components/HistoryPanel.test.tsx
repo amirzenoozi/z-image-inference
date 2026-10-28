@@ -482,3 +482,25 @@ it('shows the last page for a page past the end', async () => {
   expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
   expect(window.location.search).toBe('?page=2')
 })
+
+it('copies the prompt and the negative prompt from an image\'s details', async () => {
+  fetchHistory.mockResolvedValue(pageOf([historyItem({ id: 1, prompt: 'a red fox', negative_prompt: 'blurry' })]))
+  const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
+  renderHistory()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: a red fox' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Copy prompt' }))
+  expect(writeText).toHaveBeenLastCalledWith('a red fox')
+  await userEvent.click(screen.getByRole('button', { name: 'Copy negative prompt' }))
+  expect(writeText).toHaveBeenLastCalledWith('blurry')
+  expect(screen.getAllByText('Copied')).not.toHaveLength(0)
+})
+
+it('exports what the filters show', async () => {
+  fetchHistory.mockResolvedValue(page(2))
+  renderHistory()
+  expect(await screen.findByRole('link', { name: 'Export' })).toHaveAttribute('href', '/api/history/export')
+
+  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+  expect(await screen.findByRole('link', { name: 'Export these' })).toHaveAttribute('href', '/api/history/export?favourites=true')
+})
