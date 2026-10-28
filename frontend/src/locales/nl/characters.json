@@ -58,5 +58,6 @@
   "problemMinor": "Personages moeten volwassen zijn. Haal ‘{word}’ weg.",
   "summaryEyes": "ogen: {colour}",
   "summaryHairLengthColour": "{length} {colour}",
-  "summaryHair": "haar: {hair}"
+  "summaryHair": "haar: {hair}",
+  "tabsLabel": "Onderdelen van het uiterlijk"
 }

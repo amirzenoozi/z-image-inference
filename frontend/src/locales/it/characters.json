@@ -58,5 +58,6 @@
   "problemMinor": "I personaggi devono essere adulti. Rimuovi «{word}».",
   "summaryEyes": "occhi {colour}",
   "summaryHairLengthColour": "{colour} {length}",
-  "summaryHair": "capelli {hair}"
+  "summaryHair": "capelli {hair}",
+  "tabsLabel": "Parti dell’aspetto"
 }

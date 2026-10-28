@@ -58,5 +58,6 @@
   "problemMinor": "Figuren müssen erwachsen sein. Entferne „{word}“.",
   "summaryEyes": "Augen: {colour}",
   "summaryHairLengthColour": "{length}, {colour}",
-  "summaryHair": "Haare: {hair}"
+  "summaryHair": "Haare: {hair}",
+  "tabsLabel": "Teile des Aussehens"
 }
