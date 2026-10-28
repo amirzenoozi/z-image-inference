@@ -1,28 +1,51 @@
-import { useCallback, useState } from 'react'
-import { generateImage } from '../api'
+import { useCallback, useRef, useState } from 'react'
+import { ApiError, CANCELLED_STATUS, cancelJob, generateImage } from '../api'
 import type { GenerationSettings, GenerationState, HistoryItem } from '../types'
 import { errorMessage } from './hooks'
 
+function isCancelled(error: unknown): boolean {
+  return error instanceof ApiError && error.status === CANCELLED_STATUS
+}
+
 export function useGeneration(onSuccess: (item: HistoryItem) => void) {
   const [state, setState] = useState<GenerationState>({ status: 'idle' })
+  // What the result area showed before the current generation, restored when it is cancelled
+  const lastOutcome = useRef<GenerationState>({ status: 'idle' })
+
+  const settle = useCallback((outcome: GenerationState) => {
+    lastOutcome.current = outcome
+    setState(outcome)
+  }, [])
 
   const run = useCallback(
     async (request: GenerationSettings) => {
-      setState({ status: 'pending', startedAt: Date.now(), request })
+      const jobId = crypto.randomUUID()
+      setState({ status: 'pending', startedAt: Date.now(), request, jobId, cancelling: false })
       try {
-        const item = await generateImage(request)
-        setState({ status: 'settled', item })
+        const item = await generateImage(request, jobId)
+        settle({ status: 'settled', item })
         onSuccess(item)
       } catch (error) {
-        setState({ status: 'failed', error: errorMessage(error), request })
+        if (isCancelled(error)) setState(lastOutcome.current)
+        else settle({ status: 'failed', error: errorMessage(error), request })
       }
     },
-    [onSuccess],
+    [onSuccess, settle],
   )
 
   const retry = () => {
     if (state.status === 'failed') void run(state.request)
   }
 
-  return { state, run, retry }
+  const cancel = () => {
+    if (state.status !== 'pending' || state.cancelling) return
+    const { jobId } = state
+    setState({ ...state, cancelling: true })
+    // If the request fails, the generation goes on, so Cancel can be tried again
+    cancelJob(jobId).catch(() =>
+      setState((current) => (current.status === 'pending' && current.jobId === jobId ? { ...current, cancelling: false } : current)),
+    )
+  }
+
+  return { state, run, retry, cancel }
 }

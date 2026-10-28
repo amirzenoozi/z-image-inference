@@ -79,6 +79,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
             state={generation.state}
             models={catalog.models}
             onRetry={generation.retry}
+            onCancel={generation.cancel}
             onUseSeed={(seed) => setSettings((current) => ({ ...current, seed, randomSeed: false }))}
           />
         </section>

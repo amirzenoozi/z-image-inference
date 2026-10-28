@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, ModelState, ModelStatusReport } from './types'
+import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, JobProgress, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -74,7 +74,8 @@ export async function removeModel(modelId: string): Promise<void> {
   await request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' })
 }
 
-export async function generateImage(settings: GenerationSettings, signal?: AbortSignal): Promise<HistoryItem> {
+/** `jobId` lets the caller follow the generation with fetchJobProgress and stop it with cancelJob. */
+export async function generateImage(settings: GenerationSettings, jobId: string, signal?: AbortSignal): Promise<HistoryItem> {
   const resp = await postJson(
     '/api/generate',
     {
@@ -86,10 +87,22 @@ export async function generateImage(settings: GenerationSettings, signal?: Abort
       steps: settings.steps,
       guidance: settings.guidance,
       seed: settings.randomSeed ? null : settings.seed,
+      job_id: jobId,
     },
     signal,
   )
   return resp.json() as Promise<HistoryItem>
+}
+
+/** A cancelled generation fails with this status. */
+export const CANCELLED_STATUS = 409
+
+export async function fetchJobProgress(jobId: string, signal?: AbortSignal): Promise<JobProgress> {
+  return (await request(`/api/jobs/${encodeURIComponent(jobId)}/progress`, { signal })).json() as Promise<JobProgress>
+}
+
+export async function cancelJob(jobId: string): Promise<void> {
+  await request(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })
 }
 
 export async function fetchHistory(offset: number, limit: number, signal?: AbortSignal): Promise<HistoryPage> {
