@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, JobProgress, ModelState, ModelStatusReport } from './types'
+import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, HistorySummary, JobProgress, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -116,6 +116,16 @@ export async function deleteHistoryItem(id: number): Promise<void> {
 
 export async function clearHistory(): Promise<void> {
   await request('/api/history', { method: 'DELETE' })
+}
+
+export async function fetchHistorySummary(signal?: AbortSignal): Promise<HistorySummary> {
+  return (await request('/api/history/summary', { signal })).json() as Promise<HistorySummary>
+}
+
+/** Resolves with how many images were deleted. */
+export async function deleteHistoryOlderThan(days: number): Promise<number> {
+  const resp = await request(`/api/history/older-than/${days}`, { method: 'DELETE' })
+  return ((await resp.json()) as { deleted: number }).deleted
 }
 
 export function imageUrl(id: number, thumb = false): string {

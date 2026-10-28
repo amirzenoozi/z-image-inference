@@ -124,3 +124,11 @@ it('offers Cancel while generating, and shows that it is cancelling', async () =
   rerender(pending({ cancelling: true }))
   expect(screen.getByRole('button', { name: 'Cancelling…' })).toBeDisabled()
 })
+
+it('shows how long the image took, and nothing for images made before times were recorded', () => {
+  const { rerender } = renderResult({ status: 'settled', item: historyItem({ duration_seconds: 52.3 }) })
+  expect(screen.getByText('52s')).toBeInTheDocument()
+
+  rerender({ status: 'settled', item: historyItem({ duration_seconds: null }) })
+  expect(screen.queryByText(/^\d+s$/)).not.toBeInTheDocument()
+})

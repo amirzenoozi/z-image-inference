@@ -76,6 +76,7 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     guidance: null,
     model: 'z-image-turbo',
     created_at: '2026-10-28 10:00:00',
+    duration_seconds: 52.3,
     ...overrides,
   }
 }
