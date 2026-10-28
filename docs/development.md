@@ -51,7 +51,17 @@ z-image-inference/
 ├── prompt_modes.json          # The prompt builder's purposes
 ├── frontend/                  # React, TypeScript and Tailwind UI (Vite)
 │   └── src/
-│       ├── components/        # The UI; form/ holds the shared field components
+│       ├── pages/             # One folder per page, with the components only it uses
+│       │   ├── create/        # CreatePage: settings, prompt, models (models/), the result
+│       │   ├── history/       # HistoryPage: filters, grid, and the image viewer and editor (viewer/)
+│       │   └── characters/    # CharactersPage: the cards, and the character editor
+│       ├── shared/            # Used by more than one page
+│       │   ├── ui/            # Modal, IconButton, tooltips, Pagination, Section, Spinner …
+│       │   ├── form/          # Field components
+│       │   ├── images/        # SensitiveImage, ImageFacts
+│       │   ├── characters/    # CharactersProvider
+│       │   └── promptBuilder/ # The prompt builder dialog and its steps
+│       ├── i18n/, locales/    # Translations
 │       └── lib/               # Logic: settings, API client, prompt builder, edits
 ├── docs/                      # This documentation
 ├── models/                    # Downloaded models (not in git)
