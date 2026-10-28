@@ -127,7 +127,7 @@ The **History** tab shows every image, newest first. Open one to see its prompt 
 
 ### Switching models
 
-Models that are not downloaded yet show **Downloads on first use** on their card. Generating with one starts its download in the background and tells you so straight away; the card shows **Downloading** until it is ready, then generate again.
+When the model server starts, it queues every model that is not downloaded yet and fetches them one at a time in the background, Z-Image-Turbo first; you can generate with any model that is already ready meanwhile. Each card shows **Queued for download**, **Downloading** or **Download failed** until the model is ready, and choosing a model that is not ready tells you so straight away. Each card also links to the model's page on **Hugging Face**.
 
 Choosing another model keeps your settings where that model allows them, and offers its recommended defaults in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
 
