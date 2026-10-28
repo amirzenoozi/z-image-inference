@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, model_validator
 
+from i18n import t
 from model_catalog import DEFAULT_MODEL, MODELS, ModelSpec
 
 MIN_SIDE = 256
@@ -46,10 +47,10 @@ class GenerateRequest(BaseModel):
     def check_against_model(self) -> "GenerateRequest":
         spec = MODELS.get(self.model)
         if spec is None:
-            raise ValueError(f"Unknown model: {self.model}")
+            raise ValueError(t("unknownModel", model=self.model))
         check_size(self.width, self.height, spec)
         if self.steps is not None and not 1 <= self.steps <= spec.max_steps:
-            raise ValueError(f"steps must be between 1 and {spec.max_steps}")
+            raise ValueError(t("stepsRange", max_steps=spec.max_steps))
         check_variation(self.has_start_image(), self.change, spec)
         check_face_lock(self.face_image is not None, self.face_strength, spec)
         return self
@@ -57,22 +58,20 @@ class GenerateRequest(BaseModel):
 
 def check_variation(has_start_image: bool, change: float | None, spec: ModelSpec) -> None:
     if has_start_image != (change is not None):
-        raise ValueError("A variation needs both a start image and how much to change it")
+        raise ValueError(t("variationNeedsBoth"))
     if has_start_image and not spec.supports_variations:
-        raise ValueError(f"{spec.label} can't start from an image; pick another model or remove the start image")
+        raise ValueError(t("cannotStartFromImage", label=spec.label))
 
 
 def check_face_lock(has_face_image: bool, face_strength: float | None, spec: ModelSpec) -> None:
     if has_face_image != (face_strength is not None):
-        raise ValueError("A face lock needs both a face image and its strength")
+        raise ValueError(t("faceLockNeedsBoth"))
     if has_face_image and not spec.supports_face_lock:
         able = ", ".join(model.label for model in MODELS.values() if model.supports_face_lock)
-        raise ValueError(f"{spec.label} can't lock a face; use one of: {able}")
+        raise ValueError(t("cannotLockFace", label=spec.label, able=able))
 
 
 def check_size(width: int, height: int, spec: ModelSpec) -> None:
     for side in (width, height):
         if not MIN_SIDE <= side <= spec.max_side or side % SIDE_STEP:
-            raise ValueError(
-                f"width and height must be multiples of {SIDE_STEP} between {MIN_SIDE} and {spec.max_side}"
-            )
+            raise ValueError(t("sizeRange", step=SIDE_STEP, min_side=MIN_SIDE, max_side=spec.max_side))

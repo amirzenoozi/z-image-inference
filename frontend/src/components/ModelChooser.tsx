@@ -5,9 +5,11 @@ import { formatGb } from '../lib/format'
 import { errorMessage } from '../lib/hooks'
 import { chipClass, secondaryButtonClass, tabClass } from '../lib/styles'
 import type { Loadable, ModelCategory, ModelInfo, ModelStatus, ModelStatusReport } from '../types'
-import { DownloadBadge, HuggingFaceLink } from './modelParts'
 import { Spinner } from './ui'
 import { Check, X } from 'lucide-react'
+import { t } from '../i18n'
+import { DownloadBadge, HuggingFaceLink } from './modelParts'
+import { modelCategoryLabel, modelDescription } from '../lib/categories'
 
 const ALL = 'all'
 
@@ -25,7 +27,7 @@ interface Props {
 /** All models, filterable by category tab; "All" groups them under category headings. */
 export function ModelChooser({ models, categories, selectedId, status, serverDown, onSelect, onChanged }: Props) {
   const [tab, setTab] = useState(ALL)
-  const tabs = [{ id: ALL, label: 'All', count: models.length }, ...categories.map((category) => ({ ...category, count: models.filter((m) => m.category === category.id).length }))]
+  const tabs = [{ id: ALL, label: t('create.tabAll'), count: models.length }, ...categories.map((category) => ({ ...category, label: modelCategoryLabel(category), count: models.filter((m) => m.category === category.id).length }))]
   const groups = tab === ALL ? categories : categories.filter((category) => category.id === tab)
   const option = (model: ModelInfo) => (
     <ModelOption
@@ -41,17 +43,17 @@ export function ModelChooser({ models, categories, selectedId, status, serverDow
   return (
     <div className="space-y-4">
       <StorageSummary status={status} />
-      <div role="tablist" aria-label="Model category" className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/70">
+      <div role="tablist" aria-label={t('create.modelCategoryLabel')} className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/70">
         {tabs.map(({ id, label, count }) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tabClass(tab === id)}`}>
             {label} <span className="tabular-nums text-zinc-400">{count}</span>
           </button>
         ))}
       </div>
-      <div role="radiogroup" aria-label="Model" className="space-y-5">
+      <div role="radiogroup" aria-label={t('create.modelLabel')} className="space-y-5">
         {groups.map((category) => (
-          <section key={category.id} aria-label={category.label}>
-            {tab === ALL && <h3 className="mb-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">{category.label}</h3>}
+          <section key={category.id} aria-label={modelCategoryLabel(category)}>
+            {tab === ALL && <h3 className="mb-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">{modelCategoryLabel(category)}</h3>}
             <div className="grid gap-3 sm:grid-cols-2">{models.filter((model) => model.category === category.id).map(option)}</div>
           </section>
         ))}
@@ -65,7 +67,7 @@ function StorageSummary({ status }: { status: Loadable<ModelStatusReport> }) {
   const used = Object.values(status.value.models).reduce((total, model) => total + model.size_bytes, 0)
   return (
     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-      Models use <span className="font-semibold tabular-nums">{formatGb(used)}</span> · <span className="font-semibold tabular-nums">{formatGb(status.value.free_bytes)}</span> free
+      <StorageText used={formatGb(used)} free={formatGb(status.value.free_bytes)} />
     </p>
   )
 }
@@ -96,7 +98,7 @@ function ModelOption({ model, selected, status, serverDown, onSelect, onChanged 
         role="radio"
         aria-checked={selected}
         disabled={notReady}
-        title={notReady ? 'Download this model to use it' : undefined}
+        title={notReady ? t('create.downloadToUse') : undefined}
         onClick={onSelect}
         className="flex-1 p-4 pb-2 text-left disabled:cursor-not-allowed"
       >
@@ -106,7 +108,7 @@ function ModelOption({ model, selected, status, serverDown, onSelect, onChanged 
             {model.speed_hint}
           </span>
         </span>
-        <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{model.description}</span>
+        <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{modelDescription(model)}</span>
         {!serverDown && <DownloadBadge model={model} status={status} />}
       </button>
       {/* Actions and the link sit outside the radio button: buttons and links cannot be nested inside it */}
@@ -148,13 +150,13 @@ function ModelActions({ model, state, selected, freeBytes, onChanged }: ModelAct
   }
 
   if (error) return <ActionError message={error} onDismiss={() => setError(null)} />
-  if (working) return <span className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Spinner className="size-3" /> Working…</span>
+  if (working) return <span className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Spinner className="size-3" /> {t('create.working')}</span>
   if (confirming === 'download') {
-    const free = freeBytes === null ? '' : ` · ${formatGb(freeBytes)} free`
-    return <Confirm text={`Downloads ~${model.download_gb} GB, keeps ${model.kept_gb} GB${free}`} action="Download" onCancel={() => setConfirming(null)} onConfirm={() => void run(() => downloadModel(model.id))} />
+    const free = freeBytes === null ? '' : t('create.freeSuffix', { free: formatGb(freeBytes) })
+    return <Confirm text={t('create.confirmDownload', { download: model.download_gb, kept: model.kept_gb, free })} action={t('create.download')} onCancel={() => setConfirming(null)} onConfirm={() => void run(() => downloadModel(model.id))} />
   }
   if (confirming === 'remove') {
-    return <Confirm text={`Frees ${formatGb(state.sizeBytes)}; downloading again takes ~${model.download_gb} GB`} action="Remove" danger onCancel={() => setConfirming(null)} onConfirm={() => void run(() => removeModel(model.id))} />
+    return <Confirm text={t('create.confirmRemove', { size: formatGb(state.sizeBytes), download: model.download_gb })} action={t('common.remove')} danger onCancel={() => setConfirming(null)} onConfirm={() => void run(() => removeModel(model.id))} />
   }
   return <ActionButton model={model} state={state} selected={selected} onDownload={() => setConfirming('download')} onRemove={() => setConfirming('remove')} />
 }
@@ -171,16 +173,16 @@ function ActionButton({ model, state, selected, onDownload, onRemove }: ActionBu
   const small = `${secondaryButtonClass} px-2 py-1 text-[11px]`
   if (state.status === 'missing' || state.status === 'failed') {
     return (
-      <button type="button" onClick={onDownload} aria-label={`Download ${model.label}`} className={`${small} border-violet-400 text-violet-700 dark:border-violet-700 dark:text-violet-300`}>
-        ↓ Download
+      <button type="button" onClick={onDownload} aria-label={t('create.downloadModel', { model: model.label })} className={`${small} border-violet-400 text-violet-700 dark:border-violet-700 dark:text-violet-300`}>
+        {t('create.downloadButton')}
       </button>
     )
   }
   if (state.status !== 'ready') return <span />
-  if (selected) return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700 dark:text-violet-300"><Check className="size-3.5" /> In use</span>
+  if (selected) return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700 dark:text-violet-300"><Check className="size-3.5" /> {t('create.inUse')}</span>
   return (
-    <button type="button" onClick={onRemove} aria-label={`Remove ${model.label}`} className={`${small} text-zinc-500`}>
-      Remove · {formatGb(state.sizeBytes)}
+    <button type="button" onClick={onRemove} aria-label={t('create.removeModel', { model: model.label })} className={`${small} text-zinc-500`}>
+      {t('create.removeWithSize', { size: formatGb(state.sizeBytes) })}
     </button>
   )
 }
@@ -198,7 +200,7 @@ function Confirm({ text, action, danger = false, onCancel, onConfirm }: ConfirmP
     <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-600 dark:text-zinc-300">
       <span>{text}</span>
       <button type="button" onClick={onCancel} className={`${secondaryButtonClass} px-2 py-0.5 text-[11px]`}>
-        Cancel
+        {t('common.cancel')}
       </button>
       <button
         type="button"
@@ -215,9 +217,23 @@ function ActionError({ message, onDismiss }: { message: string; onDismiss: () =>
   return (
     <span role="alert" className="flex items-center gap-1.5 text-[11px] text-red-600 dark:text-red-400">
       {message}
-      <IconButton label="Dismiss" onClick={onDismiss} className="inline-flex items-center">
+      <IconButton label={t('create.dismiss')} onClick={onDismiss} className="inline-flex items-center">
         <X className="size-3.5" />
       </IconButton>
     </span>
+  )
+}
+
+/** Keeps the two sizes bold inside the translated sentence. */
+function StorageText({ used, free }: { used: string; free: string }) {
+  const parts = t('create.modelsUse').split(/(\{used\}|\{free\})/)
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part === '{used}') return <span key={index} className="font-semibold tabular-nums">{used}</span>
+        if (part === '{free}') return <span key={index} className="font-semibold tabular-nums">{free}</span>
+        return part
+      })}
+    </>
   )
 }

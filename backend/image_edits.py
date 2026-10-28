@@ -3,6 +3,8 @@ import io
 from PIL import Image
 from pydantic import BaseModel, Field, model_validator
 
+from i18n import t
+
 # A crop smaller than this on either side is almost certainly a slip of the mouse
 MIN_CROP_SIDE = 16
 # Clockwise quarter turns, as Pillow's transposes
@@ -29,7 +31,7 @@ class EditRecipe(BaseModel):
     @model_validator(mode="after")
     def changes_something(self) -> "EditRecipe":
         if not (self.quarter_turns or self.flip_horizontal or self.flip_vertical or self.crop):
-            raise ValueError("The edit changes nothing")
+            raise ValueError(t("editChangesNothing"))
         return self
 
 
@@ -55,5 +57,5 @@ def apply_edits(png: bytes, recipe: EditRecipe) -> tuple[bytes, int, int]:
 
 def crop(image: Image.Image, box: CropBox) -> Image.Image:
     if box.x + box.width > image.width or box.y + box.height > image.height:
-        raise EditOutsideImage(f"The crop goes outside the {image.width}×{image.height} image")
+        raise EditOutsideImage(t("cropOutside", width=image.width, height=image.height))
     return image.crop((box.x, box.y, box.x + box.width, box.y + box.height))

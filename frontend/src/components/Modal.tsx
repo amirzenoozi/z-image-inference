@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, type ReactNode } from 'react'
 import { IconButton } from './IconButton'
 import { X } from 'lucide-react'
@@ -43,7 +44,7 @@ export function Modal({ title, onClose, children, actions, actionsNote, size = '
       >
         <div className="flex shrink-0 items-center justify-between gap-4 px-5 pt-5 pb-4">
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
-          <IconButton label="Close" shortcut="Esc" onClick={onClose} className="flex size-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 [&_svg]:size-5">
+          <IconButton label={t('common.close')} shortcut="Esc" onClick={onClose} className="flex size-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 [&_svg]:size-5">
             <X />
           </IconButton>
         </div>
@@ -51,7 +52,7 @@ export function Modal({ title, onClose, children, actions, actionsNote, size = '
         {actions && (
           <div
             role="group"
-            aria-label="Dialog actions"
+            aria-label={t('common.dialogActions')}
             className={`flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-200 px-5 py-4 dark:border-zinc-800 ${actionsNote ? 'justify-between' : 'justify-center'}`}
           >
             {actionsNote && <p className="text-xs text-zinc-500 dark:text-zinc-400">{actionsNote}</p>}

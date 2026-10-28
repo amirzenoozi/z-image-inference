@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { optionLabel, t, type MessageKey } from '../../i18n'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../../lib/promptBuilder/build'
 import { chipClass, fieldLabelClass, tabClass } from '../../lib/styles'
 import { Select, type SelectGroup } from '../form/Select'
@@ -24,18 +25,18 @@ interface ChoiceSelectProps {
   onChange: (value: string) => void
 }
 
-const SPECIAL_LABELS: Record<string, string> = {
-  [NOT_SET]: 'Not set',
-  [RANDOM]: 'Random',
-  [REMOVE]: 'Remove (without)',
-  [INHERIT_SCENE]: 'Match the scene',
+const SPECIAL_LABELS: Record<string, MessageKey> = {
+  [NOT_SET]: 'builder.choiceNotSet',
+  [RANDOM]: 'builder.choiceRandom',
+  [REMOVE]: 'builder.choiceRemove',
+  [INHERIT_SCENE]: 'builder.choiceMatchScene',
 }
 
 function choiceGroups({ groups, allowRemove = false, allowInherit = false, allowRandom = true }: ChoiceSelectProps): SelectGroup[] {
   const special = [NOT_SET, ...(allowRandom ? [RANDOM] : []), ...(allowRemove ? [REMOVE] : []), ...(allowInherit ? [INHERIT_SCENE] : [])]
   return [
-    { options: special.map((value) => ({ value, label: SPECIAL_LABELS[value] })) },
-    ...groups.map((group) => ({ label: group.label, options: group.options.map((option) => ({ value: option, label: option })) })),
+    { options: special.map((value) => ({ value, label: t(SPECIAL_LABELS[value]) })) },
+    ...groups.map((group) => ({ label: group.label, options: group.options.map((option) => ({ value: option, label: optionLabel(option) })) })),
   ]
 }
 
@@ -82,7 +83,7 @@ export function ChipGroup({ label, options, value, onChange }: ChipGroupProps) {
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {options.map((option) => (
           <button key={option} type="button" aria-pressed={value.includes(option)} onClick={() => toggle(option)} className={`rounded-full border px-2.5 py-1 text-xs transition ${chipClass(value.includes(option))}`}>
-            {option}
+            {optionLabel(option)}
           </button>
         ))}
       </div>

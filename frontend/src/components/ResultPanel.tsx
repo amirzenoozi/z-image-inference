@@ -6,6 +6,7 @@ import { secondaryButtonClass } from '../lib/styles'
 import { ImageFacts } from './ImageFacts'
 import { ErrorNotice, Spinner } from './ui'
 import { Sparkles } from 'lucide-react'
+import { t, type MessageKey } from '../i18n'
 
 interface Props {
   state: GenerationState
@@ -40,8 +41,8 @@ function EmptyResult() {
   return (
     <div className="text-center text-zinc-400 dark:text-zinc-500">
       <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl border-2 border-dashed border-current"><Sparkles className="size-6" /></div>
-      <p className="text-sm">Your image will appear here.</p>
-      <p className="mt-1 text-xs">Pick a model, write a prompt and press Generate.</p>
+      <p className="text-sm">{t('create.emptyResult')}</p>
+      <p className="mt-1 text-xs">{t('create.emptyResultHint')}</p>
     </div>
   )
 }
@@ -60,28 +61,28 @@ function PendingResult({ state, models, onCancel }: { state: PendingState; model
         <Spinner className="size-8 text-violet-500" />
       </div>
       <p role="status" className="text-center text-sm text-zinc-600 dark:text-zinc-300">
-        Generating {request.width}×{request.height} with {model?.label ?? request.modelId} ·{' '}
+        {t('create.generatingWith', { width: request.width, height: request.height, model: model?.label ?? request.modelId })}{' '}
         <span className="font-semibold tabular-nums">{formatDuration(elapsed)}</span>
-        {model && <span className="block text-xs text-zinc-400">Usually {model.speed_hint}</span>}
+        {model && <span className="block text-xs text-zinc-400">{t('create.usually', { speed: model.speed_hint })}</span>}
       </p>
       <RenderProgress progress={progress} />
       <button type="button" onClick={onCancel} disabled={state.cancelling} className={secondaryButtonClass}>
-        {state.cancelling ? 'Cancelling…' : 'Cancel'}
+        {state.cancelling ? t('create.cancelling') : t('common.cancel')}
       </button>
     </div>
   )
 }
 
-const PHASE_LABELS: Record<Exclude<JobPhase, 'generating'>, string> = {
-  waiting: 'Waiting for the previous image',
-  loading: 'Loading the model',
-  encoding: 'Reading the prompt',
-  finishing: 'Finishing',
-}
+const PHASE_KEYS = {
+  waiting: 'create.phaseWaiting',
+  loading: 'create.phaseLoading',
+  encoding: 'create.phaseEncoding',
+  finishing: 'create.phaseFinishing',
+} as const satisfies Record<Exclude<JobPhase, 'generating'>, MessageKey>
 
 function RenderProgress({ progress }: { progress: JobProgress | null }) {
   if (progress === null) return null
-  const label = progress.phase === 'generating' ? `Step ${progress.step} of ${progress.total}` : PHASE_LABELS[progress.phase]
+  const label = progress.phase === 'generating' ? t('create.stepOf', { step: progress.step, total: progress.total }) : t(PHASE_KEYS[progress.phase])
   const showsSteps = progress.phase === 'generating' || progress.phase === 'finishing'
   return (
     <div className="w-full max-w-sm space-y-1.5">
@@ -95,7 +96,7 @@ function StepBar({ step, total }: { step: number; total: number }) {
   return (
     <div
       role="progressbar"
-      aria-label="Steps done"
+      aria-label={t('create.stepsDone')}
       aria-valuemin={0}
       aria-valuemax={total}
       aria-valuenow={step}
@@ -122,13 +123,13 @@ function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: s
         <ImageFacts item={item} label={label} />
         <div className="flex gap-2">
           <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
-            Download
+            {t('create.download')}
           </a>
           <button type="button" onClick={copySeed} className={secondaryButtonClass}>
-            {copied ? 'Copied' : 'Copy seed'}
+            {copied ? t('create.copied') : t('create.copySeed')}
           </button>
           <button type="button" onClick={() => onUseSeed(item.seed)} className={secondaryButtonClass}>
-            Use this seed
+            {t('create.useThisSeed')}
           </button>
         </div>
       </figcaption>

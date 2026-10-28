@@ -1,3 +1,4 @@
+import { optionLabel, t } from '../../i18n'
 import type { Character, CharacterTraits } from '../../types'
 import { buildPrompt, emptyBuilderState, minorWordIn, type BuilderState, type PromptStyle } from './build'
 import { CHOICE_OPTIONS } from './choices'
@@ -36,16 +37,27 @@ export function withTraits(state: BuilderState, traits: CharacterTraits): Builde
 
 /** Why the character can't be saved, or null. A character can be used in the 18+ purposes, so it must be an adult. */
 export function characterProblem(name: string, traits: CharacterTraits): string | null {
-  if (!name.trim()) return 'Give the character a name.'
-  if (traits.who === NOT_SET || traits.age === NOT_SET) return 'A character needs “Who” and an adult age range.'
+  if (!name.trim()) return t('characters.problemNoName')
+  if (traits.who === NOT_SET || traits.age === NOT_SET) return t('characters.problemNoAge')
   const minorWord = minorWordIn([name, ...FREE_TEXT_TRAITS.map((key) => traits[key])].join(' '))
-  return minorWord ? `Characters must be adults. Remove “${minorWord}”.` : null
+  return minorWord ? t('characters.problemMinor', { word: minorWord }) : null
 }
 
-/** A short line describing the character, such as "woman, late 20s, auburn hair". */
+/** "long auburn", "long" or "auburn": the hair's length and colour, as the language orders them. */
+function hairOf(traits: CharacterTraits): string {
+  const [length, colour] = [traits.hairLength, traits.hairColor].map((value) => (value ? optionLabel(value) : ''))
+  return length && colour ? t('characters.summaryHairLengthColour', { length, colour }) : length || colour
+}
+
+/** A short line describing the character, such as "woman, late 20s, auburn hair", with each option in the UI's language. */
 export function traitsSummary(traits: CharacterTraits): string {
-  const hair = [traits.hairLength, traits.hairColor].filter(Boolean).join(' ')
-  const parts = [traits.who, traits.age, traits.ethnicity, traits.eyeColor && `${traits.eyeColor} eyes`, hair && `${hair} hair`, traits.bodyType]
+  const hair = hairOf(traits)
+  const label = (value: string) => (value ? optionLabel(value) : '')
+  const parts = [
+    label(traits.who), label(traits.age), label(traits.ethnicity),
+    traits.eyeColor && t('characters.summaryEyes', { colour: optionLabel(traits.eyeColor) }),
+    hair && t('characters.summaryHair', { hair }), label(traits.bodyType),
+  ]
   return parts.filter(Boolean).join(', ')
 }
 

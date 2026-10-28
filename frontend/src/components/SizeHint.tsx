@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { ModelInfo } from '../types'
 
 // Below half the area of the size a model was made for, images come out soft and badly composed
@@ -9,10 +10,10 @@ export function SizeHint({ width, height, model, onUseModelSize }: { width: numb
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
       <span>
-        {model.label} works best at about {model.default_width}×{model.default_height}; at {width}×{height} its images come out soft and badly composed.
+        {t('create.sizeHint', { model: model.label, width: model.default_width, height: model.default_height, currentWidth: width, currentHeight: height })}
       </span>
       <button type="button" onClick={onUseModelSize} className="shrink-0 rounded-md bg-amber-600 px-2 py-1 font-semibold text-white hover:bg-amber-500">
-        Use {model.default_width}×{model.default_height}
+        {t('create.useSize', { width: model.default_width, height: model.default_height })}
       </button>
     </div>
   )

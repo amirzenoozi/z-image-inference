@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createCharacter } from '../../api'
+import { t } from '../../i18n'
 import { useCharacters } from '../../lib/characters'
 import { errorMessage } from '../../lib/hooks'
 import type { BuilderState } from '../../lib/promptBuilder/build'
@@ -17,9 +18,7 @@ export function CharacterSummary({ character }: { character: Character }) {
       <div className="space-y-1">
         <p className="font-semibold text-zinc-900 dark:text-zinc-100">{character.name}</p>
         <p className="text-xs text-zinc-600 dark:text-zinc-300">{traitsSummary(character.traits)}</p>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          The face, hair and body come from this character. Change them on the Characters page, or pick “No character” in Create.
-        </p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('characters.summaryNote')}</p>
       </div>
     </div>
   )
@@ -35,7 +34,7 @@ export function SaveAsCharacter({ state, onSaved }: { state: BuilderState; onSav
   if (save.status === 'closed') {
     return (
       <button type="button" onClick={() => setSave({ status: 'editing', error: null })} className={`${secondaryButtonClass} mt-4`}>
-        Save as character…
+        {t('characters.saveAsCharacterButton')}
       </button>
     )
   }
@@ -54,21 +53,21 @@ export function SaveAsCharacter({ state, onSaved }: { state: BuilderState; onSav
   }
   return (
     <form
-      aria-label="Save as character"
+      aria-label={t('characters.saveAsCharacter')}
       className="mt-4 space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800"
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
       }}
     >
-      <p className="text-xs text-zinc-600 dark:text-zinc-300">Keeps who they are, their face, hair and body, so every image of them matches.</p>
+      <p className="text-xs text-zinc-600 dark:text-zinc-300">{t('characters.saveAsCharacterIntro')}</p>
       <div className="flex gap-2">
-        <TextInput aria-label="Character name" placeholder="Name, e.g. Ava" maxLength={40} value={name} onChange={(event) => setName(event.target.value)} className="flex-1" autoFocus />
+        <TextInput aria-label={t('characters.characterName')} placeholder={t('characters.characterNamePlaceholder')} maxLength={40} value={name} onChange={(event) => setName(event.target.value)} className="flex-1" autoFocus />
         <button type="button" onClick={() => setSave({ status: 'closed' })} className={secondaryButtonClass}>
-          Cancel
+          {t('common.cancel')}
         </button>
         <button type="submit" disabled={save.status === 'saving'} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50">
-          {save.status === 'saving' ? 'Saving…' : 'Save'}
+          {save.status === 'saving' ? t('common.saving') : t('common.save')}
         </button>
       </div>
       {save.status === 'editing' && save.error && (

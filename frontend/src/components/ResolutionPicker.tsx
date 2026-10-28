@@ -6,10 +6,13 @@ import { fitsModel, snapSide } from '../lib/settings'
 import { chipClass, fieldButtonClass, fieldLabelClass, tabClass } from '../lib/styles'
 import { NumberInput } from './form/NumberInput'
 import { ArrowLeftRight } from 'lucide-react'
+import { t } from '../i18n'
 
 type Tab = Category | 'custom'
 
-const TAB_LABELS: Record<Tab, string> = { ...CATEGORY_LABELS, custom: 'Custom' }
+function tabLabel(tab: Tab): string {
+  return tab === 'custom' ? t('create.categoryCustom') : CATEGORY_LABELS[tab]
+}
 
 const TAB_SHAPES: Record<Tab, [number, number]> = {
   square: [1, 1],
@@ -40,7 +43,7 @@ export function ResolutionPicker({ width, height, model, resolutions, categories
   return (
     <div className="space-y-3">
       <SizeSummary width={width} height={height} />
-      <div role="tablist" aria-label="Resolution category" className="grid grid-cols-5 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/70">
+      <div role="tablist" aria-label={t('create.resolutionCategory')} className="grid grid-cols-5 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/70">
         {tabs.map((name) => (
           <button
             key={name}
@@ -51,11 +54,11 @@ export function ResolutionPicker({ width, height, model, resolutions, categories
             className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium transition ${tabClass(tab === name)}`}
           >
             <AspectBox width={TAB_SHAPES[name][0]} height={TAB_SHAPES[name][1]} size={14} />
-            {TAB_LABELS[name]}
+            {tabLabel(name)}
           </button>
         ))}
       </div>
-      <div role="tabpanel" aria-label={TAB_LABELS[tab]}>
+      <div role="tabpanel" aria-label={tabLabel(tab)}>
         {tab === 'custom' ? (
           <CustomSize width={width} height={height} model={model} limits={limits} onChange={onChange} />
         ) : (
@@ -135,7 +138,7 @@ function PresetChip({ preset, selected, model, onSelect }: PresetChipProps) {
       onClick={onSelect}
       disabled={!allowed}
       aria-pressed={selected}
-      title={allowed ? undefined : `${model.label} supports up to ${model.max_side}px per side`}
+      title={allowed ? undefined : t('create.maxSide', { model: model.label, max: model.max_side })}
       className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 ${chipClass(selected)}`}
     >
       <AspectBox width={preset.width} height={preset.height} size={14} />
@@ -162,14 +165,14 @@ function CustomSize({ width, height, model, limits, onChange }: CustomSizeProps)
   return (
     <div className="space-y-2">
       <div className="flex items-end gap-2">
-        <SideInput label="Width" value={width} limits={limits} maxSide={model.max_side} onCommit={(w) => commit(w, height)} />
-        <IconButton label="Swap width and height" onClick={() => commit(height, width)} className={fieldButtonClass}>
+        <SideInput label={t('create.width')} value={width} limits={limits} maxSide={model.max_side} onCommit={(w) => commit(w, height)} />
+        <IconButton label={t('create.swapSides')} onClick={() => commit(height, width)} className={fieldButtonClass}>
           <ArrowLeftRight />
         </IconButton>
-        <SideInput label="Height" value={height} limits={limits} maxSide={model.max_side} onCommit={(h) => commit(width, h)} />
+        <SideInput label={t('create.height')} value={height} limits={limits} maxSide={model.max_side} onCommit={(h) => commit(width, h)} />
       </div>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Multiples of {limits.side_step}, from {limits.min_side} to {model.max_side} px for {model.label}. Values snap when you leave the field.
+        {t('create.customSizeHint', { step: limits.side_step, min: limits.min_side, max: model.max_side, model: model.label })}
       </p>
     </div>
   )

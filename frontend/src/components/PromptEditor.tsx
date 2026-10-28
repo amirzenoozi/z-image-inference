@@ -6,6 +6,7 @@ import { Textarea } from './form/Textarea'
 import { withoutSafeForWorkTerms } from '../lib/promptBuilder/build'
 import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
 import { WandSparkles } from 'lucide-react'
+import { t } from '../i18n'
 
 type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt' | 'characterId' | 'lookIncluded'>>
 
@@ -51,7 +52,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
         disabled={locked}
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400 py-2.5 text-sm font-semibold text-violet-700 not-disabled:hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-700 dark:text-violet-300 dark:not-disabled:hover:bg-violet-950/40"
       >
-        <WandSparkles /> Prompt builder
+        <WandSparkles /> {t('create.promptBuilder')}
       </button>
       {builderOpen && (
         <PromptBuilderDialog
@@ -67,7 +68,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
       )}
       <div>
         <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-          Prompt
+          {t('create.promptLabel')}
         </label>
         <Textarea
           id="prompt"
@@ -83,11 +84,11 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
               onSubmit()
             }
           }}
-          placeholder="Describe the image in detail…"
+          placeholder={t('create.promptPlaceholder')}
           className="mt-1 min-h-36"
         />
         <p className="mt-1 flex justify-between text-[11px] text-zinc-400">
-          <span>{model.trigger_word ? `“${model.trigger_word}” is added automatically` : '⌘/Ctrl + Enter to generate'}</span>
+          <span>{model.trigger_word ? t('create.triggerWordAdded', { word: model.trigger_word }) : t('create.modEnterHint')}</span>
           <span className="tabular-nums">
             {settings.prompt.length}/{limits.max_prompt_length}
           </span>
@@ -107,13 +108,13 @@ function ExampleCards({ examples, disabled, onPick }: { examples: string[]; disa
         <button
           key={example}
           type="button"
-          aria-label={`Example #${index + 1}`}
+          aria-label={t('create.exampleNumber', { number: index + 1 })}
           title={example}
           onClick={() => onPick(example)}
           disabled={disabled}
           className="min-w-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-left not-disabled:hover:border-violet-400 not-disabled:hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:not-disabled:hover:border-violet-600 dark:not-disabled:hover:bg-violet-950/40"
         >
-          <span className="block text-xs font-medium text-zinc-800 dark:text-zinc-100">Example #{index + 1}</span>
+          <span className="block text-xs font-medium text-zinc-800 dark:text-zinc-100">{t('create.exampleNumber', { number: index + 1 })}</span>
           <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400">{example}</span>
         </button>
       ))}
@@ -134,7 +135,7 @@ function NegativePrompt({ value, model, locked, onChange }: NegativePromptProps)
     <div>
       <div className="flex items-center justify-between">
         <label htmlFor="negative-prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-          Negative prompt
+          {t('create.negativePrompt')}
         </label>
         {!isDefault && !locked && (
           <button
@@ -142,7 +143,7 @@ function NegativePrompt({ value, model, locked, onChange }: NegativePromptProps)
             onClick={() => onChange({ negativePrompt: model.default_negative_prompt })}
             className="text-xs text-violet-600 hover:text-violet-500 dark:text-violet-400"
           >
-            Restore default
+            {t('create.restoreDefault')}
           </button>
         )}
       </div>
@@ -153,7 +154,7 @@ function NegativePrompt({ value, model, locked, onChange }: NegativePromptProps)
         readOnly={locked}
         aria-readonly={locked}
         onChange={(event) => onChange({ negativePrompt: event.target.value })}
-        placeholder="What to avoid…"
+        placeholder={t('create.negativePlaceholder')}
         className="mt-1"
       />
     </div>

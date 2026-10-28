@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { pageItems } from '../lib/pagination'
 import { controlHeight } from '../lib/styles'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -17,9 +18,9 @@ const currentClass = 'border-violet-600 bg-violet-600 text-white'
 export function Pagination({ page, pageCount, onChange }: Props) {
   if (pageCount <= 1) return null
   return (
-    <nav aria-label="Pages" className="flex flex-wrap items-center justify-center gap-1.5">
+    <nav aria-label={t('common.pages')} className="flex flex-wrap items-center justify-center gap-1.5">
       <button type="button" onClick={() => onChange(page - 1)} disabled={page === 1} className={`${pageButtonClass} ${idleClass}`}>
-        <ChevronLeft /> Previous
+        <ChevronLeft /> {t('common.previous')}
       </button>
       {pageItems(page, pageCount).map((item, index) =>
         item === 'gap' ? (
@@ -30,7 +31,7 @@ export function Pagination({ page, pageCount, onChange }: Props) {
           <button
             key={item}
             type="button"
-            aria-label={`Page ${item}`}
+            aria-label={t('common.page', { number: item })}
             aria-current={item === page ? 'page' : undefined}
             onClick={() => onChange(item)}
             className={`${pageButtonClass} ${item === page ? currentClass : idleClass}`}
@@ -40,7 +41,7 @@ export function Pagination({ page, pageCount, onChange }: Props) {
         ),
       )}
       <button type="button" onClick={() => onChange(page + 1)} disabled={page === pageCount} className={`${pageButtonClass} ${idleClass}`}>
-        Next <ChevronRight />
+        {t('common.next')} <ChevronRight />
       </button>
     </nav>
   )

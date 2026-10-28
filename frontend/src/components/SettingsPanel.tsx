@@ -15,6 +15,7 @@ import { SamplingControls } from './SamplingControls'
 import { SizeHint } from './SizeHint'
 import { StartImageBlock } from './StartImageBlock'
 import { Section, Spinner } from './ui'
+import { t } from '../i18n'
 
 export type PromptMode = 'direct' | 'chat'
 
@@ -57,12 +58,12 @@ export function SettingsPanel(props: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-7 overflow-y-auto p-5">
-        <Section title="Model">
+        <Section title={t('create.sectionModel')}>
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
         </Section>
         <PromptSection {...props} onGenerate={generate} model={model} patch={patch} addsLook={addsCharacterLook(settings, character)} />
-        <Section title="Resolution">
+        <Section title={t('create.sectionResolution')}>
           <ResolutionPicker
             width={settings.width}
             height={settings.height}
@@ -75,10 +76,10 @@ export function SettingsPanel(props: Props) {
           <SizeHint width={settings.width} height={settings.height} model={model} onUseModelSize={() => patch({ width: model.default_width, height: model.default_height })} />
         </Section>
         <Section
-          title="Sampling"
+          title={t('create.sectionSampling')}
           aside={
             <button type="button" onClick={applyDefaults} disabled={!differsFromDefaults(settings, model)} className="text-xs text-violet-600 hover:text-violet-500 disabled:text-zinc-400 dark:text-violet-400">
-              Reset to model defaults
+              {t('create.resetToDefaults')}
             </button>
           }
         >
@@ -90,31 +91,33 @@ export function SettingsPanel(props: Props) {
   )
 }
 
-export const SERVER_DOWN_REASON = "The model server isn't running yet. Start it with: uv run python model_server.py"
+function serverDownReason(): string {
+  return t('create.serverDownReason')
+}
 
 /** Why Generate can't run now, shown in its tooltip; null when it can. A start image the model can't use blocks it, rather than being ignored. */
 function blockedReason(settings: GenerationSettings, model: ModelInfo, serverDown: boolean): string | null {
-  if (serverDown) return SERVER_DOWN_REASON
-  if (!settings.prompt.trim()) return 'Write a prompt first'
-  if (settings.startImage && !model.supports_variations) return `${model.label} can't start from an image`
+  if (serverDown) return serverDownReason()
+  if (!settings.prompt.trim()) return t('create.writePromptFirst')
+  if (settings.startImage && !model.supports_variations) return t('create.cantStartFromImage', { model: model.label })
   return null
 }
 
 /** The look a character adds can take a prompt that fits the box over the limit. */
 function lengthProblem(sentLength: number, maxLength: number): string | null {
-  return sentLength > maxLength ? `With the character's look added, the prompt is too long (${sentLength} of ${maxLength} characters). Shorten it.` : null
+  return sentLength > maxLength ? t('create.lookTooLong', { length: sentLength, max: maxLength }) : null
 }
 
 function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply: () => void; onDismiss: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-900 dark:bg-violet-950/50 dark:text-violet-100">
-      <span>Sampling was reset to {model.label}’s defaults. Use its default size and negative prompt too?</span>
+      <span>{t('create.defaultsHint', { model: model.label })}</span>
       <span className="flex shrink-0 gap-2">
         <button type="button" onClick={onDismiss} className="text-violet-600 dark:text-violet-300">
-          Keep mine
+          {t('create.keepMine')}
         </button>
         <button type="button" onClick={onApply} className="rounded-md bg-violet-600 px-2 py-1 font-semibold text-white hover:bg-violet-500">
-          Use defaults
+          {t('create.useDefaults')}
         </button>
       </span>
     </div>
@@ -130,13 +133,13 @@ interface PromptSectionProps extends Props {
 function PromptSection(props: PromptSectionProps) {
   const { catalog, settings, mode, onModeChange, generating, onGenerate, model, patch, addsLook } = props
   const modes: { id: PromptMode; label: string; enabled: boolean }[] = [
-    { id: 'direct', label: 'Write prompt', enabled: true },
-    { id: 'chat', label: 'Chat with Grok', enabled: catalog.chat_available },
+    { id: 'direct', label: t('create.modeWrite'), enabled: true },
+    { id: 'chat', label: t('create.modeChat'), enabled: catalog.chat_available },
   ]
   return (
-    <Section title="Prompt">
+    <Section title={t('create.sectionPrompt')}>
       <CharacterPicker characterId={settings.characterId} model={model} addsLook={addsLook} onChange={(character) => patch(characterSettings(character))} />
-      <div role="tablist" aria-label="Prompt mode" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium dark:bg-zinc-800/70">
+      <div role="tablist" aria-label={t('create.promptModeLabel')} className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium dark:bg-zinc-800/70">
         {modes.map(({ id, label, enabled }) => (
           <button
             key={id}
@@ -144,7 +147,7 @@ function PromptSection(props: PromptSectionProps) {
             role="tab"
             aria-selected={mode === id}
             disabled={!enabled}
-            title={enabled ? undefined : 'Set XAI_API_KEY in .env to enable chat'}
+            title={enabled ? undefined : t('create.chatNeedsKey')}
             onClick={() => onModeChange(id)}
             className={`rounded-lg py-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
               tabClass(mode === id)
@@ -180,7 +183,7 @@ function GenerateBar({ reason, generating, onGenerate }: { reason: string | null
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white shadow-sm transition not-aria-disabled:hover:bg-violet-500 aria-disabled:opacity-50"
       >
         {generating && <Spinner className="size-4" />}
-        {generating ? 'Generating…' : 'Generate'}
+        {generating ? t('create.generating') : t('create.generate')}
       </button>
       {tooltip}
     </div>

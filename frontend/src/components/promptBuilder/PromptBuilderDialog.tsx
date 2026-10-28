@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
-import { FALLBACK_MODE, isAdultMode, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
+import { FALLBACK_MODE, isAdultMode, modeLabel, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../lib/styles'
 import { withTraits } from '../../lib/promptBuilder/character'
@@ -9,26 +9,27 @@ import { CharacterSummary, SaveAsCharacter } from './CharacterParts'
 import { Modal } from '../Modal'
 import { ModePicker } from './ModePicker'
 import { AppearanceStep, BodyStep, CameraStep, FinishStep, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
+import { t, type MessageKey } from '../../i18n'
 import { Dices } from 'lucide-react'
 
 export type InsertMode = 'replace' | 'append'
 
 interface Step {
   id: StepId
-  label: string
+  label: MessageKey
   Component: ComponentType<StepProps>
 }
 
 const STEPS: Step[] = [
-  { id: 'subject', label: 'Subject', Component: SubjectStep },
-  { id: 'appearance', label: 'Face & hair', Component: AppearanceStep },
-  { id: 'body', label: 'Body', Component: BodyStep },
-  { id: 'outfit', label: 'Outfit', Component: OutfitStep },
-  { id: 'pose', label: 'Pose & action', Component: PoseStep },
-  { id: 'intimacy', label: 'Intimacy (18+)', Component: IntimacyStep },
-  { id: 'scene', label: 'Scene & light', Component: SceneStep },
-  { id: 'camera', label: 'Camera', Component: CameraStep },
-  { id: 'finish', label: 'Mood & finish', Component: FinishStep },
+  { id: 'subject', label: 'builder.stepSubject', Component: SubjectStep },
+  { id: 'appearance', label: 'builder.stepAppearance', Component: AppearanceStep },
+  { id: 'body', label: 'builder.stepBody', Component: BodyStep },
+  { id: 'outfit', label: 'builder.stepOutfit', Component: OutfitStep },
+  { id: 'pose', label: 'builder.stepPose', Component: PoseStep },
+  { id: 'intimacy', label: 'builder.stepIntimacy', Component: IntimacyStep },
+  { id: 'scene', label: 'builder.stepScene', Component: SceneStep },
+  { id: 'camera', label: 'builder.stepCamera', Component: CameraStep },
+  { id: 'finish', label: 'builder.stepFinish', Component: FinishStep },
 ]
 
 const newSeed = () => Math.floor(Math.random() * 2 ** 31)
@@ -46,7 +47,7 @@ function modesFor(modes: BuilderMode[], character: Character | null): BuilderMod
 function stepsFor(mode: BuilderMode, character: Character | null): Step[] {
   const shown = STEPS.filter((step) => mode.steps.includes(step.id))
   if (!character) return shown
-  return shown.filter((step) => !CHARACTER_STEPS.has(step.id)).map((step) => (step.id === 'subject' ? { ...step, label: 'Character' } : step))
+  return shown.filter((step) => !CHARACTER_STEPS.has(step.id)).map((step) => (step.id === 'subject' ? { ...step, label: 'builder.stepCharacter' } : step))
 }
 
 interface Props {
@@ -89,7 +90,7 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
   const tooLong = promptTooLong(result, maxPromptLength)
   return (
     <Modal
-      title="Prompt builder"
+      title={t('builder.title')}
       onClose={onClose}
       size="xl"
       actionsNote={actionsNote(tooLong, hasExistingPrompt)}
@@ -98,8 +99,8 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
       <ModePicker modes={modes} current={mode.id} problems={problems} onSelect={(next) => setState((current) => switchMode(current, next))} />
       <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
         <StepNav steps={steps} current={step.id} onSelect={setStepId} />
-        <section aria-label={step.label} className="min-h-0 overflow-y-auto pr-1">
-          <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{step.label}</h3>
+        <section aria-label={t(step.label)} className="min-h-0 overflow-y-auto pr-1">
+          <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t(step.label)}</h3>
           <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={state} mode={mode} set={set} setOutfit={setOutfit} />
         </section>
         <PreviewPane
@@ -138,14 +139,14 @@ function promptTooLong(result: BuildResult, maxPromptLength: number): boolean {
 }
 
 function styleNote(model: ModelInfo, mode: BuilderMode): string {
-  if (model.prompt_style !== 'tags') return `Written as a detailed description for ${model.label}.`
-  const weighted = Object.keys(mode.weights).length > 0
-  return `Written as tags for ${model.label}${weighted ? `, with the key ${mode.label.toLowerCase()} tags weighted higher` : ''}.`
+  if (model.prompt_style !== 'tags') return t('builder.styleProse', { model: model.label })
+  if (Object.keys(mode.weights).length === 0) return t('builder.styleTags', { model: model.label })
+  return t('builder.styleTagsWeighted', { model: model.label, purpose: modeLabel(mode) })
 }
 
 function StepNav({ steps, current, onSelect }: { steps: Step[]; current: StepId; onSelect: (id: StepId) => void }) {
   return (
-    <nav aria-label="Builder steps" className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:flex-col lg:overflow-visible">
+    <nav aria-label={t('builder.stepsLabel')} className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:flex-col lg:overflow-visible">
       {steps.map((step, index) => (
         <button
           key={step.id}
@@ -159,7 +160,7 @@ function StepNav({ steps, current, onSelect }: { steps: Step[]; current: StepId;
           }`}
         >
           <span className="flex size-5 items-center justify-center rounded-full bg-zinc-200 text-[10px] tabular-nums dark:bg-zinc-700">{index + 1}</span>
-          {step.label}
+          {t(step.label)}
         </button>
       ))}
     </nav>
@@ -178,22 +179,22 @@ interface PreviewPaneProps {
 
 function PreviewPane({ result, styleNote, maxPromptLength, canReroll, onSurprise, onReroll, onReset }: PreviewPaneProps) {
   return (
-    <aside aria-label="Preview" className="flex min-h-0 flex-col gap-3 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-950/60">
+    <aside aria-label={t('builder.preview')} className="flex min-h-0 flex-col gap-3 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-950/60">
       <button
         type="button"
         onClick={onSurprise}
         className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
       >
-        <Dices /> Surprise me
+        <Dices /> {t('builder.surprise')}
       </button>
       <div className="flex items-center justify-between text-xs">
-        <h3 className="font-semibold text-zinc-700 dark:text-zinc-200">Preview</h3>
+        <h3 className="font-semibold text-zinc-700 dark:text-zinc-200">{t('builder.preview')}</h3>
         <span className="flex gap-3">
-          <button type="button" onClick={onReroll} disabled={!canReroll} title="Pick new values for fields set to Random" className="text-violet-600 disabled:text-zinc-400 dark:text-violet-400">
-            Re-roll
+          <button type="button" onClick={onReroll} disabled={!canReroll} title={t('builder.rerollHint')} className="text-violet-600 disabled:text-zinc-400 dark:text-violet-400">
+            {t('builder.reroll')}
           </button>
           <button type="button" onClick={onReset} className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
-            Reset all
+            {t('builder.resetAll')}
           </button>
         </span>
       </div>
@@ -215,21 +216,21 @@ function PreviewBody({ result, maxPromptLength }: { result: BuildResult; maxProm
   const tooLong = result.prompt.length > maxPromptLength
   return (
     <div className="space-y-2">
-      <p aria-label="Built prompt" className="text-xs leading-relaxed text-zinc-800 dark:text-zinc-100">{result.prompt}</p>
+      <p aria-label={t('builder.builtPrompt')} className="text-xs leading-relaxed text-zinc-800 dark:text-zinc-100">{result.prompt}</p>
       <p className={`text-right text-[11px] tabular-nums ${tooLong ? 'font-semibold text-red-600' : 'text-zinc-400'}`}>
         {result.prompt.length}/{maxPromptLength}
       </p>
       <details className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        <summary className="cursor-pointer">Negative prompt</summary>
-        <p aria-label="Built negative prompt" className="mt-1 leading-relaxed">{result.negativePrompt}</p>
+        <summary className="cursor-pointer">{t('builder.negativePrompt')}</summary>
+        <p aria-label={t('builder.builtNegativePrompt')} className="mt-1 leading-relaxed">{result.negativePrompt}</p>
       </details>
     </div>
   )
 }
 
 function actionsNote(tooLong: boolean, hasExistingPrompt: boolean): string {
-  if (tooLong) return 'The prompt is too long; remove some details.'
-  return hasExistingPrompt ? 'Use this prompt replaces the text in the Write box.' : 'The prompt goes into the Write box, where you can still edit it.'
+  if (tooLong) return t('builder.noteTooLong')
+  return t(hasExistingPrompt ? 'builder.noteReplaces' : 'builder.noteInsert')
 }
 
 interface ActionsProps {
@@ -244,15 +245,15 @@ function DialogActions({ ready, hasExistingPrompt, onCancel, onConfirm }: Action
   return (
     <>
       <button type="button" onClick={onCancel} className={secondaryButtonClass}>
-        Cancel
+        {t('common.cancel')}
       </button>
       {hasExistingPrompt && (
         <button type="button" onClick={() => onConfirm('append')} disabled={disabled} className={secondaryButtonClass}>
-          Append to prompt
+          {t('builder.append')}
         </button>
       )}
       <button type="button" onClick={() => onConfirm('replace')} disabled={disabled} className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50">
-        Use this prompt
+        {t('builder.useThis')}
       </button>
     </>
   )

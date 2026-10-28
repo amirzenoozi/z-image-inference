@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { t, type MessageKey } from '../i18n'
 import type { Character } from '../types'
 
 export type Gender = 'all' | 'women' | 'men'
 
-export const GENDERS: { id: Gender; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'women', label: 'Women' },
-  { id: 'men', label: 'Men' },
-]
+export const GENDERS: readonly Gender[] = ['all', 'women', 'men']
+
+const GENDER_LABELS: Record<Gender, MessageKey> = { all: 'characters.genderAll', women: 'characters.genderWomen', men: 'characters.genderMen' }
+
+export function genderLabel(gender: Gender): string {
+  return t(GENDER_LABELS[gender])
+}
 
 // A couple fits neither, so it shows under All only
 const WHO_BY_GENDER: Record<Exclude<Gender, 'all'>, readonly string[]> = { women: ['woman', 'two women'], men: ['man', 'two men'] }
@@ -20,7 +23,7 @@ const STORAGE_KEY = 'z-image-studio.character-gender.v1'
 
 /** A known gender other than All, or null. */
 function knownGender(value: string | null): Gender | null {
-  return GENDERS.find((gender) => gender.id === value && gender.id !== 'all')?.id ?? null
+  return GENDERS.find((gender) => gender === value && gender !== 'all') ?? null
 }
 
 function genderIn(search: string): Gender | null {

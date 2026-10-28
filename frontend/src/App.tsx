@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { loadLanguage, t } from './i18n'
 import { HistoryPanel } from './components/HistoryPanel'
 import { CharactersPanel } from './components/CharactersPanel'
 import { CharactersProvider } from './components/CharactersProvider'
@@ -19,15 +20,30 @@ import type { Catalog, GenerationSettings, HistoryItem } from './types'
 import { Sparkles } from 'lucide-react'
 
 
+function Loading() {
+  return (
+    <div className="flex h-full items-center justify-center gap-3 text-sm text-zinc-500" role="status">
+      <Spinner /> {t('common.loading')}
+    </div>
+  )
+}
+
+/** Shows the app once its language is loaded; until then, the loading screen (in English, the only one bundled). */
+function LanguageGate({ code, children }: { code: string; children: ReactNode }) {
+  const [loaded, setLoaded] = useState<string | null>(null)
+  useEffect(() => {
+    let current = true
+    void loadLanguage(code).then(() => current && setLoaded(code))
+    return () => {
+      current = false
+    }
+  }, [code])
+  return loaded === code ? children : <Loading />
+}
+
 export default function App() {
   const [catalog, retry] = useCatalog()
-  if (catalog.status === 'pending') {
-    return (
-      <div className="flex h-full items-center justify-center gap-3 text-sm text-zinc-500" role="status">
-        <Spinner /> Loading…
-      </div>
-    )
-  }
+  if (catalog.status === 'pending') return <Loading />
   if (catalog.status === 'failed') {
     return (
       <div className="mx-auto max-w-md p-8">
@@ -36,9 +52,11 @@ export default function App() {
     )
   }
   return (
-    <CharactersProvider>
-      <Workspace catalog={catalog.value} />
-    </CharactersProvider>
+    <LanguageGate code={catalog.value.language}>
+      <CharactersProvider>
+        <Workspace catalog={catalog.value} />
+      </CharactersProvider>
+    </LanguageGate>
   )
 }
 
@@ -114,7 +132,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
             }}
           />
         </aside>
-        <section aria-label="Result" className="min-h-0 overflow-y-auto">
+        <section aria-label={t('create.resultLabel')} className="min-h-0 overflow-y-auto">
           <ResultPanel
             state={generation.state}
             models={catalog.models}
@@ -151,9 +169,9 @@ interface HeaderProps {
 
 function Header({ view, onViewChange, unseenResult }: HeaderProps) {
   const views: { id: View; label: string }[] = [
-    { id: 'create', label: 'Create' },
-    { id: 'history', label: 'History' },
-    { id: 'characters', label: 'Characters' },
+    { id: 'create', label: t('create.viewCreate') },
+    { id: 'history', label: t('create.viewHistory') },
+    { id: 'characters', label: t('create.viewCharacters') },
   ]
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -161,7 +179,7 @@ function Header({ view, onViewChange, unseenResult }: HeaderProps) {
         <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"><Sparkles /></span>
         Z-Image Studio
       </h1>
-      <nav aria-label="Views" className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm dark:bg-zinc-800/70">
+      <nav aria-label={t('create.viewsLabel')} className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm dark:bg-zinc-800/70">
         {views.map(({ id, label }) => (
           <button
             key={id}
@@ -185,7 +203,7 @@ function NewResultDot() {
   return (
     <>
       <span aria-hidden="true" className="absolute top-1 right-1.5 size-2 rounded-full bg-red-500 ring-2 ring-zinc-100 dark:ring-zinc-800" />
-      <span className="sr-only"> (new result)</span>
+      <span className="sr-only">{t('create.newResult')}</span>
     </>
   )
 }

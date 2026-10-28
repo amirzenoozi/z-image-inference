@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { ReactNode } from 'react'
 import { useCopyToClipboard } from '../lib/hooks'
 
@@ -28,7 +29,7 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
       <p>{message}</p>
       {onRetry && (
         <button type="button" onClick={onRetry} className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 font-medium text-white hover:bg-red-500">
-          Retry
+          {t('common.retry')}
         </button>
       )}
     </div>
@@ -44,10 +45,10 @@ export function PromptBlock({ title, text }: { title: string; text: string }) {
         <button
           type="button"
           onClick={() => void copy(text)}
-          aria-label={`Copy ${title.toLowerCase()}`}
+          aria-label={t('common.copyNamed', { name: title.toLowerCase() })}
           className="text-xs font-medium text-violet-600 hover:text-violet-500 dark:text-violet-400"
         >
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('common.copied') : t('common.copy')}
         </button>
       </div>
       <p className="mt-1 max-h-48 overflow-y-auto rounded-lg bg-zinc-50 p-3 text-xs leading-relaxed whitespace-pre-wrap text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200">{text}</p>

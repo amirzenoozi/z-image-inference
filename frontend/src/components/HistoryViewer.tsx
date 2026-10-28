@@ -1,3 +1,4 @@
+import { language, t } from '../i18n'
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type Ref, type RefObject } from 'react'
 import { IconButton, IconLink } from './IconButton'
 import { deleteHistoryItem, fetchHistory, imageUrl } from '../api'
@@ -58,7 +59,7 @@ function useImageAt(filters: HistoryFilters, index: number, start: ViewerStart) 
       (page) => {
         setTotal(page.total)
         if (page.items[0]) setLoaded((current) => ({ ...current, [index]: page.items[0] }))
-        else setFailure({ index, message: 'This image is no longer in History.' })
+        else setFailure({ index, message: t('history.notInHistory') })
       },
       (error: unknown) => !controller.signal.aborted && setFailure({ index, message: errorMessage(error) }),
     )
@@ -213,7 +214,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
     }
   }
   return (
-    <Modal title={editing ? 'Edit image' : 'Image details'} onClose={requestClose} size="full">
+    <Modal title={editing ? t('history.editImage') : t('history.imageDetails')} onClose={requestClose} size="full">
       <div className="grid gap-5 lg:h-full lg:grid-cols-[minmax(0,1fr)_380px]">
         {editing && item ? (
           <EditSession
@@ -232,7 +233,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
             >
               <ImageArea state={image.state} zoomed={zoomed} onZoomedChange={setZoomed} onRetry={image.retry} />
               <p className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white tabular-nums">
-                {index + 1} of {image.total}
+                {t('history.position', { index: index + 1, total: image.total })}
               </p>
               <div className="absolute top-3 right-3 flex gap-2">
                 {item && (
@@ -244,10 +245,10 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
                     onEdit={() => setEditing(true)}
                   />
                 )}
-                <OverlayButton label={zoomed ? 'Fit to window' : 'Zoom to 100%'} onClick={() => setZoomed(!zoomed)} disabled={!item}>
+                <OverlayButton label={zoomed ? t('history.fitToWindow') : t('history.zoomFull')} onClick={() => setZoomed(!zoomed)} disabled={!item}>
                   {zoomed ? <ZoomOut /> : <ZoomIn />}
                 </OverlayButton>
-                <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} shortcut="Z" onClick={fullScreen.toggle}>
+                <OverlayButton label={fullScreen.active ? t('history.leaveFullScreen') : t('history.fullScreen')} shortcut="Z" onClick={fullScreen.toggle}>
                   {fullScreen.active ? <Minimize /> : <Maximize />}
                 </OverlayButton>
                 {item && <SensitiveButton item={item} onChanged={changed} onFailed={setMarkError} className={overlayClass} />}
@@ -381,13 +382,13 @@ interface ImageToolsProps {
 function ImageTools({ item, deleting, deleteButton, onDelete, onEdit }: ImageToolsProps) {
   return (
     <>
-      <IconLink label="Download" href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={overlayClass}>
+      <IconLink label={t('history.download')} href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={overlayClass}>
         <Download />
       </IconLink>
-      <OverlayButton label="Edit" onClick={onEdit}>
+      <OverlayButton label={t('common.edit')} onClick={onEdit}>
         <Pencil />
       </OverlayButton>
-      <OverlayButton ref={deleteButton} label={deleting ? 'Deleting…' : 'Delete'} shortcut="Delete ×2" onClick={onDelete} disabled={deleting} className="hover:bg-red-600/80">
+      <OverlayButton ref={deleteButton} label={deleting ? t('common.deleting') : t('common.delete')} shortcut="Delete ×2" onClick={onDelete} disabled={deleting} className="hover:bg-red-600/80">
         <Trash2 />
       </OverlayButton>
     </>
@@ -397,7 +398,7 @@ function ImageTools({ item, deleting, deleteButton, onDelete, onEdit }: ImageToo
 function SideButton({ side, disabled, onClick }: { side: 'previous' | 'next'; disabled: boolean; onClick: () => void }) {
   return (
     <IconButton
-      label={side === 'previous' ? 'Previous image' : 'Next image'}
+      label={side === 'previous' ? t('history.previousImage') : t('history.nextImage')}
       shortcut={side === 'previous' ? '←' : '→'}
       onClick={onClick}
       disabled={disabled}
@@ -427,24 +428,24 @@ function ViewerDetails({ item, label, markError, deleteError, armed, actions }: 
         <ImageFacts item={item} label={label} />
         <ImageCharacter item={item} />
         <ColourPalette itemId={item.id} />
-        <PromptBlock title="Prompt" text={item.prompt} />
-        {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}
+        <PromptBlock title={t('common.prompt')} text={item.prompt} />
+        {item.negative_prompt && <PromptBlock title={t('common.negativePrompt')} text={item.negative_prompt} />}
         <p className="text-xs text-zinc-400">
-          Created {new Date(`${item.created_at}Z`).toLocaleString()}
-          {item.edited_from !== null && ` · Edited from image #${item.edited_from}`}
-          {item.varied_from !== null && item.change !== null && ` · Variation of image #${item.varied_from}, ${Math.round(item.change * 100)}% change`}
-          {item.face_from !== null && ` · Face from image #${item.face_from}`}
+          {t('history.created', { date: new Date(`${item.created_at}Z`).toLocaleString(language()) })}
+          {item.edited_from !== null && t('history.editedFrom', { id: item.edited_from })}
+          {item.varied_from !== null && item.change !== null && t('history.variationOf', { id: item.varied_from, percent: Math.round(item.change * 100) })}
+          {item.face_from !== null && t('history.faceFrom', { id: item.face_from })}
         </p>
         {markError && <ErrorNotice message={markError} />}
         {deleteError && <ErrorNotice message={deleteError} />}
         {armed && (
           <p role="status" className="text-xs font-medium text-red-600 dark:text-red-400">
-            Press Delete again to delete
+            {t('history.pressDeleteAgain')}
           </p>
         )}
-        <p className="text-[11px] text-zinc-400">← → browse · Z full screen · F star · Delete twice to delete · Esc close</p>
+        <p className="text-[11px] text-zinc-400">{t('history.viewerKeys')}</p>
       </div>
-      <div role="group" aria-label="Image actions" className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+      <div role="group" aria-label={t('history.imageActions')} className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         {actions}
       </div>
     </div>
@@ -455,10 +456,10 @@ function ViewerActions({ onVary, onReuse }: { onVary: () => void; onReuse: () =>
   return (
     <>
       <button type="button" onClick={onVary} className={secondaryButtonClass}>
-        Make variations
+        {t('history.makeVariations')}
       </button>
       <button type="button" onClick={onReuse} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
-        Reuse settings
+        {t('history.reuseSettings')}
       </button>
     </>
   )

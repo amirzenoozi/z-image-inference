@@ -1,3 +1,4 @@
+import { t, tn } from '../i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearHistory, fetchHistory, historyExportUrl } from '../api'
 import { useHistoryAddress, type AddressChange } from '../lib/historyAddress'
@@ -225,7 +226,7 @@ function HistoryHeader({ total, firstShown, lastShown, filtered, exportUrl, onCl
       {total > 0 && (
         <div className="flex items-center gap-4">
           <a href={exportUrl} download className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
-            {filtered ? 'Export these' : 'Export'}
+            {filtered ? t('history.exportThese') : t('history.export')}
           </a>
           {!filtered && <WholeHistoryActions onCleaned={onCleaned} onDeleteAll={() => setConfirmClear(true)} />}
         </div>
@@ -241,24 +242,24 @@ function WholeHistoryActions({ onCleaned, onDeleteAll }: { onCleaned: () => void
     <>
       <HistoryCleanUp onCleaned={onCleaned} />
       <button type="button" onClick={onDeleteAll} className="text-sm font-medium text-red-600 hover:text-red-500">
-        Delete all
+        {t('history.deleteAll')}
       </button>
     </>
   )
 }
 
 function countLabel(total: number, firstShown: number, lastShown: number, filtered: boolean): string {
-  const count = filtered ? `${total} matching` : total === 1 ? '1 image' : `${total} images`
-  return total > PAGE_SIZE ? `Showing ${firstShown}–${lastShown} of ${count}` : count
+  const count = filtered ? t('history.matchingCount', { count: total }) : tn('history.imageCount', total)
+  return total > PAGE_SIZE ? t('history.showingRange', { first: firstShown, last: lastShown, count }) : count
 }
 
 function EmptyResults({ filtered, onClearFilters }: { filtered: boolean; onClearFilters: () => void }) {
   if (!filtered) return <EmptyHistory />
   return (
     <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-      <p>No images match.</p>
+      <p>{t('history.noMatches')}</p>
       <button type="button" onClick={onClearFilters} className={`${secondaryButtonClass} mt-3`}>
-        Clear filters
+        {t('history.clearFilters')}
       </button>
     </div>
   )
@@ -266,7 +267,7 @@ function EmptyResults({ filtered, onClearFilters }: { filtered: boolean; onClear
 
 function HistorySkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading history" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div aria-busy="true" aria-label={t('history.loadingHistory')} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {Array.from({ length: 10 }, (_, index) => (
         <div key={index} className="aspect-square animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       ))}
@@ -277,7 +278,7 @@ function HistorySkeleton() {
 function EmptyHistory() {
   return (
     <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-      No images yet. Everything you generate is saved here.
+      {t('history.empty')}
     </div>
   )
 }
@@ -296,20 +297,20 @@ function ConfirmClear({ total, onClose, onCleared }: { total: number; onClose: (
   }
   return (
     <Modal
-      title="Delete all images?"
+      title={t('history.deleteAllTitle')}
       onClose={onClose}
       actions={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="button" onClick={() => void clear()} disabled={state.status === 'loading'} className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50">
-            {state.status === 'loading' ? 'Deleting…' : 'Delete all'}
+            {state.status === 'loading' ? t('common.deleting') : t('history.deleteAll')}
           </button>
         </>
       }
     >
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">This permanently deletes all {total} images from your history, favourites included.</p>
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('history.deleteAllBody', { count: total })}</p>
       {state.status === 'failed' && <div className="mt-3"><ErrorNotice message={state.error} /></div>}
     </Modal>
   )

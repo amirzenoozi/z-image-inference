@@ -283,7 +283,7 @@ it('blocks Generate while the model server is down, saying why, and unblocks onc
   await user.type(await screen.findByLabelText('Prompt'), 'a red fox')
   const generate = screen.getByRole('button', { name: 'Generate' })
   await waitFor(() => expect(generate).toHaveAttribute('aria-disabled', 'true'))
-  expect(generate).toHaveAccessibleDescription("The model server isn't running yet. Start it with: uv run python model_server.py")
+  expect(generate).toHaveAccessibleDescription("The model server isn't running yet. Start it with: uv run python backend/model_server.py")
 
   generate.focus()
   await user.tab({ shift: true })

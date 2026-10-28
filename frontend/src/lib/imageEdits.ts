@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useState } from 'react'
 import type { PercentCrop } from 'react-image-crop'
 import type { EditRecipe, HistoryItem } from '../types'
@@ -7,16 +8,23 @@ export const MIN_CROP_SIDE = 16
 
 export type RatioId = 'free' | 'original' | '1:1' | '4:5' | '3:4' | '2:3' | '9:16' | '16:9'
 
-export const RATIOS: readonly { id: RatioId; label: string }[] = [
-  { id: 'free', label: 'Free' },
-  { id: 'original', label: 'Original' },
-  { id: '1:1', label: '1:1' },
-  { id: '4:5', label: '4:5' },
-  { id: '3:4', label: '3:4' },
-  { id: '2:3', label: '2:3' },
-  { id: '9:16', label: '9:16' },
-  { id: '16:9', label: '16:9' },
+export const RATIOS: readonly { id: RatioId }[] = [
+  { id: 'free' },
+  { id: 'original' },
+  { id: '1:1' },
+  { id: '4:5' },
+  { id: '3:4' },
+  { id: '2:3' },
+  { id: '9:16' },
+  { id: '16:9' },
 ]
+
+/** "Free" and "Original" are words; the others are ratios, shown as they are. */
+export function ratioLabel(id: RatioId): string {
+  if (id === 'free') return t('history.ratioFree')
+  if (id === 'original') return t('history.ratioOriginal')
+  return id
+}
 
 /** Applied in this order, as on the server: quarter turns clockwise, flips, then the crop. */
 export interface EditState {
@@ -85,10 +93,10 @@ export type RecipeResult = { status: 'ready'; recipe: EditRecipe } | { status: '
 
 /** What the server applies; refused here already when the crop is too small to save. */
 export function toRecipe(state: EditState, item: HistoryItem): RecipeResult {
-  if (!isChanged(state)) return { status: 'invalid', reason: 'Turn, flip or crop the image to save a new one.' }
+  if (!isChanged(state)) return { status: 'invalid', reason: t('history.noEditsToSave') }
   const crop = state.crop ? cropInPixels(state.crop, item, state.turns) : null
   if (crop && (crop.width < MIN_CROP_SIDE || crop.height < MIN_CROP_SIDE)) {
-    return { status: 'invalid', reason: `The crop must be at least ${MIN_CROP_SIDE} px on each side.` }
+    return { status: 'invalid', reason: t('history.cropTooSmall', { size: MIN_CROP_SIDE }) }
   }
   return {
     status: 'ready',
@@ -96,18 +104,18 @@ export function toRecipe(state: EditState, item: HistoryItem): RecipeResult {
   }
 }
 
-const TURN_NAMES = ['', 'Rotated 90° right', 'Rotated 180°', 'Rotated 90° left']
+const turnNames = () => ['', t('history.rotatedRight'), t('history.rotatedHalf'), t('history.rotatedLeft')]
 
 /** "Rotated 90° right · Flipped horizontally · Cropped to 832 × 1040". */
 export function describeEdits(state: EditState, item: HistoryItem): string {
   const crop = state.crop ? cropInPixels(state.crop, item, state.turns) : null
   const parts = [
-    TURN_NAMES[state.turns],
-    state.flipHorizontal ? 'Flipped horizontally' : '',
-    state.flipVertical ? 'Flipped vertically' : '',
-    crop ? `Cropped to ${crop.width} × ${crop.height}` : '',
+    turnNames()[state.turns],
+    state.flipHorizontal ? t('history.flippedHorizontally') : '',
+    state.flipVertical ? t('history.flippedVertically') : '',
+    crop ? t('history.croppedTo', { width: crop.width, height: crop.height }) : '',
   ]
-  return parts.filter(Boolean).join(' · ') || 'No edits yet'
+  return parts.filter(Boolean).join(' · ') || t('history.noEdits')
 }
 
 interface EditHistory {

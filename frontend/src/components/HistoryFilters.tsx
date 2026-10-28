@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import { chipClass, controlHeight } from '../lib/styles'
 import { SearchInput } from './form/SearchInput'
@@ -9,9 +10,9 @@ import { Star } from 'lucide-react'
 
 export const SEARCH_DELAY_MS = 300
 
-const RATIO_GROUPS = [
-  { options: [{ value: '', label: 'All ratios' }, ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))] },
-]
+function ratioGroups() {
+  return [{ options: [{ value: '', label: t('history.allRatios') }, ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))] }]
+}
 
 interface Props {
   models: ModelInfo[]
@@ -28,18 +29,18 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
     <div className="flex flex-wrap items-center gap-2">
       <SearchBox value={filters.search} onSearch={(search) => onChange({ ...filters, search })} />
       <Select
-        label="Model"
+        label={t('history.model')}
         hideLabel
         value={filters.model ?? ''}
-        groups={[{ options: [{ value: '', label: 'All models' }, ...models.map((model) => ({ value: model.id, label: model.label }))] }]}
+        groups={[{ options: [{ value: '', label: t('history.allModels') }, ...models.map((model) => ({ value: model.id, label: model.label }))] }]}
         onChange={(model) => onChange({ ...filters, model: model || null })}
         className="w-60"
       />
       <Select
-        label="Ratio"
+        label={t('history.ratio')}
         hideLabel
         value={filters.ratio ?? ''}
-        groups={RATIO_GROUPS}
+        groups={ratioGroups()}
         onChange={(ratio) => onChange({ ...filters, ratio: isCategory(ratio) ? ratio : null })}
         className="w-44"
       />
@@ -50,7 +51,7 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
         onClick={() => onChange({ ...filters, favouritesOnly: !filters.favouritesOnly })}
         className={`inline-flex items-center gap-1.5 rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
       >
-        <Star className={filters.favouritesOnly ? 'fill-current text-amber-500' : ''} /> Favourites
+        <Star className={filters.favouritesOnly ? 'fill-current text-amber-500' : ''} /> {t('history.favourites')}
       </button>
       <CompareControls {...compare} />
     </div>
@@ -64,13 +65,13 @@ function CharacterFilter({ value, onChange }: { value: number | null; onChange: 
   if (listed.length === 0 && value === null) return null
   const options = listed.map((character) => ({ value: String(character.id), label: character.name }))
   // A link can name a character that was deleted or has not loaded yet; it still shows, so the filter can be cleared
-  const unknown = value !== null && !listed.some((character) => character.id === value) ? [{ value: String(value), label: 'Unknown character' }] : []
+  const unknown = value !== null && !listed.some((character) => character.id === value) ? [{ value: String(value), label: t('history.unknownCharacter') }] : []
   return (
     <Select
-      label="Character"
+      label={t('history.character')}
       hideLabel
       value={value === null ? '' : String(value)}
-      groups={[{ options: [{ value: '', label: 'All characters' }, ...options, ...unknown] }]}
+      groups={[{ options: [{ value: '', label: t('history.allCharacters') }, ...options, ...unknown] }]}
       onChange={(next) => onChange(next ? Number(next) : null)}
       className="w-48"
     />
@@ -85,7 +86,7 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (search: stri
     const timer = setTimeout(() => onSearch(text.trim()), SEARCH_DELAY_MS)
     return () => clearTimeout(timer)
   }, [text, value, onSearch])
-  return <SearchInput label="Search prompts" placeholder="Search prompts…" value={text} onChange={setText} className="w-64" />
+  return <SearchInput label={t('history.searchPrompts')} placeholder={t('history.searchPlaceholder')} value={text} onChange={setText} className="w-64" />
 }
 
 type CompareProps = Pick<Props, 'comparing' | 'selectedCount' | 'onCompareToggle' | 'onCompare'>
@@ -94,7 +95,7 @@ function CompareControls({ comparing, selectedCount, onCompareToggle, onCompare 
   return (
     <>
       <button type="button" aria-pressed={comparing} onClick={onCompareToggle} className={`rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(comparing)}`}>
-        Compare
+        {t('history.compare')}
       </button>
       {comparing && (
         <button
@@ -103,7 +104,7 @@ function CompareControls({ comparing, selectedCount, onCompareToggle, onCompare 
           disabled={selectedCount < 2}
           className={`rounded-lg bg-violet-600 px-3 text-sm font-semibold ${controlHeight} text-white hover:bg-violet-500 disabled:opacity-50`}
         >
-          {selectedCount < 2 ? `Pick ${2 - selectedCount} more` : 'Compare 2 images'}
+          {selectedCount < 2 ? t('history.pickMore', { count: 2 - selectedCount }) : t('history.compareTwo')}
         </button>
       )}
     </>

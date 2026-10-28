@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import ReactCrop, { type PercentCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
@@ -62,7 +63,7 @@ export function ImageEditor({ item, edits, aspect, onPreview, onCommit }: Props)
         onComplete={(_, percent) => onCommit(percent.width > 0 && percent.height > 0 ? percent : null)}
         className="image-crop"
       >
-        <div role="img" aria-label="Edited image" style={{ width: box.width, height: box.height }} className="relative overflow-hidden">
+        <div role="img" aria-label={t('history.editedImage')} style={{ width: box.width, height: box.height }} className="relative overflow-hidden">
           <img src={imageUrl(item.id)} alt="" draggable={false} style={imageStyle} />
         </div>
       </ReactCrop>
