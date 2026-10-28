@@ -29,7 +29,7 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/catalog` | models, resolutions, limits and example prompts |
-| `POST /api/generate` | render an image (or a variation, with `source_image_id` and `change`) and add it to History, linked to `character_id` if given |
+| `POST /api/generate` | render an image (or a variation, with `source_image_id` and `change`) and add it to History, linked to `character_id` if given; for the SDXL models, the character's face image is sent along for the face lock |
 | `GET /api/jobs/{id}/progress`, `POST /api/jobs/{id}/cancel` | follow or cancel a running render |
 | `GET /api/models/status`, `POST /api/models/{id}/download`, `DELETE /api/models/{id}` | model downloads and removal |
 | `GET /api/history` | a page of History, with `model`, `q`, `ratio`, `character` and `favourites` filters |
