@@ -42,7 +42,7 @@ export function SettingsPanel(props: Props) {
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-7 overflow-y-auto p-5">
         <Section title="Model">
-          <ModelPicker models={catalog.models} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} />
+          <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
         </Section>
         <PromptSection {...props} model={model} patch={patch} />

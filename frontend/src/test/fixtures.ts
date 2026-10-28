@@ -6,6 +6,7 @@ export const fastModel: ModelInfo = {
   label: 'Z-Image-Turbo',
   description: 'Fast photos',
   speed_hint: '~10 s',
+  category: 'photo',
   download_gb: 31,
   default_steps: 9,
   max_steps: 20,
@@ -25,6 +26,7 @@ export const animeModel: ModelInfo = {
   label: 'WAI-Illustrious',
   description: 'Anime',
   speed_hint: '~40 s',
+  category: 'anime',
   download_gb: 13,
   default_steps: 28,
   max_steps: 50,
@@ -40,6 +42,10 @@ export const animeModel: ModelInfo = {
 
 export const catalog: Catalog = {
   models: [fastModel, animeModel],
+  model_categories: [
+    { id: 'photo', label: 'Photorealistic' },
+    { id: 'anime', label: 'Anime & illustration' },
+  ],
   resolutions: [
     { width: 512, height: 512, ratio: '1:1', category: 'square', tier: 'S' },
     { width: 1024, height: 1024, ratio: '1:1', category: 'square', tier: 'L' },
