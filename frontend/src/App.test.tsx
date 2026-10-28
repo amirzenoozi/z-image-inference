@@ -337,3 +337,51 @@ it('opens History filtered to a character from the Characters page', async () =>
   expect(window.location.pathname + window.location.search).toBe('/history?character=3')
   await waitFor(() => expect(api.fetchHistory).toHaveBeenCalledWith(0, 30, expect.objectContaining({ character: 3 }), expect.any(AbortSignal)))
 })
+
+const createTab = () => within(screen.getByRole('navigation', { name: 'Views' })).getByRole('button', { name: /^Create/ })
+
+async function startGenerating() {
+  const pending = deferred<HistoryItem>()
+  vi.mocked(api.generateImage).mockReturnValue(pending.promise)
+  render(<App />)
+  await userEvent.type(await screen.findByLabelText('Prompt'), 'a red fox')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  return pending
+}
+
+it('marks Create with a dot when an image arrives on another view, until Create is opened', async () => {
+  const pending = await startGenerating()
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+  expect(createTab()).toHaveAccessibleName('Create')
+
+  await act(async () => pending.resolve(historyItem({ prompt: 'a red fox' })))
+  expect(createTab()).toHaveAccessibleName(/^Create ?\(new result\)$/)
+
+  await userEvent.click(createTab())
+  expect(createTab()).toHaveAccessibleName('Create')
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+  expect(createTab()).toHaveAccessibleName('Create')
+})
+
+it('marks Create when the render fails on another view, but not after a cancel', async () => {
+  const failing = await startGenerating()
+  await userEvent.click(screen.getByRole('button', { name: 'Characters' }))
+  await act(async () => failing.reject(new api.ApiError('The model server failed', 502)))
+  expect(createTab()).toHaveAccessibleName(/^Create ?\(new result\)$/)
+
+  await userEvent.click(createTab())
+  const cancelled = deferred<HistoryItem>()
+  vi.mocked(api.generateImage).mockReturnValue(cancelled.promise)
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+  await act(async () => cancelled.reject(new api.ApiError('Cancelled', api.CANCELLED_STATUS)))
+  expect(createTab()).toHaveAccessibleName('Create')
+})
+
+it('does not mark Create for a result seen there', async () => {
+  const pending = await startGenerating()
+  await act(async () => pending.resolve(historyItem({ prompt: 'a red fox' })))
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+  expect(createTab()).toHaveAccessibleName('Create')
+})
