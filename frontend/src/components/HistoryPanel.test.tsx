@@ -130,18 +130,17 @@ it('starts from the first page again when a filter changes', async () => {
 })
 
 it('goes back a page when the only image on the last page is deleted', async () => {
-  fetchHistory
-    .mockResolvedValueOnce(page(PAGE_SIZE, PAGE_SIZE + 1))
-    .mockResolvedValueOnce(page(1, PAGE_SIZE + 1, 99))
-    .mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE))
-  vi.mocked(api.deleteHistoryItem).mockResolvedValue()
+  serveHistory(PAGE_SIZE + 1)
   renderHistory()
   await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }))
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 99' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
   await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  const dialog = screen.getByRole('dialog', { name: 'Image details' })
+  expect(await within(dialog).findByRole('img', { name: 'image 2' })).toBeInTheDocument()
+  expect(within(dialog).getByText(`${PAGE_SIZE} of ${PAGE_SIZE}`)).toBeInTheDocument()
+  expect(window.location.search).toBe('')
   expect(await screen.findByText(`${PAGE_SIZE} images`)).toBeInTheDocument()
 })
 
@@ -161,20 +160,23 @@ it('shows an error with a retry when a page fails to load, not an empty page', a
   expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
 })
 
-it('opens an image to reuse its settings or delete it', async () => {
-  fetchHistory.mockResolvedValueOnce(page(2)).mockResolvedValue(page(1, 1, 2))
-  vi.mocked(api.deleteHistoryItem).mockResolvedValue()
+it('opens an image to reuse its settings or delete it, then shows the next one', async () => {
+  serveHistory(2)
   const onReuse = renderHistory()
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
   const dialog = screen.getByRole('dialog', { name: 'Image details' })
   await userEvent.click(within(dialog).getByRole('button', { name: 'Reuse settings' }))
-  expect(onReuse).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
+  expect(onReuse).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-  expect(api.deleteHistoryItem).toHaveBeenCalledWith(1)
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(api.deleteHistoryItem).toHaveBeenCalledExactlyOnceWith(2)
+  expect(await within(dialog).findByRole('img', { name: 'image 1' })).toBeInTheDocument()
+  expect(within(dialog).getByText('1 of 1')).toBeInTheDocument()
   expect(await screen.findByText('1 image')).toBeInTheDocument()
+
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
 it('asks before deleting everything', async () => {
@@ -250,6 +252,16 @@ afterEach(() => {
   vi.useRealTimers()
   window.history.replaceState(null, '', '/')
 })
+
+/** A fake History of `count` images, newest (highest id) first, answering any page or position; deleting removes one. */
+function serveHistory(count: number): HistoryItem[] {
+  let images = Array.from({ length: count }, (_, n) => historyItem({ id: count - n, prompt: `image ${count - n}` }))
+  fetchHistory.mockImplementation(async (offset: number, limit: number) => ({ items: images.slice(offset, offset + limit), total: images.length }))
+  vi.mocked(api.deleteHistoryItem).mockImplementation(async (id: number) => {
+    images = images.filter((item) => item.id !== id)
+  })
+  return images
+}
 
 function pageOf(items: HistoryItem[]): HistoryPage {
   return { items, total: items.length }
@@ -503,4 +515,129 @@ it('exports what the filters show', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
   expect(await screen.findByRole('link', { name: 'Export these' })).toHaveAttribute('href', '/api/history/export?favourites=true')
+})
+
+const viewer = () => screen.getByRole('dialog', { name: 'Image details' })
+const shownImage = () => within(viewer()).getByRole('img')
+
+it('moves between images with the side buttons and the arrow keys, disabled at the ends', async () => {
+  serveHistory(3)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 3' }))
+
+  expect(within(viewer()).getByText('1 of 3')).toBeInTheDocument()
+  expect(within(viewer()).getByRole('button', { name: 'Previous image' })).toBeDisabled()
+  await userEvent.click(within(viewer()).getByRole('button', { name: 'Next image' }))
+  expect(shownImage()).toHaveAccessibleName('image 2')
+  await userEvent.keyboard('{ArrowRight}')
+  expect(shownImage()).toHaveAccessibleName('image 1')
+  expect(within(viewer()).getByText('3 of 3')).toBeInTheDocument()
+  expect(within(viewer()).getByRole('button', { name: 'Next image' })).toBeDisabled()
+
+  await userEvent.keyboard('{ArrowLeft}{ArrowLeft}')
+  expect(shownImage()).toHaveAccessibleName('image 3')
+})
+
+it('crosses into the next page, showing a placeholder while that image loads, and the page behind follows', async () => {
+  serveHistory(PAGE_SIZE + 2)
+  const next = deferred<HistoryPage>()
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 3' }))
+  expect(within(viewer()).getByText(`${PAGE_SIZE} of ${PAGE_SIZE + 2}`)).toBeInTheDocument()
+
+  const serve = fetchHistory.getMockImplementation()!
+  // Only the viewer's own one-image request waits; the page list behind it answers as usual
+  fetchHistory.mockImplementation((offset: number, limit: number, filters: HistoryFilters) =>
+    limit === 1 && offset === PAGE_SIZE ? next.promise : serve(offset, limit, filters),
+  )
+  await userEvent.keyboard('{ArrowRight}')
+
+  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, 1, NO_FILTERS, expect.any(AbortSignal))
+  expect(within(viewer()).queryByRole('img')).not.toBeInTheDocument()
+  await act(async () => next.resolve(await serve(PAGE_SIZE, 1, NO_FILTERS)))
+  expect(shownImage()).toHaveAccessibleName('image 2')
+  expect(window.location.search).toBe('?page=2')
+
+  await userEvent.keyboard('{ArrowLeft}')
+  expect(shownImage()).toHaveAccessibleName('image 3')
+  expect(window.location.search).toBe('')
+})
+
+it('stars with F, once', async () => {
+  serveHistory(2)
+  vi.mocked(api.setFavourite).mockImplementation(async (id: number, favourite: boolean) => historyItem({ id, prompt: `image ${id}`, favourite }))
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+
+  await userEvent.keyboard('f')
+
+  expect(api.setFavourite).toHaveBeenCalledExactlyOnceWith(2, true)
+  expect(await within(viewer()).findByRole('button', { name: 'Remove from favourites' })).toBeInTheDocument()
+})
+
+it('deletes with the Delete key only on a second press', async () => {
+  serveHistory(2)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+
+  await userEvent.keyboard('{Delete}')
+  expect(within(viewer()).getByRole('status')).toHaveTextContent('Press Delete again to delete')
+  expect(api.deleteHistoryItem).not.toHaveBeenCalled()
+
+  await userEvent.keyboard('{Delete}')
+  expect(api.deleteHistoryItem).toHaveBeenCalledExactlyOnceWith(2)
+  expect(await within(viewer()).findByRole('img', { name: 'image 1' })).toBeInTheDocument()
+})
+
+it('ignores the keys while typing, and closes on Escape', async () => {
+  serveHistory(2)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+  const input = document.body.appendChild(document.createElement('input'))
+  input.focus()
+
+  await userEvent.keyboard('{ArrowRight}f')
+  expect(shownImage()).toHaveAccessibleName('image 2')
+  expect(api.setFavourite).not.toHaveBeenCalled()
+
+  input.remove()
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+it('zooms to 100% and back, by click or button', async () => {
+  serveHistory(1)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+
+  await userEvent.click(shownImage())
+  expect(within(viewer()).getByRole('button', { name: 'Fit to window' })).toBeInTheDocument()
+  await userEvent.click(within(viewer()).getByRole('button', { name: 'Fit to window' }))
+  expect(within(viewer()).getByRole('button', { name: 'Zoom to 100%' })).toBeInTheDocument()
+})
+
+it('goes full screen with the button or Z, and leaves it again', async () => {
+  let fullScreenElement: Element | null = null
+  Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fullScreenElement })
+  const request = vi.fn(async () => {
+    fullScreenElement = request.mock.contexts.at(-1) as Element
+    document.dispatchEvent(new Event('fullscreenchange'))
+  })
+  const exit = vi.fn(async () => {
+    fullScreenElement = null
+    document.dispatchEvent(new Event('fullscreenchange'))
+  })
+  Element.prototype.requestFullscreen = request
+  document.exitFullscreen = exit
+  serveHistory(1)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+
+  await userEvent.click(within(viewer()).getByRole('button', { name: 'Full screen' }))
+  expect(request).toHaveBeenCalledOnce()
+  expect(within(viewer()).getByRole('button', { name: 'Leave full screen' })).toBeInTheDocument()
+
+  await userEvent.keyboard('z')
+  expect(exit).toHaveBeenCalledOnce()
+  expect(within(viewer()).getByRole('button', { name: 'Full screen' })).toBeInTheDocument()
 })

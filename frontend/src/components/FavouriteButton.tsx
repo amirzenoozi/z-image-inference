@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 import { setFavourite } from '../api'
 import { errorMessage } from '../lib/hooks'
 import type { HistoryItem } from '../types'
@@ -8,10 +8,11 @@ interface Props {
   onChanged: (item: HistoryItem) => void
   onFailed: (message: string) => void
   className?: string
+  ref?: Ref<HTMLButtonElement>
 }
 
 /** The star stays as it was until the server confirms the change. */
-export function FavouriteButton({ item, onChanged, onFailed, className = '' }: Props) {
+export function FavouriteButton({ item, onChanged, onFailed, className = '', ref }: Props) {
   const [saving, setSaving] = useState(false)
   const toggle = async () => {
     setSaving(true)
@@ -25,6 +26,7 @@ export function FavouriteButton({ item, onChanged, onFailed, className = '' }: P
   }
   return (
     <button
+      ref={ref}
       type="button"
       onClick={() => void toggle()}
       disabled={saving}
