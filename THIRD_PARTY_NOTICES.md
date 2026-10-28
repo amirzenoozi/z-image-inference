@@ -6,7 +6,7 @@ This project includes code and data from other projects, and downloads models at
 
 | What | Where | Source | Licence |
 |------|-------|--------|---------|
-| Prompt builder options and wording, and the prompt assembly logic (ported to TypeScript) | `frontend/src/lib/promptBuilder/data.ts`, `frontend/src/lib/promptBuilder/build.ts` | [ComfyUI Photoreal Prompt Builder](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder), commit `a8a60f0d5a`, by artokun | MIT, see [`licenses/ComfyUI-Photoreal-Prompt-Builder-MIT.txt`](licenses/ComfyUI-Photoreal-Prompt-Builder-MIT.txt) |
+| Prompt builder options and their wording (ported to TypeScript); the prompt assembly is rewritten | `frontend/src/lib/promptBuilder/data.ts` | [ComfyUI Photoreal Prompt Builder](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder), commit `a8a60f0d5a`, by artokun | MIT, see [`licenses/ComfyUI-Photoreal-Prompt-Builder-MIT.txt`](licenses/ComfyUI-Photoreal-Prompt-Builder-MIT.txt) |
 | Explicit pose and action descriptions | `frontend/src/lib/promptBuilder/data.ts` | [ComfyUI Photoreal Prompt Builder NSFW module](https://github.com/artokun/ComfyUI-Photoreal-Prompt-Builder-NSFW), commit `25f332bf91`, by artokun | MIT, as stated in the module's README (see note below) |
 | MOSS-Image pipeline code, with a change for MPS and a per-step callback | `moss_pipeline.py` | [`merged-model/pipeline_moss_image.py`](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) by the OpenMOSS team | Apache 2.0, see [`LICENSE`](LICENSE) |
 
