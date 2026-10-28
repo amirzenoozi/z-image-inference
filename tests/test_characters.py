@@ -1,3 +1,4 @@
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import pytest
 import requests
 from fastapi.testclient import TestClient
 
+import character_store
 import history_store
 import main
 from test_web_app import FakeModelServer, generate
@@ -123,3 +125,73 @@ def test_deleting_a_character_keeps_its_images(client: TestClient) -> None:
 
     [kept] = client.get("/api/history").json()["items"]
     assert (kept["id"], kept["character_id"]) == (item["id"], None)
+
+
+def sdxl(client: TestClient, **overrides: object) -> requests.Response:
+    return generate(client, model="wai-illustrious", width=1024, height=1024, steps=28, **overrides)
+
+
+def test_sdxl_renders_of_a_character_with_a_face_send_it_and_record_it(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = FakeModelServer()
+    monkeypatch.setattr(main.requests, "post", server.post)
+    face = generate(client).json()
+    ava = create(client, face_id=face["id"], face_strength=0.75).json()
+    assert (ava["face_id"], ava["face_strength"]) == (face["id"], 0.75)
+
+    item = sdxl(client, character_id=ava["id"]).json()
+
+    sent = server.calls[-1]
+    assert (sent["face_strength"], isinstance(sent["face_image"], str)) == (0.75, True)
+    assert item["face_from"] == face["id"]
+
+
+def test_models_that_cannot_lock_a_face_render_the_character_without_it(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = FakeModelServer()
+    monkeypatch.setattr(main.requests, "post", server.post)
+    face = generate(client).json()
+    ava = create(client, face_id=face["id"]).json()
+
+    item = generate(client, character_id=ava["id"]).json()
+
+    assert server.calls[-1]["face_image"] is None
+    assert (item["character_id"], item["face_from"]) == (ava["id"], None)
+
+
+def test_the_browser_cannot_send_a_face_image(client: TestClient) -> None:
+    assert sdxl(client, face_image="aGVsbG8=", face_strength=0.5).status_code == 422
+
+
+def test_a_deleted_face_image_ends_the_face_lock(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = FakeModelServer()
+    monkeypatch.setattr(main.requests, "post", server.post)
+    face = generate(client).json()
+    ava = create(client, face_id=face["id"]).json()
+    client.delete(f"/api/history/{face['id']}")
+
+    assert client.get("/api/characters").json()[0]["face_id"] is None
+    assert sdxl(client, character_id=ava["id"]).json()["face_from"] is None
+    assert server.calls[-1]["face_image"] is None
+
+
+def test_the_face_image_can_be_set_and_cleared(client: TestClient) -> None:
+    ava = create(client).json()
+    face = generate(client).json()
+
+    assert client.patch(f"/api/characters/{ava['id']}", json={"face_id": face["id"], "face_strength": 0.4}).json()["face_strength"] == 0.4
+    assert client.patch(f"/api/characters/{ava['id']}", json={"face_id": 99}).status_code == 422
+    assert client.patch(f"/api/characters/{ava['id']}", json={"face_id": None}).json()["face_id"] is None
+    assert client.patch(f"/api/characters/{ava['id']}", json={"face_strength": 0}).status_code == 422
+
+
+def test_characters_saved_before_the_face_lock_get_its_columns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    db = tmp_path / "history.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("CREATE TABLE characters (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, "
+                     "traits TEXT NOT NULL, cover_id INTEGER, seed INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        conn.execute("INSERT INTO characters (name, traits) VALUES ('Ava', '{}')")
+    monkeypatch.setattr(history_store, "DB_PATH", db)
+
+    history_store.init_db()
+
+    [ava] = character_store.all_characters()
+    assert (ava.name, ava.face_id, ava.face_strength) == ("Ava", None, 0.6)

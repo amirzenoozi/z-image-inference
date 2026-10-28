@@ -4,13 +4,15 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from generation_request import MAX_SEED
+from generation_request import MAX_FACE_STRENGTH, MAX_SEED, MIN_FACE_STRENGTH
 from history_store import connection
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 TraitText = Annotated[str, StringConstraints(max_length=300)]
 TraitList = Annotated[list[Annotated[str, StringConstraints(max_length=100)]], Field(max_length=20)]
 Seed = Annotated[int, Field(ge=0, le=MAX_SEED)]
+FaceStrength = Annotated[float, Field(ge=MIN_FACE_STRENGTH, le=MAX_FACE_STRENGTH)]
+DEFAULT_FACE_STRENGTH = 0.6
 
 
 class CharacterTraits(BaseModel):
@@ -46,10 +48,12 @@ class NewCharacter(BaseModel):
     traits: CharacterTraits
     cover_id: int | None = None
     seed: Seed | None = None
+    face_id: int | None = None
+    face_strength: FaceStrength = DEFAULT_FACE_STRENGTH
 
 
 class CharacterUpdate(BaseModel):
-    """Only the fields sent change; send null to clear the cover or the seed."""
+    """Only the fields sent change; send null to clear the cover, the seed or the face image."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -57,6 +61,8 @@ class CharacterUpdate(BaseModel):
     traits: CharacterTraits | None = None
     cover_id: int | None = None
     seed: Seed | None = None
+    face_id: int | None = None
+    face_strength: FaceStrength | None = None
 
 
 class Character(BaseModel):
@@ -67,6 +73,9 @@ class Character(BaseModel):
     cover_id: int | None
     seed: int | None
     image_count: int
+    # The History image whose face SDXL renders keep (IP-Adapter); null for none, or once that image is deleted
+    face_id: int | None
+    face_strength: float
 
 
 class DuplicateName(ValueError):
@@ -82,14 +91,22 @@ SELECT = """
            COALESCE((SELECT id FROM images WHERE id = c.cover_id),
                     (SELECT MAX(id) FROM images WHERE character_id = c.id)),
            c.seed,
-           (SELECT COUNT(*) FROM images WHERE character_id = c.id)
+           (SELECT COUNT(*) FROM images WHERE character_id = c.id),
+           (SELECT id FROM images WHERE id = c.face_id),
+           c.face_strength
     FROM characters c
 """
 
 
-def to_character(row: tuple[int, str, str, int | None, int | None, int]) -> Character:
-    id_, name, traits, cover_id, seed, image_count = row
-    return Character(id=id_, name=name, traits=CharacterTraits.model_validate_json(traits), cover_id=cover_id, seed=seed, image_count=image_count)
+CharacterRow = tuple[int, str, str, int | None, int | None, int, int | None, float]
+
+
+def to_character(row: CharacterRow) -> Character:
+    id_, name, traits, cover_id, seed, image_count, face_id, face_strength = row
+    return Character(
+        id=id_, name=name, traits=CharacterTraits.model_validate_json(traits), cover_id=cover_id, seed=seed, image_count=image_count,
+        face_id=face_id, face_strength=face_strength,
+    )
 
 
 def all_characters() -> list[Character]:
@@ -103,18 +120,19 @@ def character(character_id: int) -> Character | None:
     return to_character(row) if row else None
 
 
-def check_cover(conn: sqlite3.Connection, cover_id: int | None) -> None:
-    if cover_id is not None and conn.execute("SELECT 1 FROM images WHERE id = ?", (cover_id,)).fetchone() is None:
-        raise MissingImage("The cover image is not in History")
+def check_image(conn: sqlite3.Connection, image_id: int | None, role: str) -> None:
+    if image_id is not None and conn.execute("SELECT 1 FROM images WHERE id = ?", (image_id,)).fetchone() is None:
+        raise MissingImage(f"The {role} image is not in History")
 
 
 def create(new: NewCharacter) -> Character:
     try:
         with connection() as conn:
-            check_cover(conn, new.cover_id)
+            check_image(conn, new.cover_id, "cover")
+            check_image(conn, new.face_id, "face")
             cursor = conn.execute(
-                "INSERT INTO characters (name, traits, cover_id, seed) VALUES (?, ?, ?, ?)",
-                (new.name, new.traits.model_dump_json(), new.cover_id, new.seed),
+                "INSERT INTO characters (name, traits, cover_id, seed, face_id, face_strength) VALUES (?, ?, ?, ?, ?, ?)",
+                (new.name, new.traits.model_dump_json(), new.cover_id, new.seed, new.face_id, new.face_strength),
             )
     except sqlite3.IntegrityError:
         raise DuplicateName(f"There is already a character called {new.name}")
@@ -123,7 +141,7 @@ def create(new: NewCharacter) -> Character:
     return created
 
 
-CLEARABLE = {"cover_id", "seed"}
+CLEARABLE = {"cover_id", "seed", "face_id"}
 
 
 def changed_columns(changes: CharacterUpdate) -> dict[str, str | int | None]:
@@ -139,7 +157,8 @@ def update(character_id: int, changes: CharacterUpdate) -> Character | None:
     columns = changed_columns(changes)
     try:
         with connection() as conn:
-            check_cover(conn, changes.cover_id)
+            check_image(conn, changes.cover_id, "cover")
+            check_image(conn, changes.face_id, "face")
             if columns:
                 assignments = ", ".join(f"{column} = ?" for column in columns)
                 conn.execute(f"UPDATE characters SET {assignments} WHERE id = ?", (*columns.values(), character_id))

@@ -10,7 +10,7 @@ from palette import PaletteColour, extract_palette
 from resolutions import CATEGORY_CONDITIONS, Category
 
 DB_PATH = Path(__file__).parent / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -29,6 +29,14 @@ ADDED_COLUMNS: dict[str, str] = {
     "change": "REAL",
     # The character the image was made for (characters table); cleared when the character is deleted
     "character_id": "INTEGER",
+    # The image whose face it was locked to, for SDXL renders of a character with a face image
+    "face_from": "INTEGER",
+}
+# Character columns added after characters were first released
+ADDED_CHARACTER_COLUMNS: dict[str, str] = {
+    # The History image whose face renders keep (IP-Adapter), and how strongly
+    "face_id": "INTEGER",
+    "face_strength": "REAL NOT NULL DEFAULT 0.6",
 }
 
 
@@ -50,6 +58,7 @@ class HistoryItem:
     varied_from: int | None
     change: float | None
     character_id: int | None
+    face_from: int | None
 
     def to_dict(self) -> dict[str, str | int | float | None]:
         return asdict(self)
@@ -122,6 +131,7 @@ class NewImage:
     varied_from: int | None = None
     change: float | None = None
     character_id: int | None = None
+    face_from: int | None = None
 
 
 @contextmanager
@@ -148,7 +158,7 @@ def init_db() -> None:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        add_missing_columns(conn)
+        add_missing_columns(conn, "images", ADDED_COLUMNS)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS characters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,24 +169,25 @@ def init_db() -> None:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        add_missing_columns(conn, "characters", ADDED_CHARACTER_COLUMNS)
 
 
-def add_missing_columns(conn: sqlite3.Connection) -> None:
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(images)")}
-    for name, definition in ADDED_COLUMNS.items():
+def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, definition in columns.items():
         if name not in existing:
-            conn.execute(f"ALTER TABLE images ADD COLUMN {name} {definition}")
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
 
-Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None]
+Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None]
 
 
 def to_item(row: Row) -> HistoryItem:
     id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
-    edited_from, varied_from, change, character_id = links
+    edited_from, varied_from, change, character_id, face_from = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
-        edited_from, varied_from, change, character_id,
+        edited_from, varied_from, change, character_id, face_from,
     )
 
 
@@ -184,11 +195,11 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (image.png, image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
-             image.character_id),
+             image.character_id, image.face_from),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)

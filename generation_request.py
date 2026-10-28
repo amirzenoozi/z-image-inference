@@ -11,6 +11,9 @@ JOB_ID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 # How much a variation may change its start image, as a fraction
 MIN_CHANGE = 0.1
 MAX_CHANGE = 0.9
+# How strongly a face lock holds the reference face; higher follows the prompt less
+MIN_FACE_STRENGTH = 0.1
+MAX_FACE_STRENGTH = 1.0
 
 
 class GenerateRequest(BaseModel):
@@ -32,6 +35,9 @@ class GenerateRequest(BaseModel):
     # For a variation: the start image as base64 PNG, which the web app loads from History, and how much to change it
     init_image: str | None = None
     change: float | None = Field(default=None, ge=MIN_CHANGE, le=MAX_CHANGE)
+    # For a face lock: the character's face image as base64 PNG, which the web app loads from History, and its strength
+    face_image: str | None = None
+    face_strength: float | None = Field(default=None, ge=MIN_FACE_STRENGTH, le=MAX_FACE_STRENGTH)
 
     def has_start_image(self) -> bool:
         return self.init_image is not None
@@ -45,6 +51,7 @@ class GenerateRequest(BaseModel):
         if self.steps is not None and not 1 <= self.steps <= spec.max_steps:
             raise ValueError(f"steps must be between 1 and {spec.max_steps}")
         check_variation(self.has_start_image(), self.change, spec)
+        check_face_lock(self.face_image is not None, self.face_strength, spec)
         return self
 
 
@@ -53,6 +60,13 @@ def check_variation(has_start_image: bool, change: float | None, spec: ModelSpec
         raise ValueError("A variation needs both a start image and how much to change it")
     if has_start_image and not spec.supports_variations:
         raise ValueError(f"{spec.label} can't start from an image; pick another model or remove the start image")
+
+
+def check_face_lock(has_face_image: bool, face_strength: float | None, spec: ModelSpec) -> None:
+    if has_face_image != (face_strength is not None):
+        raise ValueError("A face lock needs both a face image and its strength")
+    if has_face_image and not spec.supports_face_lock:
+        raise ValueError(f"{spec.label} can't lock a face; use WAI-Illustrious or Anime Desire")
 
 
 def check_size(width: int, height: int, spec: ModelSpec) -> None:

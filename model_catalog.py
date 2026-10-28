@@ -34,6 +34,8 @@ class ModelSpec:
     prompt_style: Literal["prose", "tags"] = "prose"
     # Whether the model can start from an image, for variations
     supports_variations: bool = True
+    # Whether it can keep a character's face from a reference image (IP-Adapter, SDXL only)
+    supports_face_lock: bool = False
 
 
 Z_IMAGE = ModelSpec(
@@ -69,6 +71,7 @@ WAI_ILLUSTRIOUS = ModelSpec(
     uses_guidance=True,
     default_guidance=7.0,
     prompt_style="tags",
+    supports_face_lock=True,
     default_negative_prompt=(
         "nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn"
     ),
@@ -114,6 +117,7 @@ ANIME_DESIRE = ModelSpec(
         "watermark, signature, text, blurry, jpeg artifacts"
     ),
     prompt_style="tags",
+    supports_face_lock=True,
 )
 
 def compression_enabled() -> bool:
