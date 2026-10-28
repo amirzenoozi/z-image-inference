@@ -287,7 +287,7 @@ function ZoomableImage({ item, zoomed, onZoomedChange }: { item: HistoryItem; zo
       ref={box}
       onPointerDown={press}
       onPointerMove={move}
-      className={`size-full ${zoomed ? 'cursor-grab overflow-auto' : 'flex cursor-zoom-in items-center justify-center'}`}
+      className={`size-full ${zoomed ? 'cursor-grab overflow-auto active:cursor-grabbing' : 'flex cursor-zoom-in items-center justify-center'}`}
     >
       <img
         src={imageUrl(item.id)}
