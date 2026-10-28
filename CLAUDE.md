@@ -38,6 +38,7 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 
 - Only the default model downloads at start; the user downloads (`POST /models/{id}/download`, checked for free space) and removes (`DELETE /models/{id}`, files listed in `MODEL_FOLDERS`) the others from the model dialog. Downloads run one at a time in the background (`download_thread`) and finish with a `.download-complete` marker; `/generate` answers 503 with a message while a model downloads, and `/models/status` reports progress.
 - One-time builds (Z-Image levels, float16, 8-bit) write to a `.building` folder and rename it when complete.
+- Variations (image-to-image): the web app loads the start image from History and sends it with `change` (0.1–0.9). Z-Image passes it to mflux as `image_strength = 1 − change`; the SDXL models use an img2img pipeline built from the loaded parts, with the start image encoded in float32 (`encode_in_float32`). MOSS-Image cannot (`supports_variations=False`).
 - MOSS-Image's text encoder and image model do not fit in memory together, so they take turns; the last prompt's embeddings are cached.
 
 ## Code layout
