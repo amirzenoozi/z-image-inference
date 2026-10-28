@@ -7,7 +7,7 @@ import { withoutSafeForWorkTerms } from '../lib/promptBuilder/build'
 import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
 import { WandSparkles } from 'lucide-react'
 
-type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt' | 'characterId'>>
+type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt' | 'characterId' | 'lookIncluded'>>
 
 interface Props {
   settings: GenerationSettings
@@ -20,6 +20,11 @@ interface Props {
   onSubmit: () => void
 }
 
+/** Clearing the prompt starts a new one, which doesn't have the character's look any more. */
+function typedPrompt(prompt: string): PromptPatch {
+  return prompt.trim() ? { prompt } : { prompt, lookIncluded: null }
+}
+
 function joinText(current: string, addition: string, separator: string): string {
   return current.trim() ? `${current.trim()}${separator}${addition}` : addition
 }
@@ -30,10 +35,12 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
   const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => {
     // An existing "nsfw" negative would work against the explicit prompt being added
     const existingNegative = explicit ? withoutSafeForWorkTerms(settings.negativePrompt) : settings.negativePrompt
+    // The builder writes the chosen character's look into the prompt, so Generate doesn't add it again
+    const lookIncluded = character?.id ?? null
     onChange(
       mode === 'replace'
-        ? { prompt, negativePrompt }
-        : { prompt: joinText(settings.prompt, prompt, ' '), negativePrompt: joinText(existingNegative, negativePrompt, ', ') },
+        ? { prompt, negativePrompt, lookIncluded }
+        : { prompt: joinText(settings.prompt, prompt, ' '), negativePrompt: joinText(existingNegative, negativePrompt, ', '), lookIncluded },
     )
   }
   return (
@@ -69,7 +76,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
           value={settings.prompt}
           readOnly={locked}
           aria-readonly={locked}
-          onChange={(event) => onChange({ prompt: event.target.value })}
+          onChange={(event) => onChange(typedPrompt(event.target.value))}
           onKeyDown={(event) => {
             if (isModEnter(event)) {
               event.preventDefault()
@@ -85,7 +92,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
             {settings.prompt.length}/{limits.max_prompt_length}
           </span>
         </p>
-        <ExampleCards examples={model.examples} disabled={locked} onPick={(prompt) => onChange({ prompt })} />
+        <ExampleCards examples={model.examples} disabled={locked} onPick={(prompt) => onChange({ prompt, lookIncluded: null })} />
       </div>
       {model.uses_guidance && <NegativePrompt value={settings.negativePrompt} model={model} locked={locked} onChange={onChange} />}
     </div>

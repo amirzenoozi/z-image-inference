@@ -19,7 +19,7 @@ export function modelDefaults(model: ModelInfo): ModelDefaults {
 
 export function initialSettings(catalog: Catalog): GenerationSettings {
   const model = catalog.models[0]
-  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, ...modelDefaults(model) }
+  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, ...modelDefaults(model) }
 }
 
 export function findModel(catalog: Catalog, modelId: string): ModelInfo {
@@ -79,6 +79,8 @@ export function settingsFromItem(item: HistoryItem, catalog: Catalog): Generatio
       randomSeed: false,
       startImage: item.varied_from !== null && item.change !== null ? { id: item.varied_from, change: item.change } : null,
       characterId: item.character_id,
+      // An image made for a character was saved with the look in its prompt
+      lookIncluded: item.character_id,
     },
     model,
   )
@@ -92,7 +94,7 @@ export function variationSettings(item: HistoryItem, catalog: Catalog): Generati
 /** Settings for making images of a character, or of no one; a character with its own seed renders with it. */
 export function characterSettings(character: Character | null): Partial<GenerationSettings> {
   const seed = character?.seed ?? null
-  return { characterId: character?.id ?? null, ...(seed === null ? {} : { seed, randomSeed: false }) }
+  return { characterId: character?.id ?? null, lookIncluded: null, ...(seed === null ? {} : { seed, randomSeed: false }) }
 }
 
 export function differsFromDefaults(settings: GenerationSettings, model: ModelInfo): boolean {
@@ -129,7 +131,8 @@ export function loadSettings(catalog: Catalog): GenerationSettings {
   // Settings saved before variations or characters existed have no start image or character
   const startImage = isStartImage(stored.startImage) ? stored.startImage : null
   const characterId = Number.isInteger(stored.characterId) ? stored.characterId : null
-  return withModel({ ...stored, startImage, characterId }, findModel(catalog, stored.modelId))
+  const lookIncluded = Number.isInteger(stored.lookIncluded) ? stored.lookIncluded : null
+  return withModel({ ...stored, startImage, characterId, lookIncluded }, findModel(catalog, stored.modelId))
 }
 
 export function saveSettings(settings: GenerationSettings): void {

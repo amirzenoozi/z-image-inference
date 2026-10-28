@@ -338,6 +338,39 @@ it('opens History filtered to a character from the Characters page', async () =>
   await waitFor(() => expect(api.fetchHistory).toHaveBeenCalledWith(0, 30, expect.objectContaining({ character: 3 }), expect.any(AbortSignal)))
 })
 
+it('adds the chosen character’s look to a typed prompt, and says so', async () => {
+  vi.mocked(api.fetchCharacters).mockResolvedValue([character()])
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem({ character_id: 3 }))
+  render(<App />)
+
+  await chooseOption(await screen.findByLabelText('Character'), 'Ava')
+  expect(screen.getByText("Ava's look is added to the start of your prompt.")).toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('Prompt'), 'walking in the rain')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+  const sent = vi.mocked(api.generateImage).mock.calls[0][0]
+  expect(sent.prompt).toBe('A photograph of an adult woman in her late 20s. She has green eyes. She has long auburn hair. walking in the rain')
+  expect(screen.getByLabelText('Prompt')).toHaveValue('walking in the rain')
+})
+
+it('does not add the look again to a prompt the builder wrote for the character', async () => {
+  vi.mocked(api.fetchCharacters).mockResolvedValue([character()])
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem({ character_id: 3 }))
+  render(<App />)
+
+  await chooseOption(await screen.findByLabelText('Character'), 'Ava')
+  await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Prompt builder' })).getByRole('button', { name: 'Use this prompt' }))
+  expect(screen.getByText("Your prompt already has Ava's look.")).toBeInTheDocument()
+
+  const built = (screen.getByLabelText('Prompt') as HTMLTextAreaElement).value
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  expect(vi.mocked(api.generateImage).mock.calls[0][0].prompt).toBe(built)
+
+  await userEvent.clear(screen.getByLabelText('Prompt'))
+  expect(screen.getByText("Ava's look is added to the start of your prompt.")).toBeInTheDocument()
+})
+
 const createTab = () => within(screen.getByRole('navigation', { name: 'Views' })).getByRole('button', { name: /^Create/ })
 
 async function startGenerating() {

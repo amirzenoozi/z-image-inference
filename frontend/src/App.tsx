@@ -5,12 +5,13 @@ import { CharactersProvider } from './components/CharactersProvider'
 import { ResultPanel } from './components/ResultPanel'
 import { SettingsPanel, type PromptMode } from './components/SettingsPanel'
 import { ErrorNotice, Spinner } from './components/ui'
-import { useCharacters } from './lib/characters'
+import { useCharacter, useCharacters } from './lib/characters'
+import { promptToSend } from './lib/characterPrompt'
 import { useGeneration } from './lib/generation'
 import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
-import { characterSettings, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
+import { characterSettings, findModel, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
 import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useUnseenResult } from './lib/unseenResult'
 import { useView, type View } from './lib/view'
@@ -72,10 +73,11 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   useForgetDeletedCharacter(settings.characterId, forgetCharacter)
 
   const generating = generation.state.status === 'pending'
-  const generateWith = (prompt: string) => {
-    if (generating || !prompt.trim()) return
+  const character = useCharacter(settings.characterId)
+  const generateWith = (next: GenerationSettings) => {
+    if (generating || !next.prompt.trim()) return
     askToNotify()
-    void generation.run({ ...settings, prompt })
+    void generation.run({ ...next, prompt: promptToSend(next, character, findModel(catalog, next.modelId)) })
   }
   const openInCreate = (next: GenerationSettings) => {
     setSettings(next)
@@ -98,10 +100,12 @@ function Workspace({ catalog }: { catalog: Catalog }) {
             lastSeed={lastSeed}
             modelStatus={modelStatus}
             onModelStatusChanged={refreshModelStatus}
-            onGenerate={() => generateWith(settings.prompt)}
+            onGenerate={() => generateWith(settings)}
             onChatPrompt={(prompt) => {
-              setSettings((current) => ({ ...current, prompt }))
-              generateWith(prompt)
+              // Grok's prompt is new, so it doesn't have the character's look yet
+              const next = { ...settings, prompt, lookIncluded: null }
+              setSettings(next)
+              generateWith(next)
             }}
           />
         </aside>

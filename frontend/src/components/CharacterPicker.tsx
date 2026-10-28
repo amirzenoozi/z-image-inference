@@ -8,11 +8,13 @@ const NONE = ''
 interface Props {
   characterId: number | null
   model: ModelInfo
+  /** Whether Generate puts the character's look in front of the prompt, or the prompt has it already. */
+  addsLook: boolean
   onChange: (character: Character | null) => void
 }
 
-/** The character the next images are made for; the builder writes its look and History can filter by it. */
-export function CharacterPicker({ characterId, model, onChange }: Props) {
+/** The character the next images are made for: Generate adds its look to the prompt, and History can filter by it. */
+export function CharacterPicker({ characterId, model, addsLook, onChange }: Props) {
   const { characters, reload } = useCharacters()
   if (characters.status === 'failed') return <ErrorNotice message={`Characters could not be loaded: ${characters.error}`} onRetry={reload} />
   if (characters.status === 'pending') {
@@ -29,10 +31,16 @@ export function CharacterPicker({ characterId, model, onChange }: Props) {
         groups={[{ options: [{ value: NONE, label: 'No character' }, ...characters.value.map((character) => ({ value: String(character.id), label: character.name }))] }]}
         onChange={pick}
       />
+      {chosen && <LookNote character={chosen} addsLook={addsLook} />}
       {chosen && <FaceLockNote character={chosen} model={model} />}
       {chosen?.face_uploaded && <SafeForWorkNote name={chosen.name} />}
     </div>
   )
+}
+
+function LookNote({ character, addsLook }: { character: Character; addsLook: boolean }) {
+  const text = addsLook ? `${character.name}'s look is added to the start of your prompt.` : `Your prompt already has ${character.name}'s look.`
+  return <p className="text-xs text-zinc-500 dark:text-zinc-400">{text}</p>
 }
 
 function SafeForWorkNote({ name }: { name: string }) {

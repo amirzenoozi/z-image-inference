@@ -1,9 +1,9 @@
-import type { CharacterTraits } from '../../types'
-import { minorWordIn, type BuilderState } from './build'
+import type { Character, CharacterTraits } from '../../types'
+import { buildPrompt, emptyBuilderState, minorWordIn, type BuilderState, type PromptStyle } from './build'
 import { CHOICE_OPTIONS } from './choices'
 import { NOT_SET } from './constants'
 import { EXPLICIT_PIERCINGS, PIERCINGS, SKIN_DETAILS, TATTOOS } from './extraData'
-import { FALLBACK_MODE } from './modes'
+import { FALLBACK_MODE, type BuilderMode } from './modes'
 import { pick, pickSome } from './random'
 import { choicesFor, includesWoman } from './rules'
 
@@ -47,6 +47,15 @@ export function traitsSummary(traits: CharacterTraits): string {
   const hair = [traits.hairLength, traits.hairColor].filter(Boolean).join(' ')
   const parts = [traits.who, traits.age, traits.ethnicity, traits.eyeColor && `${traits.eyeColor} eyes`, hair && `${hair} hair`, traits.bodyType]
   return parts.filter(Boolean).join(', ')
+}
+
+// Only who the character is and how they look; the typed prompt says the rest
+const LOOK_MODE: BuilderMode = { ...FALLBACK_MODE, id: 'look', label: 'Look', steps: ['subject', 'appearance', 'body'] }
+
+/** The character's look, written for the model the way the prompt builder writes it; null if it can't be written. */
+export function characterLook(character: Character, style: PromptStyle): string | null {
+  const result = buildPrompt(withTraits(emptyBuilderState(), character.traits), LOOK_MODE, style)
+  return result.status === 'ready' ? result.prompt : null
 }
 
 const SURPRISE_TRAITS = CHOICE_TRAITS.filter((trait) => trait !== 'who')
