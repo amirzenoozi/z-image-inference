@@ -9,7 +9,7 @@ const report = (models: ModelStatusReport['models']): Loadable<ModelStatusReport
 
 function renderPicker(status: Loadable<ModelStatusReport> = report({}), selectedId = 'z-image-turbo') {
   const onSelect = vi.fn()
-  render(<ModelPicker models={catalog.models} selectedId={selectedId} status={status} onSelect={onSelect} />)
+  render(<ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={selectedId} status={status} onSelect={onSelect} />)
   return onSelect
 }
 
@@ -85,4 +85,18 @@ it('links models to their Hugging Face pages without selecting them', async () =
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   await userEvent.click(link)
   expect(onSelect).not.toHaveBeenCalled()
+})
+
+it('groups models by category and filters with the category tabs', async () => {
+  renderPicker()
+  await openDialog()
+  const dialog = screen.getByRole('dialog', { name: 'Choose a model' })
+
+  expect(within(dialog).getByRole('tab', { name: 'All 2' })).toHaveAttribute('aria-selected', 'true')
+  expect(within(within(dialog).getByRole('region', { name: 'Photorealistic' })).getByRole('radio')).toHaveAccessibleName(/Z-Image-Turbo/)
+  expect(within(within(dialog).getByRole('region', { name: 'Anime & illustration' })).getByRole('radio')).toHaveAccessibleName(/WAI-Illustrious/)
+
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Anime & illustration 1' }))
+  expect(within(dialog).getAllByRole('radio').map((radio) => radio.textContent)).toEqual([expect.stringContaining('WAI-Illustrious')])
+  expect(within(dialog).queryByRole('heading', { name: 'Anime & illustration' })).not.toBeInTheDocument()
 })

@@ -7,6 +7,7 @@ export interface ModelInfo {
   label: string
   description: string
   speed_hint: string
+  category: string
   download_gb: number
   default_steps: number
   max_steps: number
@@ -35,8 +36,14 @@ export interface Limits {
   max_prompt_length: number
 }
 
+export interface ModelCategory {
+  id: string
+  label: string
+}
+
 export interface Catalog {
   models: ModelInfo[]
+  model_categories: ModelCategory[]
   resolutions: ResolutionInfo[]
   categories: Category[]
   examples: string[]

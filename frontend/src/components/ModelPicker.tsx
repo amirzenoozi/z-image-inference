@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import type { Loadable, ModelInfo, ModelStatusReport } from '../types'
-import { chipClass, secondaryButtonClass } from '../lib/styles'
+import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../types'
+import { secondaryButtonClass } from '../lib/styles'
 import { Modal } from './Modal'
-import { Spinner } from './ui'
+import { ModelChooser } from './ModelChooser'
+import { DownloadBadge, HuggingFaceLink } from './modelParts'
 
 interface Props {
   models: ModelInfo[]
+  categories: ModelCategory[]
   selectedId: string
   status: Loadable<ModelStatusReport>
   onSelect: (model: ModelInfo) => void
 }
 
 /** The sidebar shows only the selected model; the full list opens in a dialog. */
-export function ModelPicker({ models, selectedId, status, onSelect }: Props) {
+export function ModelPicker({ models, categories, selectedId, status, onSelect }: Props) {
   const [choosing, setChoosing] = useState(false)
   const selected = models.find((model) => model.id === selectedId) ?? models[0]
   const serverDown = status.status === 'failed' || (status.status === 'settled' && !status.value.server_running)
@@ -26,21 +28,17 @@ export function ModelPicker({ models, selectedId, status, onSelect }: Props) {
       )}
       {choosing && (
         <Modal title="Choose a model" onClose={() => setChoosing(false)} size="lg">
-          <div role="radiogroup" aria-label="Model" className="grid gap-3 sm:grid-cols-2">
-            {models.map((model) => (
-              <ModelOption
-                key={model.id}
-                model={model}
-                selected={model.id === selected.id}
-                status={status}
-                serverDown={serverDown}
-                onSelect={() => {
-                  onSelect(model)
-                  setChoosing(false)
-                }}
-              />
-            ))}
-          </div>
+          <ModelChooser
+            models={models}
+            categories={categories}
+            selectedId={selected.id}
+            status={status}
+            serverDown={serverDown}
+            onSelect={(model) => {
+              onSelect(model)
+              setChoosing(false)
+            }}
+          />
         </Modal>
       )}
     </div>
@@ -71,75 +69,4 @@ function SelectedModel({ model, status, serverDown, onChange }: SelectedModelPro
       {!serverDown && <DownloadBadge model={model} status={status} />}
     </div>
   )
-}
-
-interface ModelOptionProps {
-  model: ModelInfo
-  selected: boolean
-  status: Loadable<ModelStatusReport>
-  serverDown: boolean
-  onSelect: () => void
-}
-
-function ModelOption({ model, selected, status, serverDown, onSelect }: ModelOptionProps) {
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        onClick={onSelect}
-        className={`h-full w-full rounded-xl border p-4 pb-9 text-left transition ${chipClass(selected)}`}
-      >
-        <span className="flex items-start justify-between gap-2">
-          <span className="text-sm font-semibold">{model.label}</span>
-          <span className="shrink-0 rounded-full bg-zinc-200/70 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            {model.speed_hint}
-          </span>
-        </span>
-        <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{model.description}</span>
-        {!serverDown && <DownloadBadge model={model} status={status} />}
-      </button>
-      {/* Beside the card, not inside it: a link inside a button is invalid and would also select the model */}
-      <span className="absolute right-3 bottom-2.5">
-        <HuggingFaceLink model={model} />
-      </span>
-    </div>
-  )
-}
-
-function HuggingFaceLink({ model }: { model: ModelInfo }) {
-  return (
-    <a
-      href={`https://huggingface.co/${model.repo_id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`Open ${model.label} on Hugging Face`}
-      className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-200/70 hover:text-violet-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
-    >
-      Hugging Face ↗
-    </a>
-  )
-}
-
-function DownloadBadge({ model, status }: { model: ModelInfo; status: Loadable<ModelStatusReport> }) {
-  if (status.status === 'pending') return <span className="mt-1.5 block text-[11px] text-zinc-400">Checking download…</span>
-  if (status.status !== 'settled') return null
-  const size = `~${model.download_gb} GB`
-  switch (status.value.models[model.id]) {
-    case 'missing':
-      return <span className="mt-1.5 block text-[11px] text-zinc-500 dark:text-zinc-400">Not downloaded yet · {size}</span>
-    case 'queued':
-      return <span className="mt-1.5 block text-[11px] text-zinc-500 dark:text-zinc-400">Queued for download · {size}</span>
-    case 'downloading':
-      return (
-        <span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-violet-700 dark:text-violet-300">
-          <Spinner className="size-3" /> Downloading · {size}
-        </span>
-      )
-    case 'failed':
-      return <span className="mt-1.5 block text-[11px] text-red-600 dark:text-red-400">Download failed · retries when you generate</span>
-    default:
-      return null
-  }
 }
