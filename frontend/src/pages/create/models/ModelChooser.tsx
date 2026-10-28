@@ -3,7 +3,7 @@ import { IconButton } from '../../../shared/ui/IconButton'
 import { downloadModel, removeModel } from '../../../api'
 import { formatGb } from '../../../lib/format'
 import { errorMessage } from '../../../lib/hooks'
-import { chipClass, secondaryButtonClass, tabClass } from '../../../lib/styles'
+import { cardClass, secondaryButtonClass, tabClass } from '../../../lib/styles'
 import type { Loadable, ModelCategory, ModelInfo, ModelStatus, ModelStatusReport } from '../../../types'
 import { Spinner } from '../../../shared/ui/ui'
 import { Check, X } from 'lucide-react'
@@ -92,7 +92,7 @@ function ModelOption({ model, selected, status, serverDown, onSelect, onChanged 
   // Only block selection when the model is known not to be ready; unknown status never locks the user out
   const notReady = state !== null && state.status !== 'ready'
   return (
-    <div className={`flex h-full flex-col rounded-xl border transition ${chipClass(selected)}`}>
+    <div className={`flex h-full flex-col rounded-xl border transition ${cardClass(selected)}`}>
       <button
         type="button"
         role="radio"

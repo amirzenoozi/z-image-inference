@@ -20,7 +20,14 @@ export const fieldButtonClass =
 
 export function chipClass(selected: boolean): string {
   return selected
-    ? 'border-violet-500 bg-violet-50 text-violet-900 ring-2 ring-violet-500/30 dark:bg-violet-950/60 dark:text-violet-100'
+    ? 'border-violet-600 bg-violet-600 text-white dark:border-violet-500 dark:bg-violet-500'
+    : 'border-zinc-300 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
+}
+
+/** A selectable card with more text inside than a tag, so it is outlined and tinted rather than filled. */
+export function cardClass(selected: boolean): string {
+  return selected
+    ? 'border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950/60'
     : 'border-zinc-300 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
 }
 
