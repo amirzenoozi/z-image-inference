@@ -34,7 +34,7 @@ Defined once in `model_catalog.py` (shared by the UI and the server); loaders an
 | Anime Desire (Illustrious SDXL) | diffusers on MPS, float16, single-file checkpoint loaded with the SDXL configs in `models/sdxl-base-config/` | `models/anime-desire-illustrious/` |
 | MOSS-Image NSFW | diffusers on MPS, bfloat16; pipeline vendored in `moss_pipeline.py` | `models/moss-image-nsfw/`; text encoder kept 8-bit (optimum-quanto) in `text_encoder-q8/` |
 
-- At start the server queues every missing model (default first). Downloads run one at a time in the background (`download_thread`) and finish with a `.download-complete` marker; `/generate` answers 503 with a message while a model downloads, and `/models/status` reports progress.
+- Only the default model downloads at start; the user downloads (`POST /models/{id}/download`, checked for free space) and removes (`DELETE /models/{id}`, files listed in `MODEL_FOLDERS`) the others from the model dialog. Downloads run one at a time in the background (`download_thread`) and finish with a `.download-complete` marker; `/generate` answers 503 with a message while a model downloads, and `/models/status` reports progress.
 - One-time builds (4-bit, float16, 8-bit) write to a `.building` folder and rename it when complete.
 - MOSS-Image's text encoder and image model do not fit in memory together, so they take turns; the last prompt's embeddings are cached.
 

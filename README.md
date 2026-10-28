@@ -127,7 +127,7 @@ The **History** tab shows every image, newest first. Open one to see its prompt 
 
 ### Switching models
 
-When the model server starts, it queues every model that is not downloaded yet and fetches them one at a time in the background, Z-Image-Turbo first; you can generate with any model that is already ready meanwhile. Each card shows **Queued for download**, **Downloading** or **Download failed** until the model is ready, and choosing a model that is not ready tells you so straight away. Each card also links to the model's page on **Hugging Face**.
+Only the default model, Z-Image-Turbo, downloads by itself. You choose which other models to keep, to save disk space: in the model dialog, **Download** fetches a model in the background with a progress bar (one download at a time; the rest wait as **Queued**), and **Remove** deletes a downloaded model to free its space. The dialog shows how much space the models use and how much is free, and a download is refused with a clear message if there is not enough room for it and its one-time setup. A model can only be selected once it is downloaded, the model in use cannot be removed, and no restart is needed. Each card also links to the model's page on **Hugging Face**.
 
 Choosing another model (with **Change** next to the selected one) resets steps and guidance to that model's defaults. Your prompt, seed, size and negative prompt are kept where the model allows them, and its recommended size and negative prompt are offered in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
 
