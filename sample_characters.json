@@ -1,0 +1,69 @@
+[
+  {
+    "name": "Mei",
+    "traits": {
+      "who": "woman", "age": "late 20s", "ethnicity": "East Asian",
+      "eyeColor": "dark brown", "makeup": "natural makeup", "skinTone": "light",
+      "hairColor": "jet black", "hairstyle": "long straight", "hairLength": "long",
+      "bodyType": "slim build", "height": "average height", "bust": "small natural breasts", "hips": "long legs",
+      "piercings": ["ear piercings"]
+    }
+  },
+  {
+    "name": "Amara",
+    "traits": {
+      "who": "woman", "age": "early 30s", "ethnicity": "Black",
+      "eyeColor": "amber", "makeup": "bold red lipstick", "skinTone": "deep brown",
+      "hairColor": "black", "hairstyle": "box braids", "hairLength": "very long",
+      "bodyType": "athletic build", "height": "tall", "bust": "medium natural breasts", "hips": "toned glutes",
+      "tattoos": ["small delicate tattoos"], "piercings": ["nose stud"]
+    }
+  },
+  {
+    "name": "Sofia",
+    "traits": {
+      "who": "woman", "age": "40s", "ethnicity": "Latina/Latino",
+      "eyeColor": "hazel", "makeup": "glam makeup", "skinTone": "golden brown", "skinDetails": ["beauty marks"],
+      "hairColor": "chestnut", "hairstyle": "hollywood waves", "hairLength": "shoulder-length",
+      "bodyType": "curvy figure", "height": "average height", "bust": "full natural breasts", "hips": "wide hips"
+    }
+  },
+  {
+    "name": "Freya",
+    "traits": {
+      "who": "woman", "age": "early 20s", "ethnicity": "Nordic",
+      "eyeColor": "blue", "makeup": "no makeup", "skinTone": "fair", "skinDetails": ["freckles"],
+      "hairColor": "platinum blonde", "hairstyle": "fishtail braid", "hairLength": "long",
+      "bodyType": "toned build", "height": "tall", "bust": "small natural breasts", "hips": "long legs",
+      "tattoos": ["floral shoulder tattoo"]
+    }
+  },
+  {
+    "name": "Elena",
+    "traits": {
+      "who": "woman", "age": "60s", "ethnicity": "Mediterranean",
+      "eyeColor": "grey", "makeup": "natural makeup", "skinTone": "olive",
+      "hairColor": "silver", "hairstyle": "blunt bob", "hairLength": "chin-length",
+      "bodyType": "average build", "height": "short"
+    }
+  },
+  {
+    "name": "Ravi",
+    "traits": {
+      "who": "man", "age": "late 30s", "ethnicity": "South Asian",
+      "eyeColor": "dark brown", "skinTone": "brown", "skinDetails": ["light body hair"],
+      "hairColor": "black", "hairstyle": "slicked back", "hairLength": "short",
+      "bodyType": "muscular build", "height": "tall"
+    }
+  },
+  {
+    "name": "Kai",
+    "traits": {
+      "who": "man", "age": "mid 20s", "ethnicity": "mixed-race",
+      "eyeColor": "green", "skinTone": "tan",
+      "hairColor": "dark brown", "hairstyle": "buzz cut", "hairLength": "buzzed",
+      "bodyType": "slim build", "height": "average height",
+      "tattoos": ["full sleeve tattoo"], "piercings": ["septum ring"]
+    }
+  }
+]

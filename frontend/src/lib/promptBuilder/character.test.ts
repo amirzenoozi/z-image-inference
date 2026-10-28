@@ -1,4 +1,6 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import sampleCharacters from '../../../../sample_characters.json'
+import type { CharacterTraits } from '../../types'
 import { character } from '../../test/fixtures'
 import { emptyBuilderState } from './build'
 import { characterProblem, traitsOf, traitsSummary, withTraits } from './character'
@@ -31,4 +33,19 @@ it('needs a name, and an adult with an age range', () => {
 
 it('sums the character up in a line', () => {
   expect(traitsSummary(character().traits)).toBe('woman, late 20s, green eyes, long auburn hair')
+})
+
+describe('the sample characters every new database starts with', () => {
+  const blank = traitsOf(emptyBuilderState())
+  const samples = sampleCharacters.map(({ name, traits }) => ({ name, traits: { ...blank, ...traits } as CharacterTraits }))
+
+  it.each(samples)('$name uses only options the builder offers, and is an adult', ({ name, traits }) => {
+    expect(traitsOf(withTraits(emptyBuilderState(), traits))).toEqual(traits)
+    expect(characterProblem(name, traits)).toBeNull()
+  })
+
+  it('gives each one a different look', () => {
+    const looks = samples.map(({ traits }) => traitsSummary(traits))
+    expect(new Set(looks).size).toBe(samples.length)
+  })
 })

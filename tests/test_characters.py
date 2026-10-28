@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
@@ -14,9 +15,17 @@ from test_web_app import FakeModelServer, generate
 AVA = {"name": "Ava", "traits": {"who": "woman", "age": "late 20s", "hairColor": "auburn", "tattoos": ["wrist tattoo"]}}
 
 
+def use_samples(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, samples: list[dict[str, object]]) -> None:
+    path = tmp_path / "sample_characters.json"
+    path.write_text(json.dumps(samples))
+    monkeypatch.setattr(character_store, "SAMPLE_CHARACTERS_FILE", path)
+
+
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setattr(history_store, "DB_PATH", tmp_path / "history.db")
+    # Most tests start without characters; the sample tests below use the shipped ones
+    use_samples(tmp_path, monkeypatch, [])
     monkeypatch.setattr(main.requests, "post", FakeModelServer().post)
     with TestClient(main.app) as test_client:
         yield test_client
@@ -195,3 +204,46 @@ def test_characters_saved_before_the_face_lock_get_its_columns(tmp_path: Path, m
 
     [ava] = character_store.all_characters()
     assert (ava.name, ava.face_id, ava.face_strength) == ("Ava", None, 0.6)
+
+
+def start_app() -> None:
+    with TestClient(main.app):
+        pass
+
+
+def test_the_sample_characters_are_added_on_the_first_start_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(history_store, "DB_PATH", tmp_path / "history.db")
+    start_app()
+    names = [character.name for character in character_store.all_characters()]
+    assert names == ["Amara", "Elena", "Freya", "Kai", "Mei", "Ravi", "Sofia"]
+
+    character_store.delete(character_store.all_characters()[0].id)
+    start_app()
+
+    assert [character.name for character in character_store.all_characters()] == names[1:]
+
+
+def test_a_sample_whose_name_is_taken_is_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(history_store, "DB_PATH", tmp_path / "history.db")
+    use_samples(tmp_path, monkeypatch, [{"name": "Mei", "traits": {"who": "woman", "age": "late 20s"}}, {"name": "Kai", "traits": {"who": "man", "age": "mid 20s"}}])
+    history_store.init_db()
+    character_store.create(character_store.NewCharacter(name="mei", traits=character_store.CharacterTraits(who="woman", age="50s")))
+
+    character_store.add_samples_once()
+
+    characters = {character.name: character.traits.age for character in character_store.all_characters()}
+    assert characters == {"Kai": "mid 20s", "mei": "50s"}
+
+
+@pytest.mark.parametrize(
+    "samples",
+    [[{"name": "Mei", "traits": {"wings": "yes"}}], [{"name": ""}], [{"name": "Mei", "traits": {}}, {"name": "MEI", "traits": {}}]],
+)
+def test_a_broken_samples_file_is_refused_and_adds_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, samples: list[dict[str, object]]) -> None:
+    monkeypatch.setattr(history_store, "DB_PATH", tmp_path / "history.db")
+    use_samples(tmp_path, monkeypatch, samples)
+    history_store.init_db()
+
+    with pytest.raises(ValueError):
+        character_store.add_samples_once()
+    assert character_store.all_characters() == []
