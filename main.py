@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query, R
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
-from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
 
 import history_export
 from image_edits import EditOutsideImage, EditRecipe, apply_edits
@@ -45,6 +45,8 @@ IMMUTABLE = {"Cache-Control": "private, max-age=31536000, immutable"}
 EXAMPLE_PROMPTS_FILE = Path(__file__).parent / "example_prompts.json"
 ExamplePrompt = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_PROMPT_LENGTH)]
 EXAMPLE_PROMPTS = TypeAdapter(dict[str, list[ExamplePrompt]])
+# The prompt builder's purposes; the builder checks the steps and options against its own lists
+PROMPT_MODES_FILE = Path(__file__).parent / "prompt_modes.json"
 
 grok_client = GrokClient()
 
@@ -103,6 +105,23 @@ class ModelCategoryInfo(BaseModel):
     label: str
 
 
+class BuilderMode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]*$")]
+    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+    description: str = ""
+    adult_only: bool = False
+    steps: list[str] = Field(min_length=1)
+    defaults: dict[str, str] = {}
+    options: dict[str, list[str]] = {}
+    emphasis: list[str] = []
+    weights: dict[str, Annotated[float, Field(ge=0.5, le=2)]] = {}
+
+
+PROMPT_MODES = TypeAdapter(list[BuilderMode])
+
+
 class Catalog(BaseModel):
     models: list[ModelInfo]
     model_categories: list[ModelCategoryInfo]
@@ -110,6 +129,7 @@ class Catalog(BaseModel):
     categories: list[str]
     chat_available: bool
     limits: Limits
+    builder_modes: list[BuilderMode]
 
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -169,6 +189,14 @@ def example_prompts() -> dict[str, list[str]]:
     return prompts
 
 
+def prompt_modes() -> list[BuilderMode]:
+    modes = PROMPT_MODES.validate_json(PROMPT_MODES_FILE.read_bytes())
+    ids = [mode.id for mode in modes]
+    if not modes or len(set(ids)) != len(ids):
+        raise ValueError(f"{PROMPT_MODES_FILE.name} needs at least one mode, each with its own id")
+    return modes
+
+
 @app.get("/api/catalog")
 def catalog() -> Catalog:
     examples = example_prompts()
@@ -179,6 +207,7 @@ def catalog() -> Catalog:
         categories=list(CATEGORIES),
         chat_available=grok_client.available,
         limits=Limits(),
+        builder_modes=prompt_modes(),
     )
 
 

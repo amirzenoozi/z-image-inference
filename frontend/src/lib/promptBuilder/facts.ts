@@ -30,8 +30,10 @@ export interface Facts {
   hasWoman: boolean
   hasMan: boolean
   pronoun: Pronoun
-  /** "an adult woman in her mid 20s", or the free-text subject alone. */
+  /** "an adult woman in her mid 20s", the free-text subject alone, or for a scene without people, the place. */
   subject: string
+  /** A scene without people: no person sentences, and scenery tags. */
+  sceneOnly: boolean
   age: string
   ethnicity: string
   subjectExtra: string

@@ -1,14 +1,14 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
-import { animeModel, fastModel } from '../../test/fixtures'
+import { animeModel, builderModes, fastModel } from '../../test/fixtures'
 import type { ModelInfo } from '../../types'
 import { PromptBuilderDialog } from './PromptBuilderDialog'
 import { chooseOption } from '../../test/select'
 
 function renderDialog({ model = fastModel, hasExistingPrompt = false, maxPromptLength = 4000 }: { model?: ModelInfo; hasExistingPrompt?: boolean; maxPromptLength?: number } = {}) {
   const handlers = { onClose: vi.fn(), onConfirm: vi.fn() }
-  render(<PromptBuilderDialog model={model} hasExistingPrompt={hasExistingPrompt} maxPromptLength={maxPromptLength} {...handlers} />)
+  render(<PromptBuilderDialog model={model} modes={builderModes} hasExistingPrompt={hasExistingPrompt} maxPromptLength={maxPromptLength} {...handlers} />)
   return handlers
 }
 
@@ -55,12 +55,12 @@ it('surprise me fills the choices with something ready to use', async () => {
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeEnabled()
 })
 
-it('shows the 18+ step only after the explicit switch, and needs an adult age', async () => {
+it('shows the 18+ step only in an 18+ mode, and needs an adult age', async () => {
   renderDialog()
   expect(screen.queryByRole('button', { name: /Intimacy/ })).not.toBeInTheDocument()
 
   await chooseOption(screen.getByLabelText('Who'), 'woman')
-  await userEvent.click(screen.getByRole('switch'))
+  await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
 
   expect(screen.getByText(/need “Who” and an adult age range/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeDisabled()
@@ -74,7 +74,7 @@ it('refuses explicit prompts that suggest a minor', async () => {
   renderDialog()
   await chooseOption(screen.getByLabelText('Who'), 'woman')
   await chooseOption(screen.getByLabelText('Age'), 'early 20s')
-  await userEvent.click(screen.getByRole('switch'))
+  await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
   await userEvent.type(screen.getByLabelText('Extra subject details'), 'schoolgirl')
 
   expect(screen.getByRole('alert')).toHaveTextContent('must describe adults')
@@ -93,7 +93,7 @@ it('writes weighted tags for tag-based models, and a description for the others'
   expect(screen.getByText(/Written as tags for WAI-Illustrious/)).toBeInTheDocument()
   await chooseOption(screen.getByLabelText('Who'), 'woman')
   await chooseOption(screen.getByLabelText('Age'), 'early 30s')
-  await userEvent.click(screen.getByRole('switch'))
+  await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
   await step('Intimacy')
   await userEvent.click(screen.getByRole('button', { name: 'Fully nude' }))
 
@@ -106,7 +106,7 @@ it('offers partner actions only for a couple', async () => {
   renderDialog()
   await chooseOption(screen.getByLabelText('Who'), 'woman')
   await chooseOption(screen.getByLabelText('Age'), 'early 30s')
-  await userEvent.click(screen.getByRole('switch'))
+  await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
   await step('Pose')
   await userEvent.click(screen.getByLabelText('Explicit action'))
   expect(screen.queryByRole('group', { name: 'With a partner' })).not.toBeInTheDocument()
@@ -117,6 +117,24 @@ it('offers partner actions only for a couple', async () => {
   await step('Pose')
   await userEvent.click(screen.getByLabelText('Explicit action'))
   expect(await screen.findByRole('group', { name: 'With a partner' })).toBeInTheDocument()
+})
+
+it('shows only the steps of the chosen mode, starting from its defaults', async () => {
+  renderDialog()
+  await userEvent.click(screen.getByRole('radio', { name: 'Scene' }))
+
+  const nav = screen.getByRole('navigation', { name: 'Builder steps' })
+  expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual(['1Scene & light', '2Camera', '3Mood & finish'])
+  expect(screen.getByText('Choose a scene or describe the place, to start.')).toBeInTheDocument()
+  await chooseOption(screen.getByLabelText('Scene'), 'beach')
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/^A photograph of a beach/)
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('golden hour')
+})
+
+it('reports a broken mode and keeps the others', () => {
+  render(<PromptBuilderDialog model={fastModel} modes={[...builderModes, { ...builderModes[0], id: 'odd', steps: ['dance'] }]} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  expect(screen.getByRole('alert')).toHaveTextContent('Mode "odd" was left out: unknown step "dance".')
+  expect(screen.getAllByRole('radio')).toHaveLength(builderModes.length)
 })
 
 it('closes only an open list on Escape, then the dialog on a second Escape', async () => {

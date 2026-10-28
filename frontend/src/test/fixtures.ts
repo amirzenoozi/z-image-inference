@@ -1,4 +1,9 @@
-import type { Catalog, HistoryItem, ModelInfo } from '../types'
+import shippedModes from '../../../prompt_modes.json'
+import type { BuilderModeData, Catalog, HistoryItem, ModelInfo } from '../types'
+
+/** The modes shipped in prompt_modes.json, so the tests check the real file. */
+// TypeScript reads optional JSON keys as possibly undefined; the catalog serves the same file with the right shape
+export const builderModes = shippedModes as unknown as BuilderModeData[]
 
 export const fastModel: ModelInfo = {
   id: 'z-image-turbo',
@@ -47,6 +52,7 @@ export const animeModel: ModelInfo = {
 }
 
 export const catalog: Catalog = {
+  builder_modes: builderModes,
   models: [fastModel, animeModel],
   model_categories: [
     { id: 'photo', label: 'Photorealistic' },

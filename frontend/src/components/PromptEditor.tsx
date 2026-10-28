@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { GenerationSettings, Limits, ModelInfo } from '../types'
+import type { BuilderModeData, GenerationSettings, Limits, ModelInfo } from '../types'
 import { isModEnter } from '../lib/keyboard'
 import { Textarea } from './form/Textarea'
 import { withoutSafeForWorkTerms } from '../lib/promptBuilder/build'
@@ -12,6 +12,7 @@ interface Props {
   settings: GenerationSettings
   model: ModelInfo
   limits: Limits
+  builderModes: readonly BuilderModeData[]
   onChange: (patch: PromptPatch) => void
   onSubmit: () => void
 }
@@ -20,7 +21,7 @@ function joinText(current: string, addition: string, separator: string): string 
   return current.trim() ? `${current.trim()}${separator}${addition}` : addition
 }
 
-export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Props) {
+export function PromptEditor({ settings, model, limits, builderModes, onChange, onSubmit }: Props) {
   const [builderOpen, setBuilderOpen] = useState(false)
   const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => {
     // An existing "nsfw" negative would work against the explicit prompt being added
@@ -43,6 +44,7 @@ export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Pr
       {builderOpen && (
         <PromptBuilderDialog
           model={model}
+          modes={builderModes}
           hasExistingPrompt={settings.prompt.trim() !== ''}
           maxPromptLength={limits.max_prompt_length}
           onClose={() => setBuilderOpen(false)}

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "general",
+    "label": "General",
+    "description": "Any photo of a person, with every everyday option.",
+    "adult_only": false,
+    "steps": ["subject", "appearance", "body", "outfit", "pose", "scene", "camera", "finish"],
+    "defaults": {},
+    "options": {},
+    "emphasis": [],
+    "weights": {}
+  },
+  {
+    "id": "portrait",
+    "label": "Portrait",
+    "description": "A close portrait: the face, hair and light come first.",
+    "adult_only": false,
+    "steps": ["subject", "appearance", "scene", "camera", "finish"],
+    "defaults": { "shotType": "headshot", "depthOfField": "shallow f/2.0", "lightingSetup": "softbox beauty" },
+    "options": { "shotType": ["extreme close-up", "close-up face", "headshot", "upper body portrait", "chest-up portrait"] },
+    "emphasis": ["face", "hair", "light", "camera"],
+    "weights": { "face": 1.2 }
+  },
+  {
+    "id": "fashion",
+    "label": "Fashion",
+    "description": "A full outfit on show, with the figure and pose to carry it.",
+    "adult_only": false,
+    "steps": ["subject", "body", "outfit", "pose", "scene", "camera", "finish"],
+    "defaults": { "shotType": "full body", "photoStyle": "fashion", "sceneType": "studio" },
+    "options": {},
+    "emphasis": ["outfit", "body"],
+    "weights": { "outfit": 1.2 }
+  },
+  {
+    "id": "glamour",
+    "label": "Glamour (18+)",
+    "description": "Suggestive and sensual, up to topless, with no explicit acts. Needs “Who” and an adult age range.",
+    "adult_only": true,
+    "steps": ["subject", "appearance", "body", "outfit", "pose", "intimacy", "scene", "camera", "finish"],
+    "defaults": { "nudity": "implied", "sceneType": "bedroom", "lightingSetup": "natural window light" },
+    "options": { "nudity": ["clothed", "implied", "topless"], "explicitAction": [] },
+    "emphasis": ["outfit", "body", "mood"],
+    "weights": { "nudity": 1.2, "outfit": 1.2 }
+  },
+  {
+    "id": "explicit",
+    "label": "Explicit (18+)",
+    "description": "Every option, including explicit poses, acts and nudity. Needs “Who” and an adult age range.",
+    "adult_only": true,
+    "steps": ["subject", "appearance", "body", "outfit", "pose", "intimacy", "scene", "camera", "finish"],
+    "defaults": { "nudity": "nude", "sceneType": "bedroom" },
+    "options": {},
+    "emphasis": [],
+    "weights": { "nudity": 1.3, "action": 1.3, "explicitPose": 1.2 }
+  },
+  {
+    "id": "scene",
+    "label": "Scene",
+    "description": "A place with no people: landscapes, rooms and streets.",
+    "adult_only": false,
+    "steps": ["scene", "camera", "finish"],
+    "defaults": { "timeOfDay": "golden hour" },
+    "options": {},
+    "emphasis": ["scene", "light"],
+    "weights": { "scene": 1.2 }
+  }
+]
