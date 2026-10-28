@@ -1,6 +1,7 @@
 import { imageUrl } from '../api'
 import type { HistoryItem } from '../types'
 import { FavouriteButton } from './FavouriteButton'
+import { SensitiveImage } from './SensitiveImage'
 import { Check } from 'lucide-react'
 
 interface Props {
@@ -38,7 +39,7 @@ function CardButton({ item, label, selected, onClick }: { item: HistoryItem; lab
         selected ? 'ring-4 ring-violet-500' : ''
       }`}
     >
-      <img src={imageUrl(item.id, true)} alt="" loading="lazy" className="size-full object-cover transition group-hover:scale-105" />
+      <SensitiveImage src={imageUrl(item.id, true)} sensitive={item.sensitive} className="size-full" imgClassName="transition group-hover:scale-105" />
       {selected && <span className="absolute top-2 left-2 flex size-7 items-center justify-center rounded-full bg-violet-600 text-sm text-white"><Check /></span>}
       <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-left text-[11px] text-white opacity-0 transition group-hover:opacity-100">
         {label} · {item.width}×{item.height}

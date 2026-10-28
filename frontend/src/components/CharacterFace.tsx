@@ -1,10 +1,13 @@
 import { imageUrl } from '../api'
 import { secondaryButtonClass } from '../lib/styles'
 import { Slider } from './form/Slider'
+import { SensitiveImage } from './SensitiveImage'
 
 export interface FaceLock {
   id: number | null
   strength: number
+  /** Whether the face image is blurred here, as it is in History. */
+  sensitive: boolean
 }
 
 const MIN_STRENGTH = 0.1
@@ -23,7 +26,9 @@ export function CharacterFace({ face, onChange }: { face: FaceLock; onChange: (f
   }
   return (
     <div className="flex items-start gap-4">
-      <img src={imageUrl(face.id, true)} alt={`Face image #${face.id}`} className="size-20 shrink-0 rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800" />
+      <span role="img" aria-label={`Face image #${face.id}`} className="shrink-0">
+        <SensitiveImage src={imageUrl(face.id, true)} sensitive={face.sensitive} compact className="size-20 rounded-lg" />
+      </span>
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex justify-between text-xs font-medium text-zinc-600 dark:text-zinc-300">
           <span>Face strength</span>

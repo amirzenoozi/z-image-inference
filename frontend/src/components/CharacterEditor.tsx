@@ -44,7 +44,11 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
   const [name, setName] = useState(character?.name ?? '')
   const [seedText, setSeedText] = useState(character?.seed?.toString() ?? '')
   const [state, setState] = useState<BuilderState>(() => (character ? withTraits(emptyBuilderState(), character.traits) : emptyBuilderState()))
-  const [face, setFace] = useState<FaceLock>({ id: character?.face_id ?? null, strength: character?.face_strength ?? DEFAULT_FACE_STRENGTH })
+  const [face, setFace] = useState<FaceLock>({
+    id: character?.face_id ?? null,
+    strength: character?.face_strength ?? DEFAULT_FACE_STRENGTH,
+    sensitive: character?.face_sensitive ?? false,
+  })
   const [save, setSave] = useState<SaveState>({ status: 'idle' })
   const steps: StepProps = { state, mode: FALLBACK_MODE, set: (patch) => setState((current) => ({ ...current, ...patch })), setOutfit: () => {} }
 

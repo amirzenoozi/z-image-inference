@@ -108,6 +108,8 @@ export interface HistoryItem {
   character_id: number | null
   /** The image whose face this one was locked to; null when no face lock was used. */
   face_from: number | null
+  /** Blurred in lists: worked out from the prompt when saved, or set by hand in the image viewer. */
+  sensitive: boolean
 }
 
 /** The prompt builder's identity choices a character keeps, named as in the builder's state. */
@@ -146,6 +148,9 @@ export interface Character {
   face_id: number | null
   /** How strongly the face is kept, from 0.1 to 1; higher follows the prompt less. */
   face_strength: number
+  /** Whether the cover and the face image are blurred in lists, as their History images are. */
+  cover_sensitive: boolean
+  face_sensitive: boolean
 }
 
 export interface CharacterChanges {

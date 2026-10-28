@@ -147,6 +147,13 @@ it('fills the look with Surprise me, keeping the name and "Who"', async () => {
   expect(saved.traits?.hairColor).not.toBe('')
 })
 
+it('blurs a sensitive cover on its card', () => {
+  renderPanel({ status: 'settled', value: [character({ cover_id: 8, cover_sensitive: true })] })
+  const card = screen.getByRole('listitem', { name: 'Ava' })
+  expect(within(card).getByText('Sensitive')).toBeInTheDocument()
+  expect(card.querySelector('img')).toHaveClass('blur-xl')
+})
+
 it('lets a gender in the address win over the remembered one', () => {
   localStorage.setItem('z-image-studio.character-gender.v1', 'men')
   window.history.replaceState(null, '', '/characters?gender=women')

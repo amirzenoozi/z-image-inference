@@ -18,6 +18,7 @@ vi.mock('../api', async (importOriginal) => ({
   fetchHistorySummary: vi.fn(),
   deleteHistoryOlderThan: vi.fn(),
   setFavourite: vi.fn(),
+  setSensitive: vi.fn(),
   fetchPalette: vi.fn(),
   saveEdit: vi.fn(),
 }))
@@ -803,4 +804,41 @@ it('keeps editing with an error when saving fails, and Cancel goes back to the i
 
   await userEvent.click(within(editor).getByRole('button', { name: 'Cancel' }))
   expect(screen.getByRole('dialog', { name: 'Image details' })).toBeInTheDocument()
+})
+
+it('blurs sensitive images in the list but shows them as they are when opened', async () => {
+  const nude = historyItem({ id: 1, prompt: 'a nude woman', sensitive: true })
+  fetchHistory.mockResolvedValue(pageOf([nude, historyItem({ id: 2, prompt: 'a red fox' })]))
+  renderHistory()
+
+  const card = await screen.findByRole('button', { name: 'Open: a nude woman' })
+  expect(within(card).getByText('Sensitive')).toBeInTheDocument()
+  expect(card.querySelector('img')).toHaveClass('blur-xl')
+  expect(screen.getByRole('button', { name: 'Open: a red fox' }).querySelector('img')).not.toHaveClass('blur-xl')
+
+  await userEvent.click(card)
+  const viewer = screen.getByRole('dialog', { name: 'Image details' })
+  expect(within(viewer).getByRole('img', { name: 'a nude woman' })).not.toHaveClass('blur-xl')
+})
+
+it('marks an image as sensitive from the viewer once the server confirms, and the list blurs it', async () => {
+  const fox = historyItem({ id: 2, prompt: 'a red fox' })
+  fetchHistory.mockResolvedValue(pageOf([fox]))
+  const saved = deferred<HistoryItem>()
+  vi.mocked(api.setSensitive).mockReset().mockReturnValue(saved.promise)
+  renderHistory()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: a red fox' }))
+  const mark = screen.getByRole('button', { name: /^Mark as sensitive/ })
+  await userEvent.click(mark)
+  expect(api.setSensitive).toHaveBeenCalledExactlyOnceWith(2, true)
+  expect(mark).toBeDisabled()
+  expect(mark).toHaveAttribute('aria-pressed', 'false')
+
+  fetchHistory.mockResolvedValue(pageOf([{ ...fox, sensitive: true }]))
+  await act(async () => saved.resolve({ ...fox, sensitive: true }))
+  expect(screen.getByRole('button', { name: /^Not sensitive/ })).toHaveAttribute('aria-pressed', 'true')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+  expect(await within(await screen.findByRole('button', { name: 'Open: a red fox' })).findByText('Sensitive')).toBeInTheDocument()
 })
