@@ -8,9 +8,9 @@ import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
 import { loadSettings, saveSettings, settingsFromItem } from './lib/settings'
+import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
 
-type View = 'create' | 'history'
 
 export default function App() {
   const [catalog, retry] = useCatalog()
@@ -33,7 +33,7 @@ export default function App() {
 
 function Workspace({ catalog }: { catalog: Catalog }) {
   const [settings, setSettings] = useState<GenerationSettings>(() => loadSettings(catalog))
-  const [view, setView] = useState<View>('create')
+  const [view, setView] = useView()
   const [mode, setMode] = useState<PromptMode>('direct')
   const [lastSeed, setLastSeed] = useState<number | null>(null)
   const onSuccess = useCallback((item: HistoryItem) => setLastSeed(item.seed), [])

@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from './api'
 import App from './App'
 import { catalog, deferred, historyItem } from './test/fixtures'
@@ -134,4 +134,34 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
     prompt: 'Photo of an adult man.',
     negativePrompt: expect.stringContaining('extra fingers'),
   })
+})
+
+afterEach(() => window.history.replaceState(null, '', '/'))
+
+const currentView = () => within(screen.getByRole('navigation', { name: 'Views' })).getByRole('button', { current: 'page' })
+
+it('opens the view named in the address, so a reload keeps it', async () => {
+  window.history.replaceState(null, '', '/history')
+  render(<App />)
+  expect(await screen.findByRole('navigation', { name: 'Views' })).toBeInTheDocument()
+  expect(currentView()).toHaveTextContent('History')
+})
+
+it('puts the view in the address, and Back returns to the previous view', async () => {
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: 'History' }))
+  expect(window.location.pathname).toBe('/history')
+  expect(currentView()).toHaveTextContent('History')
+
+  await act(async () => window.history.back())
+
+  await waitFor(() => expect(currentView()).toHaveTextContent('Create'))
+  expect(window.location.pathname).toBe('/')
+})
+
+it('opens Create for any other address', async () => {
+  window.history.replaceState(null, '', '/not-a-view')
+  render(<App />)
+  expect(await screen.findByRole('navigation', { name: 'Views' })).toBeInTheDocument()
+  expect(currentView()).toHaveTextContent('Create')
 })
