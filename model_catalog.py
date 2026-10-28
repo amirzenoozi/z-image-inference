@@ -120,6 +120,29 @@ ANIME_DESIRE = ModelSpec(
     supports_face_lock=True,
 )
 
+REALVIS_XL = ModelSpec(
+    id="realvisxl",
+    label="RealVisXL V5.0 (SDXL)",
+    repo_id="SG161222/RealVisXL_V5.0",
+    description="SDXL photorealistic people; locks a character's face in photo style.",
+    speed_hint="~45–60 s at 1024",
+    category="photo",
+    # Only the float16 files are fetched, the precision it runs in, so compression changes nothing
+    download_gb=6.9,
+    compressed_gb=6.9,
+    default_steps=30,
+    max_steps=50,
+    max_side=1216,
+    default_size=(1024, 1024),
+    uses_guidance=True,
+    default_guidance=5.0,
+    # The model card's recommended negative prompt
+    default_negative_prompt=(
+        "bad hands, bad anatomy, ugly, deformed, (face asymmetry, eyes asymmetry, deformed eyes, deformed mouth, open mouth)"
+    ),
+    supports_face_lock=True,
+)
+
 def compression_enabled() -> bool:
     """MODEL_COMPRESSION=on keeps 4-bit, 8-bit and float16 copies instead of the original files (off by default)."""
     return os.environ.get("MODEL_COMPRESSION", "off").strip().lower() == "on"
@@ -153,5 +176,5 @@ def speed_hint(spec: ModelSpec) -> str:
     return spec.speed_hint if runs_compressed(spec) or spec.original_speed_hint is None else spec.original_speed_hint
 
 
-MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE)}
+MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE, REALVIS_XL)}
 DEFAULT_MODEL = Z_IMAGE

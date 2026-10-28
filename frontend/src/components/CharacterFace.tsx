@@ -17,7 +17,7 @@ interface Props {
   onChange: (face: FaceLock) => void
 }
 
-/** The face WAI-Illustrious and Anime Desire keep for this character: a History image or an uploaded photo, and how strongly. */
+/** The face the SDXL models keep for this character: a History image or an uploaded photo, and how strongly. */
 export function CharacterFace({ face, characterId, name, onChange }: Props) {
   const setSource = (source: FaceSource) => onChange({ ...face, source })
   return (
@@ -25,7 +25,7 @@ export function CharacterFace({ face, characterId, name, onChange }: Props) {
       {face.source.kind === 'none' ? (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           No face. Open an image of this character in History and choose <span className="font-medium">Use as face</span> (a close crop of the face works
-          best), or upload a photo. WAI-Illustrious and Anime Desire then keep that face.
+          best), or upload a photo. RealVisXL (in photo style), WAI-Illustrious and Anime Desire then keep that face.
         </p>
       ) : (
         <div className="flex items-start gap-4">
