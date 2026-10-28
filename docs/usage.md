@@ -12,7 +12,7 @@ The app has three views, **Create**, **History** and **Characters**, switched in
 
 While an image renders, the result area shows what is happening: waiting, loading the model, reading the prompt, or **Step 4 of 9** with a progress bar, plus how long it has been running. **Cancel** stops it after the current step, without adding anything to History.
 
-The tab title shows when a render is running. If it finishes while you are in another tab or app, the title says so and a notification appears; the browser asks once for permission, the first time you press Generate.
+The tab title shows when a render is running. If it finishes while you are in another tab or app, the title says so and a notification appears: "Your image is ready" (or "Ava's image is ready") with a thumbnail of the image, the model, the render time and the start of the prompt, or "Couldn't make your image" with the reason. A sensitive image shows the app's icon and no prompt instead, so nothing explicit pops up on screen. Clicking the notification opens Create, and a newer one replaces the last. The browser asks once for permission, the first time you press Generate.
 
 Switching models resets steps and guidance to the new model's defaults. Your prompt, seed, size and negative prompt are kept where the model allows them, and its recommended size and negative prompt are offered in one click. Your settings are remembered in the browser between visits.
 
