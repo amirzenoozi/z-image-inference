@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { GenerationSettings, Limits, ModelInfo } from '../types'
 import { isModEnter } from '../lib/keyboard'
 import { Textarea } from './form/Textarea'
+import { withoutSafeForWorkTerms } from '../lib/promptBuilder/build'
 import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
 
 type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt'>>
@@ -20,12 +21,15 @@ function joinText(current: string, addition: string, separator: string): string 
 
 export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Props) {
   const [builderOpen, setBuilderOpen] = useState(false)
-  const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode) =>
+  const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => {
+    // An existing "nsfw" negative would work against the explicit prompt being added
+    const existingNegative = explicit ? withoutSafeForWorkTerms(settings.negativePrompt) : settings.negativePrompt
     onChange(
       mode === 'replace'
         ? { prompt, negativePrompt }
-        : { prompt: joinText(settings.prompt, prompt, ' '), negativePrompt: joinText(settings.negativePrompt, negativePrompt, ', ') },
+        : { prompt: joinText(settings.prompt, prompt, ' '), negativePrompt: joinText(existingNegative, negativePrompt, ', ') },
     )
+  }
   return (
     <div className="space-y-3">
       <button

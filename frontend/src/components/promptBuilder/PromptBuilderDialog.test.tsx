@@ -25,13 +25,10 @@ it('walks through steps with a live preview and confirms into the editor', async
   await chooseOption(screen.getByLabelText('Eye colour'), 'green')
   await userEvent.click(screen.getByRole('button', { name: 'freckles' }))
 
-  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('Photo of an adult woman in her mid 20s. Green eyes, freckles.')
+  const prompt = 'A photograph of an adult woman in her mid 20s. She has green eyes. Her skin shows freckles.'
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(prompt)
   await userEvent.click(useIt)
-  expect(onConfirm).toHaveBeenCalledExactlyOnceWith(
-    'Photo of an adult woman in her mid 20s. Green eyes, freckles.',
-    expect.stringContaining('extra fingers'),
-    'replace',
-  )
+  expect(onConfirm).toHaveBeenCalledExactlyOnceWith(prompt, expect.stringContaining('extra fingers'), 'replace', false)
   expect(onClose).toHaveBeenCalledOnce()
 })
 
@@ -48,13 +45,13 @@ it('offers appending when the editor already has a prompt', async () => {
   await chooseOption(screen.getByLabelText('Who'), 'man')
   expect(screen.getByText(/replaces the text in the Write box/)).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Append to prompt' }))
-  expect(onConfirm).toHaveBeenCalledWith('Photo of an adult man.', expect.any(String), 'append')
+  expect(onConfirm).toHaveBeenCalledWith('A photograph of an adult man.', expect.any(String), 'append', false)
 })
 
 it('surprise me fills the choices with something ready to use', async () => {
   renderDialog()
   await userEvent.click(screen.getByRole('button', { name: /Surprise me/ }))
-  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/^.+ photo of two adult|^.+ photo of an adult/i)
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/^an? .*photograph of (two adult|an adult)/i)
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeEnabled()
 })
 
@@ -70,7 +67,7 @@ it('shows the 18+ step only after the explicit switch, and needs an adult age', 
   await chooseOption(screen.getByLabelText('Age'), 'early 30s')
   await step('Intimacy')
   await userEvent.click(screen.getByRole('button', { name: 'Topless' }))
-  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('Clothing adjusted to expose breasts, no bra')
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('She is topless with nothing worn above the waist, bare breasts and nipples fully visible')
 })
 
 it('refuses explicit prompts that suggest a minor', async () => {
@@ -91,9 +88,35 @@ it('blocks prompts over the length limit', async () => {
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeDisabled()
 })
 
-it('warns that tag-based models follow sentences less closely', () => {
+it('writes weighted tags for tag-based models, and a description for the others', async () => {
   renderDialog({ model: animeModel })
-  expect(screen.getByText(/reads short tags best/)).toBeInTheDocument()
+  expect(screen.getByText(/Written as tags for WAI-Illustrious/)).toBeInTheDocument()
+  await chooseOption(screen.getByLabelText('Who'), 'woman')
+  await chooseOption(screen.getByLabelText('Age'), 'early 30s')
+  await userEvent.click(screen.getByRole('switch'))
+  await step('Intimacy')
+  await userEvent.click(screen.getByRole('button', { name: 'Fully nude' }))
+
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(
+    'masterpiece, best quality, amazing quality, 1girl, solo, adult woman, early 30s, (completely nude:1.3), (nipples:1.3), (pussy:1.3)',
+  )
+})
+
+it('offers partner actions only for a couple', async () => {
+  renderDialog()
+  await chooseOption(screen.getByLabelText('Who'), 'woman')
+  await chooseOption(screen.getByLabelText('Age'), 'early 30s')
+  await userEvent.click(screen.getByRole('switch'))
+  await step('Pose')
+  await userEvent.click(screen.getByLabelText('Explicit action'))
+  expect(screen.queryByRole('group', { name: 'With a partner' })).not.toBeInTheDocument()
+  await userEvent.keyboard('{Escape}')
+
+  await step('Subject')
+  await chooseOption(screen.getByLabelText('Who'), 'couple')
+  await step('Pose')
+  await userEvent.click(screen.getByLabelText('Explicit action'))
+  expect(await screen.findByRole('group', { name: 'With a partner' })).toBeInTheDocument()
 })
 
 it('closes only an open list on Escape, then the dialog on a second Escape', async () => {

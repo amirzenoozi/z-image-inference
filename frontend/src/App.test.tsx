@@ -126,12 +126,12 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByLabelText('Prompt')).toHaveValue('Photo of an adult man.')
+  expect(screen.getByLabelText('Prompt')).toHaveValue('A photograph of an adult man.')
   expect(api.generateImage).not.toHaveBeenCalled()
 
   await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
   expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({
-    prompt: 'Photo of an adult man.',
+    prompt: 'A photograph of an adult man.',
     negativePrompt: expect.stringContaining('extra fingers'),
   })
 })
@@ -175,4 +175,23 @@ it('starts History clean when coming back to it from Create', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'History' }))
 
   expect(window.location.pathname + window.location.search).toBe('/history')
+})
+
+it('drops "nsfw" from the negative prompt when an explicit prompt is appended', async () => {
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
+  await userEvent.click(screen.getByRole('radio', { name: /WAI-Illustrious/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Use defaults' }))
+  expect(screen.getByLabelText('Negative prompt')).toHaveValue('nsfw, low quality')
+  await userEvent.type(screen.getByLabelText('Prompt'), 'soft light')
+
+  await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
+  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  await chooseOption(within(dialog).getByLabelText('Who'), 'woman')
+  await chooseOption(within(dialog).getByLabelText('Age'), 'early 30s')
+  await userEvent.click(within(dialog).getByRole('switch'))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Append to prompt' }))
+
+  expect(screen.getByLabelText('Negative prompt')).toHaveDisplayValue(/^low quality, /)
+  expect(screen.getByLabelText('Prompt')).toHaveDisplayValue(/^soft light masterpiece, best quality/)
 })
