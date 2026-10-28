@@ -283,3 +283,43 @@ def test_model_actions_reject_unknown_models_before_calling_the_server(client: T
     monkeypatch.setattr(main.requests, "request", lambda *args, **kwargs: pytest.fail("must not reach the model server"))
     assert client.post("/api/models/not-a-model/download").status_code == 404
     assert client.delete("/api/models/not-a-model").status_code == 404
+
+
+JOB = "11111111-2222-4333-8444-555555555555"
+
+
+def test_job_progress_and_cancel_are_forwarded(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str]] = []
+
+    def model_server_says(status: int, body: object):
+        def call(method: str, url: str, timeout: float) -> requests.Response:
+            calls.append((method, url))
+            return fake_response(status, body)
+        return call
+
+    monkeypatch.setattr(main.requests, "request", model_server_says(200, {"phase": "generating", "step": 4, "total": 9}))
+    assert client.get(f"/api/jobs/{JOB}/progress").json() == {"phase": "generating", "step": 4, "total": 9}
+    assert calls[-1] == ("GET", f"http://127.0.0.1:8000/jobs/{JOB}")
+
+    monkeypatch.setattr(main.requests, "request", model_server_says(204, None))
+    assert client.post(f"/api/jobs/{JOB}/cancel").status_code == 204
+    assert calls[-1] == ("POST", f"http://127.0.0.1:8000/jobs/{JOB}/cancel")
+
+    monkeypatch.setattr(main.requests, "request", model_server_says(404, {"detail": "No such job; it may have finished"}))
+    assert client.get(f"/api/jobs/{JOB}/progress").status_code == 404
+
+
+def test_job_ids_are_checked_before_calling_the_server(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main.requests, "request", lambda *args, **kwargs: pytest.fail("must not reach the model server"))
+    assert client.get("/api/jobs/not-a-job/progress").status_code == 422
+    assert client.post("/api/jobs/not-a-job/cancel").status_code == 422
+
+
+def test_a_cancelled_generation_is_reported_as_cancelled(client: TestClient, model_server: FakeModelServer) -> None:
+    model_server.status, model_server.body = 409, {"detail": "Cancelled"}
+
+    resp = generate(client, job_id=JOB)
+
+    assert (resp.status_code, resp.json()["detail"]) == (409, "Cancelled")
+    assert model_server.calls[-1]["job_id"] == JOB
+    assert client.get("/api/history").json()["total"] == 0
