@@ -32,22 +32,20 @@ from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
-from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, compression_enabled, kept_gb
+from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
 
 MODELS_DIR = Path(__file__).parent / "models"
 HF_CACHE_DIR = MODELS_DIR / ".hf-cache"
 Z_IMAGE_PATH = MODELS_DIR / "Z-Image-Turbo"
-# Quantisation levels mflux supports; each level gets its own folder beside the kept original
-Z_IMAGE_LEVELS = (8, 6, 5, 4, 3)
 
 
 def z_image_quantized_path(bits: int) -> Path:
+    """Each level gets its own folder beside the kept original."""
     return MODELS_DIR / f"zimage-q{bits}"
 
 
-Z_IMAGE_Q4_PATH = z_image_quantized_path(4)
 WAI_ILLUSTRIOUS_PATH = MODELS_DIR / "waiNSFWIllustrious_v120"
 # The repo's "fp16" files are full precision too, so fetch only one set
 WAI_ILLUSTRIOUS_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
@@ -68,7 +66,6 @@ MOSS_TEXT_ENCODER_Q8_PATH = MOSS_IMAGE_PATH / "text_encoder-q8"
 QUANTO_MAP_FILE = "quanto_qmap.json"
 # Only the merged model; its pipeline code is vendored in moss_pipeline.py
 MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged-model/**/*.safetensors"]
-QUANTIZE_BITS = 4
 
 
 @dataclass(frozen=True)
@@ -137,12 +134,17 @@ def build_z_image_quantized(bits: int, target: Path) -> None:
     building.rename(target)
 
 
+def z_image_model_path() -> Path:
+    bits = z_image_bits()
+    if bits is None:
+        return Z_IMAGE_PATH
+    target = z_image_quantized_path(bits)
+    build_z_image_quantized(bits, target)
+    return target
+
+
 def load_z_image() -> ImageGenerator:
-    if compression_enabled():
-        build_z_image_quantized(QUANTIZE_BITS, Z_IMAGE_Q4_PATH)
-        model = ZImage(model_path=str(Z_IMAGE_Q4_PATH))
-    else:
-        model = ZImage(model_path=str(Z_IMAGE_PATH))
+    model = ZImage(model_path=str(z_image_model_path()))
 
     def generate(job: Job) -> Image.Image:
         return model.generate_image(
@@ -408,10 +410,12 @@ downloads: dict[str, Future[None]] = {}
 
 
 def is_downloaded(model_id: str) -> bool:
-    """Whether the files the current mode needs are on disk (compressed copies, or the originals)."""
+    """Whether the files the current mode needs are on disk (compressed copies, or the originals).
+
+    Z-Image's original is always kept, and its quantised copy is built from it when the model loads.
+    """
     if compression_enabled():
-        # Z-Image's 4-bit copy replaces its download, which is deleted once the copy is built
-        return (model_id == Z_IMAGE.id and Z_IMAGE_Q4_PATH.exists()) or download_marker(DOWNLOAD_PATHS[model_id]).exists()
+        return download_marker(DOWNLOAD_PATHS[model_id]).exists()
     return download_marker(DOWNLOAD_PATHS[model_id]).exists() and not missing_original_parts(model_id)
 
 
@@ -460,9 +464,9 @@ def free_bytes() -> int:
 
 
 def space_needed_bytes(model_id: str) -> int:
-    # The download plus room for the one-time setup, which writes the kept copy before deleting originals
+    # The download plus room for the one-time setup, which writes the compressed copy beside the originals
     spec = MODELS[model_id]
-    setup_gb = kept_gb(spec) if compression_enabled() else 0
+    setup_gb = spec.compressed_gb if runs_compressed(spec) else 0
     return int((spec.download_gb + setup_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
 
 

@@ -66,3 +66,21 @@ def test_an_interrupted_build_leaves_no_copy(original: Path, tmp_path: Path) -> 
     FakeZImage.fail_while_saving = False
     model_server.build_z_image_quantized(4, target)
     assert (target / "0.safetensors").exists()
+
+
+@pytest.mark.parametrize(("setting", "folder"), [(None, "zimage-q8"), ("4", "zimage-q4"), ("original", "Z-Image-Turbo")])
+def test_z_image_runs_the_level_chosen_in_z_image_bits(original: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, setting: str | None, folder: str) -> None:
+    monkeypatch.setattr(model_server, "MODELS_DIR", tmp_path)
+    monkeypatch.delenv("Z_IMAGE_BITS", raising=False)
+    if setting is not None:
+        monkeypatch.setenv("Z_IMAGE_BITS", setting)
+
+    assert model_server.z_image_model_path() == tmp_path / folder
+    assert (tmp_path / folder).exists()
+    assert original.exists()
+
+
+def test_an_unknown_z_image_level_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("Z_IMAGE_BITS", "2")
+    with pytest.raises(ValueError, match="Z_IMAGE_BITS"):
+        model_server.z_image_model_path()
