@@ -132,3 +132,10 @@ it('closes only an open list on Escape, then the dialog on a second Escape', asy
   await userEvent.keyboard('{Escape}')
   expect(onClose).toHaveBeenCalledOnce()
 })
+
+it('puts its buttons, and the note about them, in the actions footer', async () => {
+  renderDialog({ hasExistingPrompt: true })
+  const footer = within(screen.getByRole('group', { name: 'Dialog actions' }))
+  expect(footer.getAllByRole('button').map((button) => button.textContent)).toEqual(['Cancel', 'Append to prompt', 'Use this prompt'])
+  expect(footer.getByText('Use this prompt replaces the text in the Write box.')).toBeInTheDocument()
+})

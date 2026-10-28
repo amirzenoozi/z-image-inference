@@ -641,3 +641,36 @@ it('goes full screen with the button or Z, and leaves it again', async () => {
   expect(exit).toHaveBeenCalledOnce()
   expect(within(viewer()).getByRole('button', { name: 'Full screen' })).toBeInTheDocument()
 })
+
+it('puts each History dialog\'s buttons in its actions footer, and the image view\'s beside the image', async () => {
+  serveHistory(2)
+  renderHistory()
+  const footer = () => within(screen.getByRole('group', { name: 'Dialog actions' }))
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Delete all' }))
+  expect(footer().getByRole('button', { name: 'Delete all' })).toBeInTheDocument()
+  await userEvent.click(footer().getByRole('button', { name: 'Cancel' }))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Clean up' }))
+  expect(footer().getByRole('button', { name: /^Delete|^No images/ })).toBeInTheDocument()
+  await userEvent.click(footer().getByRole('button', { name: 'Cancel' }))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Open: image 2' }))
+  // The image view has two columns, so its actions sit at the bottom of the details column instead
+  expect(screen.queryByRole('group', { name: 'Dialog actions' })).not.toBeInTheDocument()
+  const imageActions = within(screen.getByRole('group', { name: 'Image actions' }))
+  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Delete', 'Reuse settings'])
+  expect(imageActions.getByRole('link', { name: 'Download' })).toBeInTheDocument()
+})
+
+it('keeps the Clean up delete button neutral while the counts load', async () => {
+  vi.mocked(api.fetchHistorySummary).mockReturnValue(deferred<typeof summary>().promise)
+  fetchHistory.mockResolvedValue(page(2))
+  renderHistory()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Clean up' }))
+
+  const deleteButton = within(screen.getByRole('group', { name: 'Dialog actions' })).getByRole('button', { name: 'Delete' })
+  expect(deleteButton).toBeDisabled()
+  expect(screen.queryByText(/No images older/)).not.toBeInTheDocument()
+})

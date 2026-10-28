@@ -19,11 +19,7 @@ export function HistoryCleanUp({ onCleaned }: { onCleaned: () => void }) {
       <button type="button" onClick={() => setOpen(true)} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
         Clean up
       </button>
-      {open && (
-        <Modal title="Clean up history" onClose={() => setOpen(false)}>
-          <CleanUpContent summary={summary} onRetry={retry} onClose={() => setOpen(false)} onCleaned={onCleaned} />
-        </Modal>
-      )}
+      {open && <CleanUpDialog summary={summary} onRetry={retry} onClose={() => setOpen(false)} onCleaned={onCleaned} />}
     </>
   )
 }
@@ -35,29 +31,18 @@ function StorageSize({ summary }: { summary: Loadable<HistorySummary> }) {
   return <span className="text-sm text-zinc-500 dark:text-zinc-400">{formatSize(summary.value.bytes)} used</span>
 }
 
-interface ContentProps {
+interface DialogProps {
   summary: Loadable<HistorySummary>
   onRetry: () => void
   onClose: () => void
   onCleaned: () => void
 }
 
-function CleanUpContent({ summary, onRetry, onClose, onCleaned }: ContentProps) {
-  if (summary.status === 'pending') {
-    return (
-      <p role="status" className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner className="size-4" /> Counting images…
-      </p>
-    )
-  }
-  if (summary.status === 'failed') return <ErrorNotice message={summary.error} onRetry={onRetry} />
-  return <CleanUpChoices summary={summary.value} onClose={onClose} onCleaned={onCleaned} />
-}
-
-function CleanUpChoices({ summary, onClose, onCleaned }: { summary: HistorySummary; onClose: () => void; onCleaned: () => void }) {
+function CleanUpDialog({ summary, onRetry, onClose, onCleaned }: DialogProps) {
   const [days, setDays] = useState(30)
   const [state, setState] = useState<DeleteState>({ status: 'idle' })
-  const count = summary.older_than.find((age) => age.days === days)?.count ?? 0
+  // null while the counts are unknown (loading or failed), so the button never reads as "nothing to delete" then
+  const count = summary.status === 'settled' ? (summary.value.older_than.find((age) => age.days === days)?.count ?? 0) : null
 
   const remove = async () => {
     setState({ status: 'deleting' })
@@ -71,46 +56,88 @@ function CleanUpChoices({ summary, onClose, onCleaned }: { summary: HistorySumma
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+    <Modal
+      title="Clean up history"
+      onClose={onClose}
+      actions={
+        <>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
+            Cancel
+          </button>
+          <DeleteOldButton count={count} days={days} deleting={state.status === 'deleting'} onDelete={() => void remove()} />
+        </>
+      }
+    >
+      <CleanUpContent summary={summary} days={days} onDaysChange={setDays} onRetry={onRetry} />
+      {state.status === 'failed' && (
+        <div className="mt-5">
+          <ErrorNotice message={state.error} />
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+interface ContentProps {
+  summary: Loadable<HistorySummary>
+  days: number
+  onDaysChange: (days: number) => void
+  onRetry: () => void
+}
+
+function CleanUpContent({ summary, days, onDaysChange, onRetry }: ContentProps) {
+  if (summary.status === 'pending') {
+    return (
+      <p role="status" className="flex items-center gap-2 text-sm text-zinc-500">
+        <Spinner className="size-4" /> Counting images…
+      </p>
+    )
+  }
+  if (summary.status === 'failed') return <ErrorNotice message={summary.error} onRetry={onRetry} />
+  return <AgeChoices summary={summary.value} days={days} onDaysChange={onDaysChange} />
+}
+
+function AgeChoices({ summary, days, onDaysChange }: { summary: HistorySummary; days: number; onDaysChange: (days: number) => void }) {
+  return (
+    <div className="space-y-5 py-1">
+      <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
         History uses {formatSize(summary.bytes)} for {summary.total} images. Delete the images older than:
       </p>
-      <div role="radiogroup" aria-label="Age" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label="Age" className="grid grid-cols-3 gap-3">
         {summary.older_than.map((age) => (
           <button
             key={age.days}
             type="button"
             role="radio"
             aria-checked={days === age.days}
-            onClick={() => setDays(age.days)}
-            className={`rounded-lg border px-2 py-2 text-sm ${chipClass(days === age.days)}`}
+            onClick={() => onDaysChange(age.days)}
+            className={`rounded-lg border px-3 py-3 text-sm ${chipClass(days === age.days)}`}
           >
             {age.days} days
-            <span className="block text-xs text-zinc-500 dark:text-zinc-400">{age.count === 1 ? '1 image' : `${age.count} images`}</span>
+            <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">{age.count === 1 ? '1 image' : `${age.count} images`}</span>
           </button>
         ))}
       </div>
-      {state.status === 'failed' && <ErrorNotice message={state.error} />}
-      <div className="flex justify-end gap-2">
-        <button type="button" onClick={onClose} className={secondaryButtonClass}>
-          Cancel
-        </button>
-        <DeleteOldButton count={count} days={days} deleting={state.status === 'deleting'} onDelete={() => void remove()} />
-      </div>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">Favourites are always kept.</p>
     </div>
   )
 }
 
-function DeleteOldButton({ count, days, deleting, onDelete }: { count: number; days: number; deleting: boolean; onDelete: () => void }) {
-  const label = count === 0 ? `No images older than ${days} days` : `Delete ${count === 1 ? '1 image' : `${count} images`}`
+function deleteLabel(count: number | null, days: number): string {
+  if (count === null) return 'Delete'
+  if (count === 0) return `No images older than ${days} days`
+  return `Delete ${count === 1 ? '1 image' : `${count} images`}`
+}
+
+function DeleteOldButton({ count, days, deleting, onDelete }: { count: number | null; days: number; deleting: boolean; onDelete: () => void }) {
   return (
     <button
       type="button"
       onClick={onDelete}
-      disabled={deleting || count === 0}
+      disabled={deleting || !count}
       className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
     >
-      {deleting ? 'Deleting…' : label}
+      {deleting ? 'Deleting…' : deleteLabel(count, days)}
     </button>
   )
 }
