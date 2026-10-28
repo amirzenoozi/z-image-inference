@@ -6,6 +6,7 @@ import App from './App'
 import { catalog, deferred, historyItem } from './test/fixtures'
 import type { HistoryItem } from './types'
 import { chooseOption } from './test/select'
+import { STATUS_POLL_MS } from './lib/modelStatus'
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
@@ -42,7 +43,7 @@ it('generates exactly once and shows the image only after it arrives', async () 
 
   expect(api.generateImage).toHaveBeenCalledOnce()
   expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({ prompt: 'a red fox', modelId: 'z-image-turbo' })
-  expect(screen.getByRole('button', { name: 'Generating…' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Generating…' })).toHaveAttribute('aria-disabled', 'true')
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
 
   pending.resolve(historyItem({ id: 3, prompt: 'a red fox' }))
@@ -110,7 +111,7 @@ it('cancels the running generation once and goes back to the previous result wit
 
   expect(await screen.findByRole('img', { name: 'a red fox' })).toBeInTheDocument()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Generate' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'false')
 })
 
 it('shows a retryable error when the catalog cannot load', async () => {
@@ -247,7 +248,7 @@ it('blocks Generate, saying why, when the model can\'t start from an image', asy
   const block = await screen.findByRole('group', { name: 'Start image' })
   expect(within(block).getByRole('alert')).toHaveTextContent("Z-Image-Turbo can’t start from an image")
   expect(within(block).queryByRole('slider')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Generate' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true')
 })
 
 it('gives every button a name, including those that show only an icon', async () => {
@@ -264,4 +265,41 @@ it('gives every button a name, including those that show only an icon', async ()
 
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   expect(unnamed()).toEqual([])
+})
+
+it('blocks Generate while the model server is down, saying why, and unblocks once it starts', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  const ready = { status: 'ready' as const, size_bytes: 1 }
+  vi.mocked(api.fetchModelStatus)
+    .mockResolvedValueOnce({ server_running: false, models: {}, free_bytes: null })
+    .mockResolvedValue({ server_running: true, models: { 'z-image-turbo': ready, 'wai-illustrious': ready }, free_bytes: 1e11 })
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem())
+  render(<App />)
+
+  await user.type(await screen.findByLabelText('Prompt'), 'a red fox')
+  const generate = screen.getByRole('button', { name: 'Generate' })
+  await waitFor(() => expect(generate).toHaveAttribute('aria-disabled', 'true'))
+  expect(generate).toHaveAccessibleDescription("The model server isn't running yet. Start it with: uv run python model_server.py")
+
+  generate.focus()
+  await user.tab({ shift: true })
+  await user.tab()
+  expect(document.querySelector('[data-tooltip]')).toHaveTextContent("The model server isn't running yet")
+  await user.click(generate)
+  await user.keyboard('{Meta>}{Enter}{/Meta}')
+  expect(api.generateImage).not.toHaveBeenCalled()
+
+  await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS))
+  await waitFor(() => expect(generate).toHaveAttribute('aria-disabled', 'false'))
+  await user.click(generate)
+  expect(api.generateImage).toHaveBeenCalledOnce()
+  vi.useRealTimers()
+})
+
+it('explains a blocked Generate when there is no prompt yet', async () => {
+  render(<App />)
+  const generate = await screen.findByRole('button', { name: 'Generate' })
+  await waitFor(() => expect(generate).toHaveAccessibleDescription('Write a prompt first'))
+  expect(generate).toHaveAttribute('aria-disabled', 'true')
 })

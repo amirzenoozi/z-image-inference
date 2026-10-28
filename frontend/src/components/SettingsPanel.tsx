@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../types'
+import { isServerDown } from '../lib/modelStatus'
 import { differsFromDefaults, findModel, modelDefaults, switchModel } from '../lib/settings'
+import { useTooltip } from '../lib/useTooltip'
 import { tabClass } from '../lib/styles'
 import { ChatPanel } from './ChatPanel'
 import { ModelPicker } from './ModelPicker'
@@ -29,6 +31,11 @@ interface Props {
 export function SettingsPanel(props: Props) {
   const { catalog, settings, onChange, generating, lastSeed, onGenerate } = props
   const model = findModel(catalog, settings.modelId)
+  const reason = blockedReason(settings, model, isServerDown(props.modelStatus))
+  // The same rule for the button and for ⌘/Ctrl + Enter in the prompt box
+  const generate = () => {
+    if (reason === null && !generating) onGenerate()
+  }
   const [defaultsHintFor, setDefaultsHintFor] = useState<string | null>(null)
   const patch = (changes: Partial<GenerationSettings>) => onChange({ ...settings, ...changes })
   const applyDefaults = () => {
@@ -48,7 +55,7 @@ export function SettingsPanel(props: Props) {
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
         </Section>
-        <PromptSection {...props} model={model} patch={patch} />
+        <PromptSection {...props} onGenerate={generate} model={model} patch={patch} />
         <Section title="Resolution">
           <ResolutionPicker
             width={settings.width}
@@ -71,15 +78,19 @@ export function SettingsPanel(props: Props) {
           <SamplingControls settings={settings} model={model} limits={catalog.limits} lastSeed={lastSeed} onChange={patch} />
         </Section>
       </div>
-      <GenerateBar disabled={!canGenerate(settings, model, generating)} generating={generating} onGenerate={onGenerate} />
+      <GenerateBar reason={reason} generating={generating} onGenerate={generate} />
     </div>
   )
 }
 
-/** A start image the model can't use blocks Generate, rather than being ignored. */
-function canGenerate(settings: GenerationSettings, model: ModelInfo, generating: boolean): boolean {
-  const startImageFits = settings.startImage === null || model.supports_variations
-  return [!generating, settings.prompt.trim() !== '', startImageFits].every(Boolean)
+export const SERVER_DOWN_REASON = "The model server isn't running yet. Start it with: uv run python model_server.py"
+
+/** Why Generate can't run now, shown in its tooltip; null when it can. A start image the model can't use blocks it, rather than being ignored. */
+function blockedReason(settings: GenerationSettings, model: ModelInfo, serverDown: boolean): string | null {
+  if (serverDown) return SERVER_DOWN_REASON
+  if (!settings.prompt.trim()) return 'Write a prompt first'
+  if (settings.startImage && !model.supports_variations) return `${model.label} can't start from an image`
+  return null
 }
 
 function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply: () => void; onDismiss: () => void }) {
@@ -138,18 +149,26 @@ function PromptSection(props: PromptSectionProps) {
   )
 }
 
-function GenerateBar({ disabled, generating, onGenerate }: { disabled: boolean; generating: boolean; onGenerate: () => void }) {
+/**
+ * Blocked, it stays hoverable and focusable (aria-disabled rather than disabled), so its tooltip can say why;
+ * a disabled button gets no hover or focus at all.
+ */
+function GenerateBar({ reason, generating, onGenerate }: { reason: string | null; generating: boolean; onGenerate: () => void }) {
+  const { trigger, tooltip } = useTooltip(reason ?? '')
   return (
     <div className="border-t border-zinc-200 bg-white/80 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
       <button
         type="button"
         onClick={onGenerate}
-        disabled={disabled}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-disabled={reason !== null || generating}
+        aria-description={reason ?? undefined}
+        {...(reason ? trigger : {})}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white shadow-sm transition not-aria-disabled:hover:bg-violet-500 aria-disabled:opacity-50"
       >
         {generating && <Spinner className="size-4" />}
         {generating ? 'Generating…' : 'Generate'}
       </button>
+      {tooltip}
     </div>
   )
 }
