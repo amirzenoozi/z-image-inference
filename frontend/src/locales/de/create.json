@@ -140,5 +140,8 @@
   "modelDescription_realvisxl": "SDXL, fotorealistische Menschen; fixiert das Gesicht einer Figur im Fotostil.",
   "modelCategory_photo": "Fotorealistisch",
   "modelCategory_anime": "Anime & Illustration",
-  "changeAmount": "Änderung"
+  "changeAmount": "Änderung",
+  "modelDescription_flux-dev": "Detaillierte fotorealistische Bilder; langsam, der Download braucht ein Hugging-Face-Token.",
+  "modelDescription_flux-create-nsfw": "FLUX.1-dev mit der create-nsfw-LoRA, für Aktfotos.",
+  "modelDescription_flux-asian-nudity": "FLUX.1-dev mit der asian-nudity-2-LoRA, für Aktfotos ostasiatischer Frauen."
 }

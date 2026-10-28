@@ -39,5 +39,6 @@
   "cancelled": "Geannuleerd",
   "notEnoughSpace": "Niet genoeg schijfruimte: maak ongeveer {gb} GB extra vrij en probeer het opnieuw.",
   "removeWhileDownloading": "{label} wordt gedownload; verwijder het als de download klaar is.",
-  "noSuchJob": "Deze taak bestaat niet; misschien is hij al klaar"
+  "noSuchJob": "Deze taak bestaat niet; misschien is hij al klaar",
+  "needsHfToken": "{label} is afgeschermd op Hugging Face: accepteer de licentie op de modelpagina, zet dan HF_TOKEN=<je token> in .env en start de modelserver opnieuw."
 }
