@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { deleteCharacter, imageUrl } from '../api'
+import { GENDERS, matchesGender, useGenderFilter, type Gender } from '../lib/characterFilter'
 import { useCharacters } from '../lib/characters'
 import { errorMessage } from '../lib/hooks'
 import { traitsSummary } from '../lib/promptBuilder/character'
-import { secondaryButtonClass } from '../lib/styles'
+import { secondaryButtonClass, tabClass } from '../lib/styles'
 import type { Character } from '../types'
 import { CharacterEditor } from './CharacterEditor'
 import { IconButton } from './IconButton'
@@ -24,32 +25,32 @@ type Editing = { character: Character | null } | null
 
 export function CharactersPanel({ maxSeed, onUse, onShowImages }: Props) {
   const { characters, reload } = useCharacters()
+  const [gender, setGender] = useGenderFilter()
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<Character | null>(null)
+  const all = characters.status === 'settled' ? characters.value : null
+  const shown = all?.filter((character) => matchesGender(character, gender)) ?? null
   return (
     <div className="space-y-5 p-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{countLabel(characters.status === 'settled' ? characters.value.length : null)}</p>
-        <button type="button" onClick={() => setEditing({ character: null })} className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
+      <div className="flex flex-wrap items-center gap-3">
+        <GenderSwitch gender={gender} onChange={setGender} />
+        <p className="text-sm text-zinc-500 tabular-nums dark:text-zinc-400">{countLabel(shown?.length ?? null, all?.length ?? null)}</p>
+        <button type="button" onClick={() => setEditing({ character: null })} className="ml-auto flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
           <Plus /> New character
         </button>
       </div>
       {characters.status === 'pending' && <CharactersSkeleton />}
       {characters.status === 'failed' && <ErrorNotice message={characters.error} onRetry={reload} />}
-      {characters.status === 'settled' && characters.value.length === 0 && <NoCharacters />}
-      {characters.status === 'settled' && characters.value.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {characters.value.map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              onUse={() => onUse(character)}
-              onShowImages={() => onShowImages(character)}
-              onEdit={() => setEditing({ character })}
-              onDelete={() => setDeleting(character)}
-            />
-          ))}
-        </ul>
+      {all && shown && (
+        <CharacterResults
+          all={all}
+          shown={shown}
+          onShowAll={() => setGender('all')}
+          onUse={onUse}
+          onShowImages={onShowImages}
+          onEdit={(character) => setEditing({ character })}
+          onDelete={setDeleting}
+        />
       )}
       {editing && <CharacterEditor character={editing.character} maxSeed={maxSeed} onClose={() => setEditing(null)} />}
       {deleting && <ConfirmDelete character={deleting} onClose={() => setDeleting(null)} />}
@@ -57,9 +58,65 @@ export function CharactersPanel({ maxSeed, onUse, onShowImages }: Props) {
   )
 }
 
-function countLabel(count: number | null): string {
-  if (count === null) return 'Loading characters…'
-  return count === 1 ? '1 character' : `${count} characters`
+interface ResultsProps {
+  all: Character[]
+  /** The characters the gender filter lets through. */
+  shown: Character[]
+  onShowAll: () => void
+  onUse: (character: Character) => void
+  onShowImages: (character: Character) => void
+  onEdit: (character: Character) => void
+  onDelete: (character: Character) => void
+}
+
+/** The loaded characters: the cards, or why there are none (no characters at all, or none of this gender). */
+function CharacterResults({ all, shown, onShowAll, ...actions }: ResultsProps) {
+  if (all.length === 0) return <NoCharacters />
+  if (shown.length === 0) return <NoMatches onShowAll={onShowAll} />
+  return (
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      {shown.map((character) => (
+        <CharacterCard
+          key={character.id}
+          character={character}
+          onUse={() => actions.onUse(character)}
+          onShowImages={() => actions.onShowImages(character)}
+          onEdit={() => actions.onEdit(character)}
+          onDelete={() => actions.onDelete(character)}
+        />
+      ))}
+    </ul>
+  )
+}
+
+/** "13 characters", or "5 of 13 characters" while the filter hides some; null counts are still loading. */
+function countLabel(shown: number | null, total: number | null): string {
+  if (shown === null || total === null) return 'Loading characters…'
+  const characters = total === 1 ? '1 character' : `${total} characters`
+  return shown === total ? characters : `${shown} of ${characters}`
+}
+
+function GenderSwitch({ gender, onChange }: { gender: Gender; onChange: (gender: Gender) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Gender" className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm dark:bg-zinc-800/70">
+      {GENDERS.map(({ id, label }) => (
+        <button key={id} type="button" role="radio" aria-checked={gender === id} onClick={() => onChange(id)} className={`rounded-lg px-3 py-1 font-medium transition ${tabClass(gender === id)}`}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function NoMatches({ onShowAll }: { onShowAll: () => void }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+      <p>No characters match.</p>
+      <button type="button" onClick={onShowAll} className={`${secondaryButtonClass} mt-3`}>
+        Show all
+      </button>
+    </div>
+  )
 }
 
 interface CardProps {

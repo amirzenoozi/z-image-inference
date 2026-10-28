@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
 import { CharactersContext } from '../lib/characters'
 import { character } from '../test/fixtures'
@@ -99,4 +99,68 @@ it('changes the face strength or removes the face image', async () => {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 
   expect(api.updateCharacter).toHaveBeenCalledWith(3, expect.objectContaining({ face_id: null, face_strength: 0.8 }))
+})
+
+afterEach(() => window.history.replaceState(null, '', '/'))
+
+const women = character({ id: 1, name: 'Mei' })
+const man = character({ id: 2, name: 'Ravi', traits: { ...character().traits, who: 'man', bust: '' } })
+const couple = character({ id: 4, name: 'Duo', traits: { ...character().traits, who: 'couple' } })
+
+it('filters the characters by gender, keeping the choice in the address', async () => {
+  window.history.replaceState(null, '', '/characters')
+  renderPanel({ status: 'settled', value: [women, man, couple] })
+  expect(screen.getByText('3 characters')).toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('radio', { name: 'Men' }))
+  expect(screen.getAllByRole('listitem').map((card) => card.getAttribute('aria-label'))).toEqual(['Ravi'])
+  expect(screen.getByText('1 of 3 characters')).toBeInTheDocument()
+  expect(window.location.search).toBe('?gender=men')
+
+  await userEvent.click(screen.getByRole('radio', { name: 'Women' }))
+  expect(screen.getAllByRole('listitem').map((card) => card.getAttribute('aria-label'))).toEqual(['Mei'])
+  await userEvent.click(screen.getByRole('radio', { name: 'All' }))
+  expect(screen.getAllByRole('listitem')).toHaveLength(3)
+  expect(window.location.search).toBe('')
+})
+
+it('opens with the gender named in the address, and offers to show all when none match', async () => {
+  window.history.replaceState(null, '', '/characters?gender=men')
+  renderPanel({ status: 'settled', value: [women] })
+  expect(screen.getByRole('radio', { name: 'Men' })).toHaveAttribute('aria-checked', 'true')
+  expect(screen.getByText('No characters match.')).toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Show all' }))
+  expect(screen.getByRole('listitem', { name: 'Mei' })).toBeInTheDocument()
+})
+
+it('fills the look with Surprise me, keeping the name and "Who"', async () => {
+  renderPanel({ status: 'settled', value: [man] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ravi' })
+
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Surprise me' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  const [, saved] = vi.mocked(api.updateCharacter).mock.calls[0]
+  expect(saved).toMatchObject({ name: 'Ravi', traits: expect.objectContaining({ who: 'man', bust: '' }) })
+  expect(saved.traits?.hairColor).not.toBe('')
+})
+
+it('lets a gender in the address win over the remembered one', () => {
+  localStorage.setItem('z-image-studio.character-gender.v1', 'men')
+  window.history.replaceState(null, '', '/characters?gender=women')
+  renderPanel({ status: 'settled', value: [women, man] })
+  expect(screen.getByRole('radio', { name: 'Women' })).toHaveAttribute('aria-checked', 'true')
+})
+
+it('opens with the remembered gender when the address has none, and forgets it on All', async () => {
+  localStorage.setItem('z-image-studio.character-gender.v1', 'women')
+  window.history.replaceState(null, '', '/characters')
+  renderPanel({ status: 'settled', value: [women, man] })
+  expect(screen.getByRole('radio', { name: 'Women' })).toHaveAttribute('aria-checked', 'true')
+  expect(window.location.search).toBe('?gender=women')
+
+  await userEvent.click(screen.getByRole('radio', { name: 'All' }))
+  expect(localStorage.getItem('z-image-studio.character-gender.v1')).toBeNull()
 })
