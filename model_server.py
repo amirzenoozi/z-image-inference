@@ -329,7 +329,7 @@ DOWNLOAD_PATHS: dict[str, Path] = {
     ANIME_DESIRE.id: ANIME_DESIRE_PATH,
 }
 
-ModelStatus = Literal["ready", "downloading", "missing", "failed"]
+ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
 
 # Downloads get their own thread, so generating with a downloaded model is never blocked by one
 download_thread = ThreadPoolExecutor(max_workers=1)
@@ -349,7 +349,10 @@ def model_status(model_id: str) -> ModelStatus:
     download = downloads.get(model_id)
     if download is None:
         return "missing"
-    return "downloading" if not download.done() else "failed"
+    if download.done():
+        return "failed"
+    # Downloads run one at a time; the others wait their turn
+    return "downloading" if download.running() else "queued"
 
 
 def start_download(model_id: str) -> None:
@@ -404,10 +407,11 @@ def generate_png(model_id: str, job: Job) -> bytes:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Queue every missing model at start, default first, so each is ready before it is first chosen
+    for model_id in sorted(MODELS, key=lambda model_id: model_id != DEFAULT_MODEL.id):
+        start_download(model_id)
     if is_downloaded(DEFAULT_MODEL.id):
         await asyncio.get_running_loop().run_in_executor(model_thread, use_model, DEFAULT_MODEL.id)
-    else:
-        start_download(DEFAULT_MODEL.id)
     yield
 
 
