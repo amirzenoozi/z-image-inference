@@ -123,9 +123,9 @@ Requires an [xAI API key](https://x.ai/). The tab is disabled when no key is set
 
 ### History
 
-The **History** tab shows every image, newest first. Open one to see its prompt and settings, **Reuse settings** to load them into the panel with the same seed, download it or delete it.
+The **History** tab shows every image, newest first, 30 to a page, with page buttons below. Open one to see its prompt, settings and **colour palette** (its six main colours with their share of the image; click a colour to copy its hex code), **Reuse settings** to load them into the panel with the same seed, download it or delete it. The palette is worked out the first time an image is opened, then saved with it.
 
-Above the images, **Search prompts** finds images whose prompt contains the text you type, **Model** shows one model's images, and **★ Favourites** shows only the images you starred with the ☆ on each image. **Compare** lets you pick two images and see them side by side, with the facts that differ (seed, steps, size and so on) highlighted.
+Above the images, **Search prompts** finds images whose prompt contains the text you type, **Model** shows one model's images, **Ratio** shows square, portrait, landscape or widescreen images (grouped as in the resolution picker), and **★ Favourites** shows only the images you starred with the ☆ on each image. **Compare** lets you pick two images and see them side by side, with the facts that differ (seed, steps, size and so on) highlighted.
 
 Each image's facts include how long it took to render (images made before this was recorded show no time). The header shows how much space History uses; **Clean up** deletes the images older than 7, 30 or 90 days, showing how many first and always keeping favourites, and **Delete all** removes everything, favourites included. Both shrink `history.db` afterwards.
 
