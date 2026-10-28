@@ -17,6 +17,7 @@ dependencies = [
     "mflux>=0.23.0",
     "huggingface-hub>=1.33.0",
     "optimum-quanto>=0.2.7",
+    "compel==2.5.1",
 ]
 
 [dependency-groups]
