@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
-import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
+import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
+import { parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../lib/styles'
-import type { ModelInfo } from '../../types'
+import type { BuilderModeData, ModelInfo } from '../../types'
 import { Modal } from '../Modal'
+import { ModePicker } from './ModePicker'
 import { AppearanceStep, BodyStep, CameraStep, FinishStep, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
 import { Dices } from 'lucide-react'
 
 export type InsertMode = 'replace' | 'append'
 
 interface Step {
-  id: string
+  id: StepId
   label: string
   Component: ComponentType<StepProps>
-  explicitOnly?: boolean
 }
 
 const STEPS: Step[] = [
@@ -22,7 +23,7 @@ const STEPS: Step[] = [
   { id: 'body', label: 'Body', Component: BodyStep },
   { id: 'outfit', label: 'Outfit', Component: OutfitStep },
   { id: 'pose', label: 'Pose & action', Component: PoseStep },
-  { id: 'intimacy', label: 'Intimacy (18+)', Component: IntimacyStep, explicitOnly: true },
+  { id: 'intimacy', label: 'Intimacy (18+)', Component: IntimacyStep },
   { id: 'scene', label: 'Scene & light', Component: SceneStep },
   { id: 'camera', label: 'Camera', Component: CameraStep },
   { id: 'finish', label: 'Mood & finish', Component: FinishStep },
@@ -32,6 +33,8 @@ const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 
 interface Props {
   model: ModelInfo
+  /** The modes from prompt_modes.json; the builder checks them and leaves out any it cannot use. */
+  modes: readonly BuilderModeData[]
   hasExistingPrompt: boolean
   maxPromptLength: number
   onClose: () => void
@@ -39,13 +42,15 @@ interface Props {
   onConfirm: (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => void
 }
 
-export function PromptBuilderDialog({ model, hasExistingPrompt, maxPromptLength, onClose, onConfirm }: Props) {
+export function PromptBuilderDialog({ model, modes: modeData, hasExistingPrompt, maxPromptLength, onClose, onConfirm }: Props) {
   const [state, setState] = useState<BuilderState>(loadBuilderState)
-  const [stepId, setStepId] = useState(STEPS[0].id)
+  const [stepId, setStepId] = useState<StepId>(STEPS[0].id)
   useEffect(() => saveBuilderState(state), [state])
-  const result = useMemo(() => buildPrompt(state, model.prompt_style), [state, model.prompt_style])
+  const { modes, problems } = useMemo(() => parseModes(modeData), [modeData])
+  const mode = modes.find((candidate) => candidate.id === state.mode) ?? modes[0]
+  const result = useMemo(() => buildPrompt(state, mode, model.prompt_style), [state, mode, model.prompt_style])
 
-  const steps = STEPS.filter((step) => !step.explicitOnly || state.explicit)
+  const steps = STEPS.filter((step) => mode.steps.includes(step.id))
   const step = steps.find((candidate) => candidate.id === stepId) ?? steps[0]
   const set = (patch: Partial<BuilderState>) => setState((current) => ({ ...current, ...patch }))
   const setOutfit = (patch: Partial<OutfitState>) => setState((current) => ({ ...current, outfit: { ...current.outfit, ...patch } }))
@@ -64,20 +69,21 @@ export function PromptBuilderDialog({ model, hasExistingPrompt, maxPromptLength,
       actionsNote={actionsNote(tooLong, hasExistingPrompt)}
       actions={<DialogActions ready={result.status === 'ready' && !tooLong} hasExistingPrompt={hasExistingPrompt} onCancel={onClose} onConfirm={confirm} />}
     >
-      <div className="grid gap-5 lg:h-[68vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
+      <ModePicker modes={modes} current={mode.id} problems={problems} onSelect={(next) => setState((current) => switchMode(current, next))} />
+      <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
         <StepNav steps={steps} current={step.id} onSelect={setStepId} />
         <section aria-label={step.label} className="min-h-0 overflow-y-auto pr-1">
           <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{step.label}</h3>
-          <step.Component state={state} set={set} setOutfit={setOutfit} />
+          <step.Component state={state} mode={mode} set={set} setOutfit={setOutfit} />
         </section>
         <PreviewPane
           result={result}
-          model={model}
+          styleNote={styleNote(model, mode)}
           maxPromptLength={maxPromptLength}
           canReroll={hasRandomChoice(state)}
-          onSurprise={() => setState((current) => surprise(current, newSeed()))}
+          onSurprise={() => setState((current) => surprise(current, newSeed(), mode))}
           onReroll={() => set({ rollSeed: newSeed() })}
-          onReset={() => setState(emptyBuilderState())}
+          onReset={() => setState(switchMode(emptyBuilderState(), mode))}
         />
       </div>
     </Modal>
@@ -88,7 +94,13 @@ function promptTooLong(result: BuildResult, maxPromptLength: number): boolean {
   return result.status === 'ready' && result.prompt.length > maxPromptLength
 }
 
-function StepNav({ steps, current, onSelect }: { steps: Step[]; current: string; onSelect: (id: string) => void }) {
+function styleNote(model: ModelInfo, mode: BuilderMode): string {
+  if (model.prompt_style !== 'tags') return `Written as a detailed description for ${model.label}.`
+  const weighted = Object.keys(mode.weights).length > 0
+  return `Written as tags for ${model.label}${weighted ? `, with the key ${mode.label.toLowerCase()} tags weighted higher` : ''}.`
+}
+
+function StepNav({ steps, current, onSelect }: { steps: Step[]; current: StepId; onSelect: (id: StepId) => void }) {
   return (
     <nav aria-label="Builder steps" className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:flex-col lg:overflow-visible">
       {steps.map((step, index) => (
@@ -113,7 +125,7 @@ function StepNav({ steps, current, onSelect }: { steps: Step[]; current: string;
 
 interface PreviewPaneProps {
   result: BuildResult
-  model: ModelInfo
+  styleNote: string
   maxPromptLength: number
   canReroll: boolean
   onSurprise: () => void
@@ -121,7 +133,7 @@ interface PreviewPaneProps {
   onReset: () => void
 }
 
-function PreviewPane({ result, model, maxPromptLength, canReroll, onSurprise, onReroll, onReset }: PreviewPaneProps) {
+function PreviewPane({ result, styleNote, maxPromptLength, canReroll, onSurprise, onReroll, onReset }: PreviewPaneProps) {
   return (
     <aside aria-label="Preview" className="flex min-h-0 flex-col gap-3 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-950/60">
       <button
@@ -146,9 +158,7 @@ function PreviewPane({ result, model, maxPromptLength, canReroll, onSurprise, on
         <PreviewBody result={result} maxPromptLength={maxPromptLength} />
       </div>
       <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        {model.prompt_style === 'tags'
-          ? `Written as tags for ${model.label}, with adult tags weighted higher.`
-          : `Written as a detailed description for ${model.label}.`}
+        {styleNote}
       </p>
     </aside>
   )

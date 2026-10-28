@@ -1,10 +1,8 @@
 import type { Who } from './extraData'
 import type { Facts } from './facts'
+import type { WeightGroup } from './modes'
 
 const QUALITY_TAGS = ['masterpiece', 'best quality', 'amazing quality']
-/** Weight on nudity and explicit-action tags, so the model follows them over the rest of the prompt. */
-export const ADULT_WEIGHT = 1.3
-const EXPLICIT_POSE_WEIGHT = 1.2
 
 const SUBJECT_TAGS: Record<Who, string[]> = {
   woman: ['1girl', 'solo', 'adult woman'],
@@ -14,7 +12,13 @@ const SUBJECT_TAGS: Record<Who, string[]> = {
   'two men': ['2boys', 'adult men'],
 }
 
-const weigh = (tag: string, weight: number) => `(${tag}:${weight})`
+type Weights = Partial<Record<WeightGroup, number>>
+
+/** "(tag:1.3)" for a weighted group; the tag as it is otherwise. */
+const weighed = (weights: Weights, group: WeightGroup) => (tag: string) => {
+  const weight = weights[group]
+  return tag && weight !== undefined && weight !== 1 ? `(${tag}:${weight})` : tag
+}
 
 function nudityTags(f: Facts): string[] {
   if (f.nudity === 'implied') return ['implied nudity', ...(f.hasWoman ? ['covering breasts'] : [])]
@@ -23,35 +27,36 @@ function nudityTags(f: Facts): string[] {
   return ['completely nude', ...(f.hasWoman ? ['nipples', 'pussy'] : []), ...(f.hasMan ? ['penis'] : [])]
 }
 
-function adultTags(f: Facts): string[] {
-  const pose = f.pose.explicit ? weigh(f.pose.label, EXPLICIT_POSE_WEIGHT) : f.pose.label
-  const action = f.action.label ? weigh(f.action.label, ADULT_WEIGHT) : ''
-  return [...nudityTags(f).map((tag) => weigh(tag, ADULT_WEIGHT)), action, pose, ...f.intimacy]
+function subjectTags(f: Facts): string[] {
+  if (f.sceneOnly) return ['scenery', 'no humans', f.subject]
+  return f.who ? [...SUBJECT_TAGS[f.who], f.age, f.ethnicity, f.subjectExtra] : [f.subjectExtra]
 }
 
-function personTags(f: Facts): string[] {
-  return [
-    f.eyes ? `${f.eyes} eyes` : '', f.expression, f.makeup, f.skinTone ? `${f.skinTone} skin` : '', ...f.skinDetails,
-    f.hair.length ? `${f.hair.length} hair` : '', f.hair.color ? `${f.hair.color} hair` : '', f.hair.style,
-    f.body.type, f.body.height, f.body.bust, f.body.hips, ...f.body.marks,
-  ]
+function adultTags(f: Facts, weights: Weights): string[] {
+  const pose = weighed(weights, f.pose.explicit ? 'explicitPose' : 'pose')(f.pose.label)
+  return [...nudityTags(f).map(weighed(weights, 'nudity')), weighed(weights, 'action')(f.action.label), pose, ...f.intimacy]
 }
 
-function settingTags(f: Facts): string[] {
-  return [
-    f.place ? f.sceneType || f.place : '', f.time, f.weather, f.lighting.label, f.lightingCustom, f.shot, f.angle, f.mood,
-  ]
+function personTags(f: Facts, weights: Weights): string[] {
+  const face = [f.eyes ? `${f.eyes} eyes` : '', f.expression, f.makeup, f.skinTone ? `${f.skinTone} skin` : '', ...f.skinDetails]
+  const hair = [f.hair.length ? `${f.hair.length} hair` : '', f.hair.color ? `${f.hair.color} hair` : '', f.hair.style]
+  const body = [f.body.type, f.body.height, f.body.bust, f.body.hips, ...f.body.marks]
+  return [...face.map(weighed(weights, 'face')), ...hair.map(weighed(weights, 'hair')), ...body.map(weighed(weights, 'body'))]
+}
+
+function settingTags(f: Facts, weights: Weights): string[] {
+  const scene = [f.place ? f.sceneType || f.place : '', f.time, f.weather].map(weighed(weights, 'scene'))
+  return [...scene, weighed(weights, 'light')(f.lighting.label), f.lightingCustom, f.shot, f.angle, f.mood]
 }
 
 /**
- * A tag list for models trained on booru tags (WAI, Anime Desire): quality tags, who, then adult content with
- * extra weight, then the rest. Weights use the "(tag:1.3)" form, which the model server applies.
+ * A tag list for models trained on booru tags (WAI, Anime Desire): quality tags, who, then adult content, then the
+ * rest. The mode's weights strengthen groups in the "(tag:1.3)" form, which the model server applies.
  */
-export function tagsFrom(f: Facts): string {
-  const subject = f.who ? [...SUBJECT_TAGS[f.who], f.age, f.ethnicity] : []
+export function tagsFrom(f: Facts, weights: Weights = {}): string {
   const tags = [
-    ...QUALITY_TAGS, ...subject, f.subjectExtra, ...adultTags(f), f.freeAction, ...personTags(f), f.appearanceExtra, f.body.extra,
-    ...f.clothing, ...f.removed.map((item) => `no ${item}`), f.outfitDetails, ...settingTags(f), f.extraDetails,
+    ...QUALITY_TAGS, ...subjectTags(f), ...adultTags(f, weights), f.freeAction, ...personTags(f, weights), f.appearanceExtra, f.body.extra,
+    ...f.clothing.map(weighed(weights, 'outfit')), ...f.removed.map((item) => `no ${item}`), f.outfitDetails, ...settingTags(f, weights), f.extraDetails,
   ]
   return [...new Set(tags.map((tag) => tag.trim().replace(/\.+$/, '')).filter(Boolean))].join(', ')
 }

@@ -52,6 +52,20 @@ export interface Catalog {
   categories: Category[]
   chat_available: boolean
   limits: Limits
+  builder_modes: BuilderModeData[]
+}
+
+/** A prompt builder mode as prompt_modes.json writes it; the builder checks it against its own steps and options. */
+export interface BuilderModeData {
+  id: string
+  label: string
+  description: string
+  adult_only: boolean
+  steps: string[]
+  defaults: Record<string, string>
+  options: Record<string, string[]>
+  emphasis: string[]
+  weights: Record<string, number>
 }
 
 export type ModelStatus = 'ready' | 'queued' | 'downloading' | 'missing' | 'failed'

@@ -13,6 +13,7 @@ import {
   poseOptions,
   soloActions,
   surprise,
+  switchMode,
   withoutSafeForWorkTerms,
   type BuilderState,
   type BuildResult,
@@ -21,18 +22,26 @@ import {
 import { HAIR_COLORS, LENSES } from './data'
 import { AGE_RANGES } from './extraData'
 import { loadBuilderState, saveBuilderState } from './storage'
+import { builderModes } from '../../test/fixtures'
+import { parseModes, type BuilderMode } from './modes'
+
+const { modes } = parseModes(builderModes)
+const modeOf = (state: BuilderState): BuilderMode => modes.find((mode) => mode.id === state.mode) ?? modes[0]
+const build = (state: BuilderState, style?: PromptStyle) => buildPrompt(state, modeOf(state), style)
+const surpriseIn = (state: BuilderState, seed: number) => surprise(state, seed, modeOf(state))
+const minorOf = (state: BuilderState) => minorTermIn(state, modeOf(state))
 
 function ready(result: BuildResult): { prompt: string; negativePrompt: string; explicit: boolean } {
   if (result.status !== 'ready') throw new Error(`expected a prompt, got ${result.status}: ${result.reason}`)
   return result
 }
 
-const promptOf = (state: BuilderState, style: PromptStyle = 'prose') => ready(buildPrompt(state, style)).prompt
+const promptOf = (state: BuilderState, style: PromptStyle = 'prose') => ready(build(state, style)).prompt
 const withSubject = (patch: Partial<BuilderState> = {}): BuilderState => ({ ...emptyBuilderState(), subject: 'adult woman', ...patch })
 const adult = (patch: Partial<BuilderState> = {}): BuilderState => ({ ...emptyBuilderState(), who: 'woman', age: 'late 20s', ...patch })
 
 it('asks for a subject before building', () => {
-  expect(buildPrompt(emptyBuilderState()).status).toBe('incomplete')
+  expect(build(emptyBuilderState()).status).toBe('incomplete')
 })
 
 describe('subject', () => {
@@ -100,7 +109,7 @@ describe('tags for models trained on booru tags', () => {
   })
 
   it('puts adult content right after who, with extra weight', () => {
-    const state = adult({ explicit: true, nudity: 'nude', pose: 'legs spread lying back', explicitAction: 'caressing inner thigh', sceneType: 'bedroom' })
+    const state = adult({ mode: 'explicit', nudity: 'nude', pose: 'legs spread lying back', explicitAction: 'caressing inner thigh', sceneType: 'bedroom' })
     expect(promptOf(state, 'tags')).toBe(
       'masterpiece, best quality, amazing quality, 1girl, solo, adult woman, late 20s, ' +
         '(completely nude:1.3), (nipples:1.3), (pussy:1.3), (caressing inner thigh:1.3), (legs spread lying back:1.2), bedroom',
@@ -119,46 +128,46 @@ describe('explicit content', () => {
     ['topless', 'She is topless with nothing worn above the waist, bare breasts and nipples fully visible', false, true],
     ['nude', 'She is completely nude, fully naked with no clothing at all, bare breasts, nipples and vulva clearly visible', false, false],
   ] as const)('%s states it plainly, straight after the subject, with matching negatives', (nudity, wording, breastsCovered, intimateCovered) => {
-    const result = ready(buildPrompt(adult({ explicit: true, nudity, eyeColor: 'green' })))
+    const result = ready(build(adult({ mode: 'explicit', nudity, eyeColor: 'green' })))
     expect(result.prompt).toContain(`A photograph of an adult woman in her late 20s. ${wording}. She has green eyes.`)
     expect(result.negativePrompt.includes('exposed nipples')).toBe(breastsCovered)
     expect(result.negativePrompt.includes('exposed genitals')).toBe(intimateCovered)
   })
 
   it('puts the explicit pose and action in the opening sentence', () => {
-    const state = adult({ explicit: true, nudity: 'nude', pose: 'bent over', explicitAction: 'biting lip', sceneType: 'bedroom' })
+    const state = adult({ mode: 'explicit', nudity: 'nude', pose: 'bent over', explicitAction: 'biting lip', sceneType: 'bedroom' })
     expect(promptOf(state)).toMatch(/^A photograph of an adult woman in her late 20s, bent over at the waist, ass presented, upper body lowered, biting lower lip seductively\. /)
   })
 
   it('never describes clothes the nudity level has taken off', () => {
     const outfit = { ...emptyOutfit(), top: 'Blouse', lingerieTop: 'Lace bra', bottom: 'Denim shorts', shoes: 'High heels', accessories: ['Anklet', NOT_SET, NOT_SET] as [string, string, string] }
-    expect(promptOf(adult({ explicit: true, nudity: 'topless', outfit }))).toContain('She is wearing only denim shorts, high heels and an anklet.')
-    expect(promptOf(adult({ explicit: true, nudity: 'nude', outfit }))).toContain('She is wearing only high heels and an anklet.')
-    expect(promptOf(adult({ explicit: true, nudity: 'clothed', outfit }))).toContain('She is wearing a lace bra, a blouse, denim shorts, high heels and an anklet.')
+    expect(promptOf(adult({ mode: 'explicit', nudity: 'topless', outfit }))).toContain('She is wearing only denim shorts, high heels and an anklet.')
+    expect(promptOf(adult({ mode: 'explicit', nudity: 'nude', outfit }))).toContain('She is wearing only high heels and an anklet.')
+    expect(promptOf(adult({ mode: 'explicit', nudity: 'clothed', outfit }))).toContain('She is wearing a lace bra, a blouse, denim shorts, high heels and an anklet.')
   })
 
   it('describes a man and a couple with the right anatomy', () => {
-    expect(promptOf(adult({ who: 'man', explicit: true, nudity: 'topless' }))).toContain('He is shirtless and bare-chested.')
-    expect(promptOf(adult({ who: 'couple', explicit: true, nudity: 'nude' }))).toContain('bare breasts, nipples, vulva and penis clearly visible')
+    expect(promptOf(adult({ who: 'man', mode: 'explicit', nudity: 'topless' }))).toContain('He is shirtless and bare-chested.')
+    expect(promptOf(adult({ who: 'couple', mode: 'explicit', nudity: 'nude' }))).toContain('bare breasts, nipples, vulva and penis clearly visible')
   })
 
   it('needs who and an adult age range', () => {
-    expect(buildPrompt(withSubject({ explicit: true })).status).toBe('incomplete')
-    expect(buildPrompt(adult({ explicit: true, age: NOT_SET })).status).toBe('incomplete')
-    expect(buildPrompt(withSubject({ outfit: { ...emptyOutfit(), lingerieTop: 'Lace bralette' } })).status).toBe('incomplete')
-    expect(buildPrompt(adult({ explicit: true })).status).toBe('ready')
+    expect(build(withSubject({ mode: 'explicit' })).status).toBe('incomplete')
+    expect(build(adult({ mode: 'explicit', age: NOT_SET })).status).toBe('incomplete')
+    expect(build(withSubject({ outfit: { ...emptyOutfit(), lingerieTop: 'Lace bralette' } })).status).toBe('incomplete')
+    expect(build(adult({ mode: 'explicit' })).status).toBe('ready')
   })
 
   it('ignores explicit-only choices when the switch is off', () => {
-    const result = ready(buildPrompt(adult({ explicitAction: 'biting lip', nudity: 'nude', intimacy: ['flushed cheeks'] })))
+    const result = ready(build(adult({ explicitAction: 'biting lip', nudity: 'nude', intimacy: ['flushed cheeks'] })))
     expect(result.prompt).toBe('A photograph of an adult woman in her late 20s.')
     expect(result.explicit).toBe(false)
   })
 
   it('takes "nsfw" and similar terms out of the negative prompt, which would fight the explicit content', () => {
     const negativePrompt = 'nsfw, lowres, Censored, bad hands'
-    expect(ready(buildPrompt(adult({ explicit: true, negativePrompt }))).negativePrompt).toMatch(/^lowres, bad hands, /)
-    expect(ready(buildPrompt(adult({ negativePrompt }))).negativePrompt).toMatch(/^nsfw, lowres, Censored, bad hands, /)
+    expect(ready(build(adult({ mode: 'explicit', negativePrompt }))).negativePrompt).toMatch(/^lowres, bad hands, /)
+    expect(ready(build(adult({ negativePrompt }))).negativePrompt).toMatch(/^nsfw, lowres, Censored, bad hands, /)
     expect(withoutSafeForWorkTerms(' nsfw , (worst quality:1.2), nude')).toBe('(worst quality:1.2)')
   })
 })
@@ -190,14 +199,14 @@ describe('options that fit the subject', () => {
   })
 
   it('drops an action about clothes once the nudity level has taken them off', () => {
-    const state = adult({ explicit: true, nudity: 'nude', explicitAction: 'pulling down strap' })
+    const state = adult({ mode: 'explicit', nudity: 'nude', explicitAction: 'pulling down strap' })
     expect(promptOf(state)).not.toContain('strap')
     expect(promptOf(state, 'tags')).not.toContain('strap')
     expect(promptOf({ ...state, nudity: 'clothed' })).toContain('pulling a bra or top strap down off the shoulder')
   })
 
   it('drops an action kept from an earlier subject that no longer fits', () => {
-    const state = adult({ who: 'man', explicit: true, explicitAction: 'cupping breasts' })
+    const state = adult({ who: 'man', mode: 'explicit', explicitAction: 'cupping breasts' })
     expect(promptOf(state)).not.toContain('breasts')
     expect(promptOf(state, 'tags')).not.toContain('cupping')
   })
@@ -205,18 +214,18 @@ describe('options that fit the subject', () => {
 
 describe('age safeguard', () => {
   it.each(['teen', 'young girl', '17 year old', 'schoolgirl', '16yo', 'kids'])('blocks “%s” with explicit content', (word) => {
-    expect(buildPrompt(adult({ explicit: true, subject: `${word} on a bed` })).status).toBe('blocked')
-    expect(buildPrompt(adult({ explicit: true, subject: `${word} on a bed` }), 'tags').status).toBe('blocked')
+    expect(build(adult({ mode: 'explicit', subject: `${word} on a bed` })).status).toBe('blocked')
+    expect(build(adult({ mode: 'explicit', subject: `${word} on a bed` }), 'tags').status).toBe('blocked')
   })
 
   it('checks every free-text field', () => {
-    expect(minorTermIn(adult({ explicit: true, bodyExtra: 'teenage figure' }))).toBe('teenage')
-    expect(minorTermIn(adult({ explicit: true, outfit: { ...emptyOutfit(), details: 'with her daughter' } }))).toBe('daughter')
+    expect(minorOf(adult({ mode: 'explicit', bodyExtra: 'teenage figure' }))).toBe('teenage')
+    expect(minorOf(adult({ mode: 'explicit', outfit: { ...emptyOutfit(), details: 'with her daughter' } }))).toBe('daughter')
   })
 
   it('allows adult subjects and harmless words', () => {
-    expect(buildPrompt(adult({ explicit: true, extraDetails: 'baby blue sheets, eighteen candles' })).status).toBe('ready')
-    expect(buildPrompt(withSubject({ subject: 'a boy flying a kite' })).status).toBe('ready')
+    expect(build(adult({ mode: 'explicit', extraDetails: 'baby blue sheets, eighteen candles' })).status).toBe('ready')
+    expect(build(withSubject({ subject: 'a boy flying a kite' })).status).toBe('ready')
   })
 })
 
@@ -246,7 +255,7 @@ describe('random choices', () => {
 
 describe('surprise', () => {
   it('fills concrete choices, keeps free text and stays adult', () => {
-    const state = surprise({ ...emptyBuilderState(), mood: 'calm' }, 7)
+    const state = surpriseIn({ ...emptyBuilderState(), mood: 'calm' }, 7)
     expect(state.mood).toBe('calm')
     expect(AGE_RANGES).toContain(state.age)
     expect(['woman', 'man']).toContain(state.who)
@@ -256,31 +265,86 @@ describe('surprise', () => {
   })
 
   it('adds explicit details only when explicit content is on, fitting the subject', () => {
-    const state = surprise({ ...emptyBuilderState(), who: 'woman', explicit: true }, 3)
+    const state = surpriseIn({ ...emptyBuilderState(), who: 'woman', mode: 'explicit' }, 3)
     expect(state.explicitAction).not.toBe(NOT_SET)
     expect(state.intimacy).toHaveLength(2)
-    expect(buildPrompt(state).status).toBe('ready')
+    expect(build(state).status).toBe('ready')
     for (let seed = 0; seed < 30; seed++) {
-      const state = surprise({ ...emptyBuilderState(), who: 'man', explicit: true }, seed)
+      const state = surpriseIn({ ...emptyBuilderState(), who: 'man', mode: 'explicit' }, seed)
       expect(soloActions('man', state.nudity)).toContain(state.explicitAction)
     }
   })
 
   it('keeps the chosen subject', () => {
-    const state = surprise({ ...emptyBuilderState(), who: 'two men', age: '50s' }, 11)
+    const state = surpriseIn({ ...emptyBuilderState(), who: 'two men', age: '50s' }, 11)
     expect([state.who, state.age, state.bust]).toEqual(['two men', '50s', NOT_SET])
+  })
+})
+
+describe('modes', () => {
+  const mode = (id: string) => modes.find((candidate) => candidate.id === id)!
+
+  it('fills untouched choices with the mode defaults, and clears choices the mode does not allow', () => {
+    const state = switchMode(adult({ shotType: 'full body', depthOfField: 'sharp f/8' }), mode('portrait'))
+    expect(state).toMatchObject({ mode: 'portrait', shotType: NOT_SET, depthOfField: 'sharp f/8', lightingSetup: 'softbox beauty' })
+    expect(switchMode(adult(), mode('portrait')).shotType).toBe('headshot')
+  })
+
+  it('keeps nudity and explicit acts within what the mode allows', () => {
+    const explicit = adult({ mode: 'explicit', nudity: 'nude', explicitAction: 'biting lip' })
+    expect(switchMode(explicit, mode('glamour'))).toMatchObject({ nudity: 'clothed', explicitAction: NOT_SET })
+    expect(switchMode(explicit, mode('general'))).toMatchObject({ nudity: 'clothed', explicitAction: NOT_SET })
+    expect(promptOf(adult({ mode: 'glamour', nudity: 'nude' }))).not.toContain('nude')
+  })
+
+  it('leaves out what a hidden step holds', () => {
+    const prompt = promptOf(adult({ mode: 'portrait', outfit: { ...emptyOutfit(), top: 'Blouse' }, eyeColor: 'green' }))
+    expect(prompt).toContain('green eyes')
+    expect(prompt).not.toContain('blouse')
+  })
+
+  it('writes what the mode stresses first, and weights its tags', () => {
+    const state = adult({ mode: 'portrait', eyeColor: 'green', lightingSetup: 'ring light' })
+    expect(promptOf(state).indexOf('green eyes')).toBeLessThan(promptOf(state).indexOf('ring light'))
+    expect(promptOf(state, 'tags')).toContain('(green eyes:1.2)')
+  })
+
+  it('writes a scene without people', () => {
+    const state = { ...emptyBuilderState(), mode: 'scene', environment: 'on a misty mountain lake', who: 'woman' }
+    expect(promptOf(state)).toMatch(/^A photograph of a misty mountain lake\./)
+    expect(promptOf(state, 'tags')).toContain('scenery, no humans, a misty mountain lake')
+  })
+
+  it('keeps the age checks for any mode that shows the Intimacy step, whatever its file says', () => {
+    const { modes: [sneaky] } = parseModes([{ ...builderModes[0], id: 'sneaky', adult_only: false, steps: ['subject', 'intimacy'] }])
+    expect(buildPrompt({ ...emptyBuilderState(), who: 'woman' }, sneaky).status).toBe('incomplete')
+    expect(buildPrompt(adult({ subject: 'teen' }), sneaky).status).toBe('blocked')
+  })
+
+  it('leaves out a mode with unknown steps or options, and falls back to General when none is left', () => {
+    const { modes: kept, problems } = parseModes([{ ...builderModes[0], id: 'odd', defaults: { shotType: 'drone' }, weights: { face: 3 } }])
+    expect(kept.map((candidate) => candidate.id)).toEqual(['general'])
+    expect(problems).toEqual(['Mode "odd" was left out: unknown shotType default "drone"; the face weight must be between 0.5 and 2.'])
   })
 })
 
 describe('storage', () => {
   it('round-trips the builder state, including chip lists', () => {
-    const state = adult({ explicit: true, nudity: 'topless', tattoos: ['thigh tattoo', 'hip tattoo'], rollSeed: 9 })
+    const state = adult({ mode: 'explicit', nudity: 'topless', tattoos: ['thigh tattoo', 'hip tattoo'], rollSeed: 9 })
     saveBuilderState(state)
     expect(loadBuilderState()).toEqual(state)
   })
 
+  it('carries the explicit switch of the previous version over as a mode', () => {
+    const { mode: _mode, ...current } = adult({ nudity: 'topless' })
+    localStorage.setItem('z-image-studio.prompt-builder.v2', JSON.stringify({ ...current, explicit: true }))
+    expect(loadBuilderState()).toEqual(adult({ nudity: 'topless', mode: 'explicit' }))
+    localStorage.setItem('z-image-studio.prompt-builder.v2', JSON.stringify({ ...current, explicit: false }))
+    expect(loadBuilderState().mode).toBe('general')
+  })
+
   it('ignores corrupt or outdated data', () => {
-    const key = 'z-image-studio.prompt-builder.v2'
+    const key = 'z-image-studio.prompt-builder.v3'
     localStorage.setItem(key, JSON.stringify({ ...adult(), nudity: 'everything' }))
     expect(loadBuilderState()).toEqual(emptyBuilderState())
     localStorage.setItem(key, JSON.stringify({ ...adult(), tattoos: [1, 2] }))

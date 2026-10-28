@@ -1,4 +1,5 @@
 import { capitalise, joinPieces, withArticle, type Facts } from './facts'
+import { PROSE_BLOCKS, type ProseBlock } from './modes'
 
 function opening(f: Facts): string {
   const photo = f.photoStyle ? `${withArticle(f.photoStyle)} photograph` : 'a photograph'
@@ -89,16 +90,29 @@ function mood(f: Facts): string {
   return `the mood is ${f.mood}${grading ? `, with ${grading}` : ''}`
 }
 
+const BLOCKS: Record<ProseBlock, (f: Facts) => string[]> = {
+  nudity: (f) => [nudity(f)],
+  face: (f) => [face(f), skin(f), f.appearanceExtra],
+  body: (f) => [body(f), marks(f), f.body.extra],
+  hair: (f) => [hair(f)],
+  outfit: (f) => [clothing(f), f.outfitDetails],
+  intimacy: (f) => [intimacy(f)],
+  scene: (f) => [scene(f)],
+  details: (f) => [f.extraDetails],
+  light: (f) => [light(f)],
+  camera: (f) => [camera(f)],
+  mood: (f) => [mood(f)],
+  realism: (f) => [joinPieces(f.realism)],
+}
+
 /**
  * One flowing paragraph for models that read natural language (Z-Image, MOSS-Image): who and what is happening
- * first, adult content included, since these models weigh what comes early most; then the person, the outfit,
- * the setting, the light and the camera, each tied to the subject.
+ * first, since these models weigh what comes early most; then the blocks the mode stresses, then the rest in their
+ * usual order: nudity, the person, the outfit, the setting, the light and the camera, each tied to the subject.
  */
-export function proseFrom(f: Facts): string {
-  const sentences = [
-    opening(f), nudity(f), face(f), skin(f), f.appearanceExtra, body(f), marks(f), f.body.extra, hair(f),
-    clothing(f), f.outfitDetails, intimacy(f), scene(f), f.extraDetails, light(f), camera(f), mood(f), joinPieces(f.realism),
-  ]
+export function proseFrom(f: Facts, emphasis: readonly ProseBlock[] = []): string {
+  const order = [...new Set([...emphasis, ...PROSE_BLOCKS])]
+  const sentences = [opening(f), ...order.flatMap((block) => BLOCKS[block](f))]
   const text = sentences
     .map((sentence) => sentence.trim().replace(/\.+$/, ''))
     .filter(Boolean)

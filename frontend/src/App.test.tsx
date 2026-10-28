@@ -196,7 +196,7 @@ it('drops "nsfw" from the negative prompt when an explicit prompt is appended', 
   const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
   await chooseOption(within(dialog).getByLabelText('Who'), 'woman')
   await chooseOption(within(dialog).getByLabelText('Age'), 'early 30s')
-  await userEvent.click(within(dialog).getByRole('switch'))
+  await userEvent.click(within(dialog).getByRole('radio', { name: 'Explicit (18+)' }))
   await userEvent.click(within(dialog).getByRole('button', { name: 'Append to prompt' }))
 
   expect(screen.getByLabelText('Negative prompt')).toHaveDisplayValue(/^low quality, /)
