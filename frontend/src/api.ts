@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, HistorySummary, JobProgress, ModelState, ModelStatusReport } from './types'
+import type { Catalog, ChatMessage, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -49,9 +49,9 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
   return resp
 }
 
-function postJson(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+function postJson(path: string, body: unknown, signal?: AbortSignal, method = 'POST'): Promise<Response> {
   return request(path, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
@@ -105,9 +105,17 @@ export async function cancelJob(jobId: string): Promise<void> {
   await request(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })
 }
 
-export async function fetchHistory(offset: number, limit: number, signal?: AbortSignal): Promise<HistoryPage> {
-  const resp = await request(`/api/history?offset=${offset}&limit=${limit}`, { signal })
+export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, signal?: AbortSignal): Promise<HistoryPage> {
+  const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
+  if (filters.model) params.set('model', filters.model)
+  if (filters.search) params.set('q', filters.search)
+  if (filters.favouritesOnly) params.set('favourites', 'true')
+  const resp = await request(`/api/history?${params}`, { signal })
   return resp.json() as Promise<HistoryPage>
+}
+
+export async function setFavourite(id: number, favourite: boolean): Promise<HistoryItem> {
+  return (await postJson(`/api/history/${id}/favourite`, { favourite }, undefined, 'PUT')).json() as Promise<HistoryItem>
 }
 
 export async function deleteHistoryItem(id: number): Promise<void> {

@@ -79,6 +79,14 @@ export interface HistoryItem {
   created_at: string
   /** How long rendering took; null for images made before render times were recorded. */
   duration_seconds: number | null
+  favourite: boolean
+}
+
+export interface HistoryFilters {
+  model: string | null
+  /** Text the prompt must contain, ignoring case; empty for no search. */
+  search: string
+  favouritesOnly: boolean
 }
 
 export interface HistorySummary {
