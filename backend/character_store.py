@@ -46,6 +46,12 @@ class CharacterTraits(BaseModel):
     height: TraitText = ""
     bust: TraitText = ""
     hips: TraitText = ""
+    facialHair: TraitText = ""
+    makeupMore: TraitList = []
+    facialHairMore: TraitList = []
+    muscles: TraitText = ""
+    abs: TraitText = ""
+    chest: TraitText = ""
     tattoos: TraitList = []
     piercings: TraitList = []
     bodyExtra: TraitText = ""

@@ -53,7 +53,8 @@
       "who": "man", "age": "late 30s", "ethnicity": "South Asian",
       "eyeColor": "dark brown", "skinTone": "brown", "skinDetails": ["light body hair"],
       "hairColor": "black", "hairstyle": "slicked back", "hairLength": "short",
-      "bodyType": "muscular build", "height": "tall"
+      "bodyType": "muscular build", "height": "tall",
+      "facialHair": "full beard", "muscles": "muscular", "abs": "defined abs", "chest": "light chest hair"
     }
   },
   {
@@ -63,6 +64,7 @@
       "eyeColor": "green", "skinTone": "tan",
       "hairColor": "dark brown", "hairstyle": "buzz cut", "hairLength": "buzzed",
       "bodyType": "slim build", "height": "average height",
+      "facialHair": "stubble", "muscles": "lean", "abs": "flat stomach",
       "tattoos": ["full sleeve tattoo"], "piercings": ["septum ring"]
     }
   },
@@ -83,6 +85,7 @@
       "eyeColor": "grey", "skinTone": "fair",
       "hairColor": "jet black", "hairstyle": "shag", "hairLength": "chin-length",
       "bodyType": "toned build", "height": "average height",
+      "facialHair": "clean-shaven", "muscles": "toned", "abs": "six-pack", "chest": "smooth chest",
       "tattoos": ["full sleeve tattoo", "back piece tattoo"], "piercings": ["septum ring", "ear piercings"]
     }
   },
@@ -93,7 +96,7 @@
       "eyeColor": "dark brown", "skinTone": "dark",
       "hairColor": "black", "hairstyle": "buzz cut", "hairLength": "buzzed",
       "bodyType": "muscular build", "height": "tall", "hips": "thick thighs",
-      "subject": "a huge bodybuilder with massive arms and a broad chest"
+      "facialHair": "short beard", "muscles": "huge bodybuilder", "abs": "eight-pack", "chest": "broad pecs"
     }
   },
   {

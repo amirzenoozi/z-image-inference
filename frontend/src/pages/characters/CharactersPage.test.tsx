@@ -91,6 +91,7 @@ it('changes the face strength or removes the face image', async () => {
   expect(screen.getByText('0 images · face locked')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Face lock' }))
   expect(within(dialog).getByRole('img', { name: 'Face image #12' })).toBeInTheDocument()
 
   fireEvent.change(within(dialog).getByLabelText('Face strength'), { target: { value: '0.8' } })
@@ -176,6 +177,7 @@ it('uploads a face photo with the character, and explains that it is kept safe f
   renderPanel({ status: 'settled', value: [character({ face_id: 12 })] })
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Face lock' }))
 
   await userEvent.upload(within(dialog).getByLabelText('Face photo'), new File(['photo-bytes'], 'me.jpg', { type: 'image/jpeg' }))
   expect(await within(dialog).findByRole('img', { name: 'Uploaded face photo' })).toBeInTheDocument()
@@ -190,6 +192,7 @@ it('refuses a file that is not an image before sending anything', async () => {
   renderPanel({ status: 'settled', value: [character()] })
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Face lock' }))
 
   await userEvent.upload(within(dialog).getByLabelText('Face photo'), new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' }), { applyAccept: false })
   expect(within(dialog).getByRole('alert')).toHaveTextContent('Choose an image file')
@@ -200,12 +203,14 @@ it('keeps a stored photo when saving other changes, and removes it on request', 
   renderPanel({ status: 'settled', value: [character({ face_uploaded: true })] })
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Face lock' }))
   expect(within(dialog).getByRole('img', { name: 'Uploaded face photo' })).toHaveAttribute('src', '/api/characters/3/face-upload?thumb=true')
 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
   expect(vi.mocked(api.updateCharacter).mock.calls[0][1]).not.toHaveProperty('face_upload')
 
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit Ava' })).getByRole('tab', { name: 'Face lock' }))
   await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit Ava' })).getByRole('button', { name: 'Remove photo' }))
   await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit Ava' })).getByRole('button', { name: 'Save' }))
   expect(vi.mocked(api.updateCharacter).mock.calls[1][1]).toMatchObject({ face_id: null, face_upload: null })
@@ -215,8 +220,37 @@ it('warns that a face strength above 80% copies the face image', async () => {
   renderPanel({ status: 'settled', value: [character({ face_id: 12, face_strength: 0.6 })] })
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Face lock' }))
   expect(within(dialog).queryByText(/the face image is copied/)).not.toBeInTheDocument()
 
   fireEvent.change(within(dialog).getByLabelText('Face strength'), { target: { value: '0.85' } })
   expect(within(dialog).getByText(/Above 80% the face image is copied/)).toBeInTheDocument()
+})
+
+it('shows one part of the look at a time in tabs, keeping what you typed, and moves between them with the arrow keys', async () => {
+  renderPanel({ status: 'settled', value: [character()] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  expect(within(dialog).getByRole('tab', { name: 'Subject' })).toHaveAttribute('aria-selected', 'true')
+  await userEvent.type(within(dialog).getByLabelText('Extra subject details'), 'a sailor')
+  expect(within(dialog).queryByLabelText('Face strength')).not.toBeInTheDocument()
+
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Body' }))
+  expect(within(dialog).queryByLabelText('Extra subject details')).not.toBeInTheDocument()
+  await userEvent.keyboard('{ArrowRight}')
+  expect(within(dialog).getByRole('tab', { name: 'Face lock' })).toHaveAttribute('aria-selected', 'true')
+  expect(within(dialog).getByRole('tab', { name: 'Face lock' })).toHaveFocus()
+  await userEvent.keyboard('{ArrowRight}')
+  expect(within(dialog).getByLabelText('Extra subject details')).toHaveValue('a sailor')
+})
+
+it('opens the Subject tab when a save fails for a missing age', async () => {
+  renderPanel({ status: 'settled', value: [character({ traits: { ...character().traits, age: '' } })] })
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Body' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+  expect(within(dialog).getByRole('alert')).toBeInTheDocument()
+  expect(within(dialog).getByRole('tab', { name: 'Subject' })).toHaveAttribute('aria-selected', 'true')
+  expect(api.updateCharacter).not.toHaveBeenCalled()
 })
