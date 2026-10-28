@@ -20,7 +20,9 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
 
+import character_store
 import history_export
+from character_store import Character, CharacterUpdate, DuplicateName, MissingImage, NewCharacter
 from image_edits import EditOutsideImage, EditRecipe, apply_edits
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
@@ -264,6 +266,8 @@ class WebGenerateRequest(GenerateRequest):
     """What the browser sends: a variation names its start image in History instead of sending the image."""
 
     source_image_id: int | None = None
+    # The character the image is made for; it is linked to the image, the prompt is left as written
+    character_id: int | None = None
     # The web app loads the start image itself; image data from the browser is refused
     init_image: None = None
 
@@ -273,7 +277,7 @@ class WebGenerateRequest(GenerateRequest):
 
 def model_server_request(req: WebGenerateRequest) -> GenerateRequest:
     """The request for the model server, with a variation's start image loaded from History."""
-    fields = req.model_dump(exclude={"source_image_id"})
+    fields = req.model_dump(exclude={"source_image_id", "character_id"})
     if req.source_image_id is None:
         return GenerateRequest(**fields)
     png = history_store.image_png(req.source_image_id)
@@ -282,15 +286,21 @@ def model_server_request(req: WebGenerateRequest) -> GenerateRequest:
     return GenerateRequest(**fields | {"init_image": base64.b64encode(png).decode()})
 
 
+def check_character(character_id: int | None) -> None:
+    if character_id is not None and character_store.character(character_id) is None:
+        raise HTTPException(404, "That character no longer exists; pick another one and try again")
+
+
 @app.post("/api/generate")
 def generate(req: WebGenerateRequest) -> HistoryItem:
+    check_character(req.character_id)
     rendered = request_image(model_server_request(req))
     spec = MODELS[req.model]
     return history_store.add(NewImage(
         png=base64.b64decode(rendered.image_base64), prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
-        varied_from=req.source_image_id, change=req.change,
+        varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
     ))
 
 
@@ -355,11 +365,12 @@ def history_filter(
     q: str = Query("", max_length=MAX_SEARCH_LENGTH),
     favourites: bool = False,
     ratio: Category | None = None,
+    character: int | None = Query(None, ge=1),
 ) -> HistoryFilter:
     """History's filters from the query string, checked the same way wherever History is listed or exported."""
     if model is not None and model not in MODELS:
         raise HTTPException(422, f"Unknown model: {model}")
-    return HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio)
+    return HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio, character_id=character)
 
 
 @app.get("/api/history")
@@ -409,7 +420,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
     return history_store.add(NewImage(
         png=edited, prompt=source.prompt, negative_prompt=source.negative_prompt, seed=source.seed,
         width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
-        duration_seconds=None, edited_from=source.id,
+        duration_seconds=None, edited_from=source.id, character_id=source.character_id,
     ))
 
 
@@ -466,6 +477,40 @@ def delete_old_history(days: int) -> Deleted:
     return Deleted(deleted=history_store.delete_older_than(days))
 
 
+@app.get("/api/characters")
+def list_characters() -> list[Character]:
+    return character_store.all_characters()
+
+
+@app.post("/api/characters", status_code=201)
+def create_character(new: NewCharacter) -> Character:
+    try:
+        return character_store.create(new)
+    except DuplicateName as error:
+        raise HTTPException(409, str(error))
+    except MissingImage as error:
+        raise HTTPException(422, str(error))
+
+
+@app.patch("/api/characters/{character_id}")
+def update_character(character_id: int, changes: CharacterUpdate) -> Character:
+    try:
+        updated = character_store.update(character_id, changes)
+    except DuplicateName as error:
+        raise HTTPException(409, str(error))
+    except MissingImage as error:
+        raise HTTPException(422, str(error))
+    if updated is None:
+        raise HTTPException(404, "Character not found")
+    return updated
+
+
+@app.delete("/api/characters/{character_id}", status_code=204)
+def delete_character(character_id: int) -> None:
+    if not character_store.delete(character_id):
+        raise HTTPException(404, "Character not found")
+
+
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
     """Stream Grok's rewritten prompt as plain text chunks."""
@@ -483,8 +528,10 @@ def chat(req: ChatRequest) -> StreamingResponse:
 if FRONTEND_DIST.exists():
     @app.get("/history", include_in_schema=False)
     @app.get("/history/", include_in_schema=False)
+    @app.get("/characters", include_in_schema=False)
+    @app.get("/characters/", include_in_schema=False)
     def history_view() -> FileResponse:
-        """The UI's History view: the same page, which reads the view from the address."""
+        """The UI's History and Characters views: the same page, which reads the view from the address."""
         return FileResponse(FRONTEND_DIST / "index.html")
 
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")

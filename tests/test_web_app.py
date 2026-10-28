@@ -504,12 +504,13 @@ def test_the_palette_of_a_missing_image_is_not_found(client: TestClient) -> None
 
 
 @pytest.mark.skipif(not main.FRONTEND_DIST.exists(), reason="the UI is not built")
-def test_reloading_the_history_view_serves_the_app_page(client: TestClient) -> None:
-    resp = client.get("/history")
+@pytest.mark.parametrize("view", ["/history", "/characters"])
+def test_reloading_a_view_serves_the_app_page(client: TestClient, view: str) -> None:
+    resp = client.get(view)
 
     assert resp.status_code == 200
     assert resp.text == (main.FRONTEND_DIST / "index.html").read_text()
-    assert client.get("/history/").text == resp.text
+    assert client.get(f"{view}/").text == resp.text
     assert client.get("/api/history").headers["content-type"] == "application/json"
 
 
