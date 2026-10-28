@@ -73,6 +73,7 @@ class ModelInfo(BaseModel):
     trigger_word: str
     prompt_style: Literal["prose", "tags"]
     supports_variations: bool
+    supports_face_lock: bool
     examples: list[str]
 
     @classmethod
@@ -83,7 +84,8 @@ class ModelInfo(BaseModel):
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
-            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, supports_variations=spec.supports_variations, examples=examples,
+            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, supports_variations=spec.supports_variations,
+            supports_face_lock=spec.supports_face_lock, examples=examples,
         )
 
 
@@ -268,22 +270,45 @@ class WebGenerateRequest(GenerateRequest):
     source_image_id: int | None = None
     # The character the image is made for; it is linked to the image, the prompt is left as written
     character_id: int | None = None
-    # The web app loads the start image itself; image data from the browser is refused
+    # The web app loads the start image and the face image itself; image data from the browser is refused
     init_image: None = None
+    face_image: None = None
+    face_strength: None = None
 
     def has_start_image(self) -> bool:
         return self.source_image_id is not None
 
 
-def model_server_request(req: WebGenerateRequest) -> GenerateRequest:
-    """The request for the model server, with a variation's start image loaded from History."""
-    fields = req.model_dump(exclude={"source_image_id", "character_id"})
+def start_image_fields(req: WebGenerateRequest) -> dict[str, str]:
     if req.source_image_id is None:
-        return GenerateRequest(**fields)
+        return {}
     png = history_store.image_png(req.source_image_id)
     if png is None:
         raise HTTPException(404, "The start image is no longer in History; remove it and try again")
-    return GenerateRequest(**fields | {"init_image": base64.b64encode(png).decode()})
+    return {"init_image": base64.b64encode(png).decode()}
+
+
+def face_lock_of(req: WebGenerateRequest) -> tuple[int, float] | None:
+    """The face image and strength to lock, when the character has a face image and the model can use it."""
+    character = character_store.character(req.character_id) if req.character_id is not None else None
+    if character is None or character.face_id is None or not MODELS[req.model].supports_face_lock:
+        return None
+    return character.face_id, character.face_strength
+
+
+def face_lock_fields(face_lock: tuple[int, float] | None) -> dict[str, str | float]:
+    if face_lock is None:
+        return {}
+    face_id, strength = face_lock
+    png = history_store.image_png(face_id)
+    # The face image was checked a moment ago; deleted since, the render goes ahead without it
+    return {} if png is None else {"face_image": base64.b64encode(png).decode(), "face_strength": strength}
+
+
+def model_server_request(req: WebGenerateRequest, face_lock: tuple[int, float] | None) -> GenerateRequest:
+    """The request for the model server, with a variation's start image and the character's face loaded from History."""
+    fields = req.model_dump(exclude={"source_image_id", "character_id"})
+    return GenerateRequest(**fields | start_image_fields(req) | face_lock_fields(face_lock))
 
 
 def check_character(character_id: int | None) -> None:
@@ -294,13 +319,16 @@ def check_character(character_id: int | None) -> None:
 @app.post("/api/generate")
 def generate(req: WebGenerateRequest) -> HistoryItem:
     check_character(req.character_id)
-    rendered = request_image(model_server_request(req))
+    face_lock = face_lock_of(req)
+    server_request = model_server_request(req, face_lock)
+    rendered = request_image(server_request)
     spec = MODELS[req.model]
     return history_store.add(NewImage(
         png=base64.b64decode(rendered.image_base64), prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
+        face_from=face_lock[0] if face_lock and server_request.face_image else None,
     ))
 
 

@@ -73,6 +73,13 @@ MOSS_TEXT_ENCODER_Q8_PATH = MOSS_IMAGE_PATH / "text_encoder-q8"
 QUANTO_MAP_FILE = "quanto_qmap.json"
 # Only the merged model; its pipeline code is vendored in moss_pipeline.py
 MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged-model/**/*.safetensors"]
+# The face lock for the SDXL models: IP-Adapter plus-face and the image encoder it reads faces with
+FACE_LOCK = "face-lock"
+FACE_LOCK_REPO = "h94/IP-Adapter"
+FACE_LOCK_PATH = MODELS_DIR / "ip-adapter"
+FACE_LOCK_WEIGHTS = "ip-adapter-plus-face_sdxl_vit-h.safetensors"
+FACE_LOCK_FILES = ["models/image_encoder/config.json", "models/image_encoder/model.safetensors", f"sdxl_models/{FACE_LOCK_WEIGHTS}"]
+FACE_LOCK_BYTES = 3_376_000_000
 
 
 @dataclass(frozen=True)
@@ -87,6 +94,9 @@ class Job:
     # For a variation: the start image at the size being made, and how much to change it (0 to 1)
     start_image: Image.Image | None = None
     change: float | None = None
+    # For a face lock: the character's face image, and how strongly to hold it (0 to 1)
+    face_image: Image.Image | None = None
+    face_strength: float | None = None
 
 
 JobPhase = Literal["waiting", "loading", "encoding", "generating", "finishing"]
@@ -132,6 +142,14 @@ def decode_start_image(data: str, width: int, height: int) -> Image.Image:
     return ImageOps.fit(image, (width, height), Image.Resampling.LANCZOS)
 
 
+def decode_face_image(data: str) -> Image.Image:
+    """The face image as it is; the image encoder crops and resizes it itself."""
+    try:
+        return Image.open(io.BytesIO(base64.b64decode(data, validate=True))).convert("RGB")
+    except (ValueError, OSError):
+        raise HTTPException(422, "The face image could not be read")
+
+
 def to_job(req: GenerateRequest) -> Job:
     spec = MODELS[req.model]
     start_image = decode_start_image(req.init_image, req.width, req.height) if req.init_image else None
@@ -145,6 +163,8 @@ def to_job(req: GenerateRequest) -> Job:
         seed=random.randint(0, MAX_SEED) if req.seed is None else req.seed,
         start_image=start_image,
         change=req.change,
+        face_image=decode_face_image(req.face_image) if req.face_image else None,
+        face_strength=req.face_strength,
     )
 
 
@@ -347,20 +367,56 @@ def encode_in_float32(pipe: StableDiffusionXLPipeline, image: Image.Image) -> to
     return latents.to(pipe.unet.dtype)
 
 
+class SdxlPipes:
+    """An SDXL pipeline, its image-to-image twin sharing the same weights, and the face lock when it is on.
+
+    With IP-Adapter loaded, diffusers needs a face image for every render, so it is loaded for face-locked renders
+    and unloaded for the others; it stays loaded between face-locked renders, which skips reloading it.
+    """
+
+    def __init__(self, pipe: StableDiffusionXLPipeline) -> None:
+        self.pipe = pipe
+        self.face_locked = False
+        self.img2img = StableDiffusionXLImg2ImgPipeline(**pipe.components)
+
+    def use_face_lock(self, on: bool) -> None:
+        if on == self.face_locked:
+            return
+        if on:
+            self.pipe.load_ip_adapter(
+                str(FACE_LOCK_PATH), subfolder="sdxl_models", weight_name=FACE_LOCK_WEIGHTS, image_encoder_folder="models/image_encoder",
+            )
+        else:
+            self.pipe.unload_ip_adapter()
+            release_memory()
+        self.face_locked = on
+        # Rebuilt so it picks up the image encoder that loading or unloading the adapter adds or removes
+        self.img2img = StableDiffusionXLImg2ImgPipeline(**self.pipe.components)
+
+
+def face_lock_arguments(pipes: SdxlPipes, job: Job) -> dict[str, Image.Image]:
+    pipes.use_face_lock(job.face_image is not None)
+    if job.face_image is None or job.face_strength is None:
+        return {}
+    pipes.pipe.set_ip_adapter_scale(job.face_strength)
+    return {"ip_adapter_image": job.face_image}
+
+
 def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
     pipe.to(torch.device("mps"))
     pipe.vae.to(dtype=torch.float32)
     compel = CompelForSDXL(pipe)
-    # Shares the loaded weights, so variations cost no extra memory
-    img2img = StableDiffusionXLImg2ImgPipeline(**pipe.components)
+    pipes = SdxlPipes(pipe)
 
     def generate(job: Job, progress: JobProgress) -> Image.Image:
         progress.enter("generating")
+        face = face_lock_arguments(pipes, job)
         # A CPU generator is more stable than an MPS one
         generator = torch.Generator("cpu").manual_seed(job.seed)
         with torch.inference_mode():
             common = {
                 **sdxl_conditioning(compel, job.prompt, job.negative_prompt),
+                **face,
                 "num_inference_steps": job.steps,
                 "guidance_scale": job.guidance,
                 "generator": generator,
@@ -370,7 +426,7 @@ def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
             if job.start_image is None:
                 latents = pipe(width=job.width, height=job.height, **common).images
             else:
-                latents = img2img(image=encode_in_float32(pipe, job.start_image), strength=job.change, **common).images
+                latents = pipes.img2img(image=encode_in_float32(pipe, job.start_image), strength=job.change, **common).images
             return decode_in_float32(pipe, latents)
 
     return generate
@@ -586,6 +642,24 @@ def start_download(model_id: str) -> None:
         downloads[model_id] = download_thread.submit(DOWNLOADERS[model_id])
 
 
+def download_face_lock() -> None:
+    ensure_downloaded(FACE_LOCK_REPO, FACE_LOCK_PATH, FACE_LOCK_FILES)
+
+
+def face_lock_problem() -> str | None:
+    """Why a face-locked render can't run yet, starting the one-time download if it hasn't started; None once it can."""
+    if download_marker(FACE_LOCK_PATH).exists():
+        return None
+    download = downloads.get(FACE_LOCK)
+    if download is None or download.done():
+        if free_bytes() < FACE_LOCK_BYTES:
+            return f"The face lock needs {FACE_LOCK_BYTES / 1e9:.1f} GB of free disk space for its one-time download."
+        downloads[FACE_LOCK] = download_thread.submit(download_face_lock)
+    # Files arrive in the folder itself (partial ones under .cache), so its size is the progress
+    done = folder_bytes([FACE_LOCK_PATH]) / 1e9
+    return f"Downloading the face lock files once ({min(done, FACE_LOCK_BYTES / 1e9):.1f} of {FACE_LOCK_BYTES / 1e9:.1f} GB). Try again when it finishes."
+
+
 def not_ready_message(model_id: str) -> str:
     label = MODELS[model_id].label
     if model_status(model_id) in ("queued", "downloading"):
@@ -677,6 +751,8 @@ app = FastAPI(lifespan=lifespan)
 async def generate(req: GenerateRequest) -> GenerateResponse:
     if model_status(req.model) != "ready":
         raise HTTPException(503, not_ready_message(req.model))
+    if req.face_image is not None and (problem := face_lock_problem()):
+        raise HTTPException(503, problem)
     job = to_job(req)
     job_id = req.job_id or str(uuid.uuid4())
     progress = jobs[job_id] = JobProgress(total=job.steps)
