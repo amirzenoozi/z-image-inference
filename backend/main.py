@@ -5,7 +5,6 @@ import threading
 from collections.abc import Iterator
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Annotated, Literal
 
 from dotenv import load_dotenv
@@ -25,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 import character_store
 import history_export
 import nsfw_detector
+import paths
 import safe_for_work
 from character_store import BadPhoto, Character, CharacterUpdate, DuplicateName, MissingImage, NewCharacter
 from image_edits import EditOutsideImage, EditRecipe, apply_edits
@@ -39,7 +39,7 @@ from resolutions import CATEGORIES, PRESETS, Category
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
 # Long enough for a first-time model download or a switch between models
 REQUEST_TIMEOUT = 900
-FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
+FRONTEND_DIST = paths.FRONTEND_DIST
 THUMBNAIL_SIDE = 384
 MAX_PAGE_SIZE = 100
 MAX_SEARCH_LENGTH = 200
@@ -48,11 +48,11 @@ MAX_CHAT_MESSAGES = 50
 IMMUTABLE = {"Cache-Control": "private, max-age=31536000, immutable"}
 
 # Each model's example prompts; edit the file and reload the page to change them
-EXAMPLE_PROMPTS_FILE = Path(__file__).parent / "example_prompts.json"
+EXAMPLE_PROMPTS_FILE = paths.PROJECT_DIR / "example_prompts.json"
 ExamplePrompt = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_PROMPT_LENGTH)]
 EXAMPLE_PROMPTS = TypeAdapter(dict[str, list[ExamplePrompt]])
 # The prompt builder's purposes; the builder checks the steps and options against its own lists
-PROMPT_MODES_FILE = Path(__file__).parent / "prompt_modes.json"
+PROMPT_MODES_FILE = paths.PROJECT_DIR / "prompt_modes.json"
 
 grok_client = GrokClient()
 

@@ -3,7 +3,6 @@ import binascii
 import io
 import json
 import sqlite3
-from pathlib import Path
 from typing import Annotated
 
 from PIL import Image, UnidentifiedImageError
@@ -11,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 
 from generation_request import MAX_FACE_STRENGTH, MAX_SEED, MIN_FACE_STRENGTH
 from history_store import connection
+from paths import PROJECT_DIR
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 TraitText = Annotated[str, StringConstraints(max_length=300)]
@@ -102,7 +102,7 @@ class SampleCharacter(BaseModel):
 
 
 # Added once to every database, so a first run starts with characters to try; deleted ones do not come back
-SAMPLE_CHARACTERS_FILE = Path(__file__).parent / "sample_characters.json"
+SAMPLE_CHARACTERS_FILE = PROJECT_DIR / "sample_characters.json"
 SAMPLE_CHARACTERS = TypeAdapter(list[SampleCharacter])
 SAMPLES_ADDED = "sample_characters_added"
 
