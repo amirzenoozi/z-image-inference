@@ -25,8 +25,8 @@ htmlcov/
 history.db
 history.db-*
 
-# Downloaded models and their compressed copies
-models/
+# Downloaded models and their compressed copies (only the top-level folder, not frontend/…/models/)
+/models/
 
 # Model comparison images (tools/z_image_levels.py)
 comparisons/
