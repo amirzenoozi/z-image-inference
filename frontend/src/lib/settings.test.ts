@@ -7,6 +7,7 @@ import {
   presetsFor,
   saveSettings,
   settingsFromItem,
+  switchModel,
   snapSide,
   withModel,
 } from './settings'
@@ -30,6 +31,14 @@ describe('withModel', () => {
     const anime = withModel(settings, animeModel)
     expect([anime.width, anime.height, anime.steps]).toEqual([1024, 1024, 40])
   })
+})
+
+it('switchModel resets sampling to the new model’s defaults and keeps the rest', () => {
+  const settings = { ...initialSettings(catalog), prompt: 'a fox', seed: 7, randomSeed: false, steps: 15, width: 512, height: 512, negativePrompt: 'mine' }
+  expect(switchModel(settings, animeModel)).toEqual({
+    ...settings, modelId: 'wai-illustrious', steps: 28, guidance: 7,
+  })
+  expect(switchModel({ ...settings, width: 1280, height: 1280 }, animeModel)).toMatchObject({ width: 1024, height: 1024 })
 })
 
 it('presetsFor drops sizes over the model limit', () => {

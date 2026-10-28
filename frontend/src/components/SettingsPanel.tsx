@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../types'
-import { differsFromDefaults, findModel, modelDefaults, withModel } from '../lib/settings'
+import { differsFromDefaults, findModel, modelDefaults, switchModel } from '../lib/settings'
 import { ChatPanel } from './ChatPanel'
 import { ModelPicker } from './ModelPicker'
 import { PromptEditor } from './PromptEditor'
@@ -33,7 +33,7 @@ export function SettingsPanel(props: Props) {
     setDefaultsHintFor(null)
   }
   const selectModel = (next: ModelInfo) => {
-    const switched = withModel(settings, next)
+    const switched = switchModel(settings, next)
     onChange(switched)
     setDefaultsHintFor(differsFromDefaults(switched, next) ? next.id : null)
   }
@@ -76,7 +76,7 @@ export function SettingsPanel(props: Props) {
 function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply: () => void; onDismiss: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-900 dark:bg-violet-950/50 dark:text-violet-100">
-      <span>Your settings were kept. {model.label} works best with its own defaults.</span>
+      <span>Sampling was reset to {model.label}’s defaults. Use its default size and negative prompt too?</span>
       <span className="flex shrink-0 gap-2">
         <button type="button" onClick={onDismiss} className="text-violet-600 dark:text-violet-300">
           Keep mine
