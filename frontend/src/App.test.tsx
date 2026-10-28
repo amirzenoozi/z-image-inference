@@ -9,11 +9,13 @@ import type { HistoryItem } from './types'
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
   fetchCatalog: vi.fn(),
+  fetchModelStatus: vi.fn(),
   generateImage: vi.fn(),
 }))
 
 beforeEach(() => {
   vi.mocked(api.fetchCatalog).mockResolvedValue(catalog)
+  vi.mocked(api.fetchModelStatus).mockResolvedValue({ server_running: true, models: { 'z-image-turbo': 'ready', 'wai-illustrious': 'ready' } })
   vi.mocked(api.generateImage).mockReset()
 })
 

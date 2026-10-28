@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Catalog, GenerationSettings, ModelInfo } from '../types'
+import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../types'
 import { differsFromDefaults, findModel, modelDefaults, withModel } from '../lib/settings'
 import { ChatPanel } from './ChatPanel'
 import { ModelPicker } from './ModelPicker'
@@ -20,6 +20,7 @@ interface Props {
   lastSeed: number | null
   onGenerate: () => void
   onChatPrompt: (prompt: string) => void
+  modelStatus: Loadable<ModelStatusReport>
 }
 
 export function SettingsPanel(props: Props) {
@@ -41,7 +42,7 @@ export function SettingsPanel(props: Props) {
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-7 overflow-y-auto p-5">
         <Section title="Model">
-          <ModelPicker models={catalog.models} selectedId={model.id} onSelect={selectModel} />
+          <ModelPicker models={catalog.models} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
         </Section>
         <PromptSection {...props} model={model} patch={patch} />
