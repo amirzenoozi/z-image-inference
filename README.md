@@ -108,7 +108,7 @@ Press **✨ Prompt builder** above the Write box to open a focused dialog that a
 - **Use this prompt** puts the prompt and negative prompt into the Write box (replacing what is there); **Append to prompt** adds to it instead
 - Explicit content, nudity and lingerie need "Who" and an adult age range, and the builder refuses details that suggest a minor
 - It writes for the selected model. For Z-Image-Turbo and MOSS-Image, one detailed paragraph: who and what is happening first, adult content included, then the person, outfit, setting, light and camera, each tied to the subject. For WAI-Illustrious and Anime Desire, a tag list: quality tags, who, then nudity and explicit actions weighted higher (for example `(completely nude:1.3)`), then the rest
-- The nudity level decides the outfit: topless leaves out tops and bras, fully nude and implied nudity leave only shoes and accessories, so the prompt never contradicts itself. Partner actions are offered only for a couple, and poses and actions about breasts or lingerie only when the subject includes a woman
+- The nudity level decides the outfit: topless leaves out tops and bras, fully nude and implied nudity leave only shoes and accessories, so the prompt never contradicts itself. Partner actions are offered only for a couple, and poses and actions about breasts or lingerie only when the subject includes a woman. Actions about taking clothes off (undoing a bra clasp, pulling panties aside, slowly undressing and so on) are offered only while those clothes are still on
 - With explicit content, terms such as `nsfw` are taken out of the negative prompt, since they would work against it
 
 ### Prompt weights
