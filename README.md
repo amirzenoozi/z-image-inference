@@ -58,6 +58,7 @@ Optional, in a `.env` file in the project folder:
 
 | Variable | What it does |
 |----------|--------------|
+| `APP_LANGUAGE` | The app's language: `en` (default), `nl`, `it`, `fr`, `de`, `es` or `pt` |
 | `XAI_API_KEY` | Turns on **Chat with Grok** ([xAI API key](https://x.ai/)) |
 | `Z_IMAGE_BITS` | Which Z-Image-Turbo copy to run: `8` (default), `6`, `5`, `4`, `3`, or `original` |
 | `MODEL_COMPRESSION` | `on` keeps smaller compressed copies of the other models instead of their originals |

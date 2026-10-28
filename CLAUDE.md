@@ -58,6 +58,13 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 - `image_edits.py`: rotate, flip and crop recipes, applied with Pillow when an edited copy is saved (`POST /api/history/{id}/edits`); the original image is never changed.
 - `prompt_weights.py`: rewrites `(tag:1.3)` weights for Compel, which encodes SDXL prompts with weights and past 77 tokens (`sdxl_conditioning` in `model_server.py`).
 
+## Translations
+
+- The language comes from `APP_LANGUAGE` in `.env` (`en` default; `nl`, `it`, `fr`, `de`, `es`, `pt`), read by `backend/i18n.py` and sent to the UI in the catalog (`language`), which loads it before rendering (`LanguageGate` in `App.tsx`).
+- Frontend: `src/i18n/index.ts` (`t`, `tn` for plurals with `_one`/`_other` keys, `tOr` for text keyed by data such as purpose ids, `optionLabel` for prompt-builder options); messages in `src/locales/<code>/<namespace>.json`, English the source. Backend: `i18n.t()` with `backend/locales/<code>.json`.
+- Look text up when it is shown, never at module load. Prompts sent to the models stay English: only labels are translated, option values never.
+- Every language must have every key with the same placeholders (`src/i18n/locales.test.ts`, `backend/tests/test_i18n.py`); add a new text to all seven languages in the same change, and remove a key from all of them.
+
 ## Rules to keep
 
 - Explicit, nudity and lingerie prompts in the prompt builder require "Who" and an adult age range, and are refused if any free text suggests a minor (`minorTermIn` in `build.ts`). A mode that shows the Intimacy step is always adult (`isAdultMode` in `modes.ts`), so editing `prompt_modes.json` can never switch these checks off. Keep this when changing the builder.

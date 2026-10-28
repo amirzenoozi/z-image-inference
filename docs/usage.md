@@ -2,6 +2,22 @@
 
 The app has three views, **Create**, **History** and **Characters**, switched in the header. The address shows which one you are on (`/`, `/history` or `/characters`), so a reload or a bookmark opens the same view.
 
+## Language
+
+The app is in English by default. To change it, set `APP_LANGUAGE` in `.env` in the project folder and restart both servers:
+
+| Code | Language |
+|------|----------|
+| `en` | English |
+| `nl` | Nederlands (Dutch) |
+| `it` | Italiano (Italian) |
+| `fr` | Français (French) |
+| `de` | Deutsch (German) |
+| `es` | Español (Spanish) |
+| `pt` | Português (Portuguese) |
+
+Everything you read is translated: the interface, the prompt builder's menus and purposes, and the app's messages. The prompts themselves stay in English, since the models understand English best: whatever language the builder's menus show, the prompt it writes and sends is English. An unknown code falls back to English, and `main.py` says so in its terminal.
+
 ## Create
 
 1. **Model**: the sidebar shows the selected model. **Change** opens the model dialog, where models are grouped into **Photorealistic** and **Anime & illustration** tabs. Only downloaded models can be chosen; see [Models](models.md#downloading-and-removing-models).
