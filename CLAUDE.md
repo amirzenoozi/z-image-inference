@@ -27,17 +27,17 @@ cd frontend && npx tsc -b && npx oxlint src      # type-check and lint
 
 Defined once in `model_catalog.py` (shared by the UI and the server); loaders and downloads live in `model_server.py`. Files go in `models/` (not in git).
 
-By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env` switches to the compressed copies below (`compression_enabled()` in `model_catalog.py`).
+By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env` switches to the compressed copies below (`compression_enabled()` in `model_catalog.py`). Z-Image-Turbo is the exception: `Z_IMAGE_BITS` (`z_image_bits()`, default 8; 6, 5, 4, 3 or `original`) picks the quantised copy it runs, built into `models/zimage-q<bits>/` beside the original, which is always kept.
 
 | Model | Engine | Compressed (`MODEL_COMPRESSION=on`) |
 |-------|--------|-----------|
-| Z-Image-Turbo (default) | mflux (MLX), 4-bit | `models/zimage-q4/`; the original download is deleted after the 4-bit copy is built |
+| Z-Image-Turbo (default) | mflux (MLX), 8-bit by default | Not affected; set by `Z_IMAGE_BITS` |
 | WAI-NSFW-Illustrious v12 (SDXL) | diffusers on MPS, float16; VAE decodes in float32 | `models/waiNSFWIllustrious_v120/`, rewritten from float32 to float16 once |
 | Anime Desire (Illustrious SDXL) | diffusers on MPS, float16, single-file checkpoint loaded with the SDXL configs in `models/sdxl-base-config/` | `models/anime-desire-illustrious/` |
 | MOSS-Image NSFW | diffusers on MPS, bfloat16; pipeline vendored in `moss_pipeline.py` | `models/moss-image-nsfw/`; text encoder kept 8-bit (optimum-quanto) in `text_encoder-q8/` |
 
 - Only the default model downloads at start; the user downloads (`POST /models/{id}/download`, checked for free space) and removes (`DELETE /models/{id}`, files listed in `MODEL_FOLDERS`) the others from the model dialog. Downloads run one at a time in the background (`download_thread`) and finish with a `.download-complete` marker; `/generate` answers 503 with a message while a model downloads, and `/models/status` reports progress.
-- One-time builds (4-bit, float16, 8-bit) write to a `.building` folder and rename it when complete.
+- One-time builds (Z-Image levels, float16, 8-bit) write to a `.building` folder and rename it when complete.
 - MOSS-Image's text encoder and image model do not fit in memory together, so they take turns; the last prompt's embeddings are cached.
 
 ## Code layout
