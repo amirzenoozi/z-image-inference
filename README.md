@@ -18,7 +18,7 @@ Only Z-Image-Turbo downloads by itself; you add or remove the others from the ap
 ## Highlights
 
 - **Runs entirely on your Mac**, with live progress, Cancel, and a notification when a long render finishes
-- **Prompt builder**: assemble a detailed prompt step by step, written as a rich description or as weighted tags to suit each model
+- **Prompt builder**: assemble a detailed prompt step by step for a purpose (portrait, fashion, scene, 18+ and more), written as a rich description or as weighted tags to suit each model
 - **Prompt weights and long prompts** (`(tag:1.3)`) on the SDXL models, with nothing cut off after 77 tokens
 - **Variations**: start a new image from one you made, with a slider for how much it may change
 - **History**: search, filter by model, ratio and favourites, page through it, compare two images side by side, and export a zip
