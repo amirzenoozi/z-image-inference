@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -5,6 +6,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from model_catalog import DEFAULT_MODEL
+from palette import PaletteColour, extract_palette
+from resolutions import CATEGORY_CONDITIONS, Category
 
 DB_PATH = Path(__file__).parent / "history.db"
 COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite"
@@ -17,6 +20,8 @@ ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before render times were recorded have none
     "duration_seconds": "REAL",
     "favourite": "INTEGER NOT NULL DEFAULT 0",
+    # Worked out the first time the image is opened
+    "palette": "TEXT",
 }
 
 
@@ -62,6 +67,8 @@ class HistoryFilter:
     # Text the prompt must contain, ignoring case
     search: str = ""
     favourites_only: bool = False
+    # The image's shape, as the resolution picker groups sizes
+    category: Category | None = None
 
     def where(self) -> tuple[str, list[str]]:
         conditions: list[str] = []
@@ -74,6 +81,8 @@ class HistoryFilter:
             params.append(f"%{escape_like(self.search)}%")
         if self.favourites_only:
             conditions.append("favourite = 1")
+        if self.category:
+            conditions.append(f"({CATEGORY_CONDITIONS[self.category]})")
         return (f" WHERE {' AND '.join(conditions)}" if conditions else ""), params
 
 
@@ -158,6 +167,23 @@ def page(offset: int, limit: int, filters: HistoryFilter = HistoryFilter()) -> t
         ).fetchall()
         total = conn.execute(f"SELECT COUNT(*) FROM images{where}", params).fetchone()[0]
     return [to_item(row) for row in rows], total
+
+
+def palette(item_id: int) -> list[PaletteColour] | None:
+    """The image's colour palette, worked out and saved the first time it is asked for; None if there is no such image."""
+    with connection() as conn:
+        row = conn.execute("SELECT palette FROM images WHERE id = ?", (item_id,)).fetchone()
+    if row is None:
+        return None
+    if row[0] is not None:
+        return [PaletteColour(**colour) for colour in json.loads(row[0])]
+    png = image_png(item_id)
+    if png is None:
+        return None
+    colours = extract_palette(png)
+    with connection() as conn:
+        conn.execute("UPDATE images SET palette = ? WHERE id = ?", (json.dumps([asdict(colour) for colour in colours]), item_id))
+    return colours
 
 
 def set_favourite(item_id: int, favourite: bool) -> HistoryItem | None:

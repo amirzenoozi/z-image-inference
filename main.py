@@ -21,9 +21,10 @@ from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_val
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
+from palette import PaletteColour
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
 from model_catalog import MODEL_CATEGORIES, MODELS, ModelSpec, kept_gb, speed_hint
-from resolutions import CATEGORIES, PRESETS
+from resolutions import CATEGORIES, PRESETS, Category
 
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
 # Long enough for a first-time model download or a switch between models
@@ -290,15 +291,24 @@ def history(
     model: str | None = None,
     q: str = Query("", max_length=MAX_SEARCH_LENGTH),
     favourites: bool = False,
+    ratio: Category | None = None,
 ) -> HistoryPage:
     if model is not None and model not in MODELS:
         raise HTTPException(422, f"Unknown model: {model}")
-    items, total = history_store.page(offset, limit, HistoryFilter(model=model, search=q.strip(), favourites_only=favourites))
+    items, total = history_store.page(offset, limit, HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio))
     return HistoryPage(items=items, total=total)
 
 
 class FavouriteUpdate(BaseModel):
     favourite: bool
+
+
+@app.get("/api/history/{item_id}/palette")
+def history_palette(item_id: int) -> list[PaletteColour]:
+    colours = history_store.palette(item_id)
+    if colours is None:
+        raise HTTPException(404, "Image not found")
+    return colours
 
 
 @app.put("/api/history/{item_id}/favourite")
