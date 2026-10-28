@@ -20,3 +20,6 @@ history.db
 
 # Quantised model weights
 models/
+
+# Model comparison images (tools/z_image_levels.py)
+comparisons/

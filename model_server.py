@@ -39,7 +39,15 @@ from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransf
 MODELS_DIR = Path(__file__).parent / "models"
 HF_CACHE_DIR = MODELS_DIR / ".hf-cache"
 Z_IMAGE_PATH = MODELS_DIR / "Z-Image-Turbo"
-Z_IMAGE_Q4_PATH = MODELS_DIR / "zimage-q4"
+# Quantisation levels mflux supports; each level gets its own folder beside the kept original
+Z_IMAGE_LEVELS = (8, 6, 5, 4, 3)
+
+
+def z_image_quantized_path(bits: int) -> Path:
+    return MODELS_DIR / f"zimage-q{bits}"
+
+
+Z_IMAGE_Q4_PATH = z_image_quantized_path(4)
 WAI_ILLUSTRIOUS_PATH = MODELS_DIR / "waiNSFWIllustrious_v120"
 # The repo's "fp16" files are full precision too, so fetch only one set
 WAI_ILLUSTRIOUS_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
@@ -116,22 +124,22 @@ def ensure_downloaded(repo_id: str, path: Path, allow_patterns: list[str] | None
     marker.touch()
 
 
-def build_z_image_q4() -> None:
-    """Quantise Z-Image to 4-bit once, then delete the 31 GB original, which nothing else uses."""
+def build_z_image_quantized(bits: int, target: Path) -> None:
+    """Quantise Z-Image once into `target`. The original is kept, to compare against and rebuild from."""
     ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH)
-    print(f"Creating {QUANTIZE_BITS}-bit model at {Z_IMAGE_Q4_PATH}...")
+    if target.exists():
+        return
+    print(f"Creating {bits}-bit model at {target}...")
     # Built beside the final folder and renamed when complete, so an interrupted build is never used
-    building = Z_IMAGE_Q4_PATH.with_name(f"{Z_IMAGE_Q4_PATH.name}.building")
+    building = target.with_name(f"{target.name}.building")
     shutil.rmtree(building, ignore_errors=True)
-    ZImage(quantize=QUANTIZE_BITS, model_path=str(Z_IMAGE_PATH)).save_model(str(building))
-    building.rename(Z_IMAGE_Q4_PATH)
-    shutil.rmtree(Z_IMAGE_PATH)
+    ZImage(quantize=bits, model_path=str(Z_IMAGE_PATH)).save_model(str(building))
+    building.rename(target)
 
 
 def load_z_image() -> ImageGenerator:
     if compression_enabled():
-        if not Z_IMAGE_Q4_PATH.exists():
-            build_z_image_q4()
+        build_z_image_quantized(QUANTIZE_BITS, Z_IMAGE_Q4_PATH)
         model = ZImage(model_path=str(Z_IMAGE_Q4_PATH))
     else:
         model = ZImage(model_path=str(Z_IMAGE_PATH))
@@ -336,10 +344,8 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
 }
 
 def download_z_image() -> None:
+    # Compressed copies are kept beside the original, so levels can be compared
     ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH)
-    if not compression_enabled():
-        # The originals are used now; the 4-bit copy can be rebuilt from them if compression is turned on
-        shutil.rmtree(Z_IMAGE_Q4_PATH, ignore_errors=True)
 
 
 def download_wai_illustrious() -> None:
@@ -379,7 +385,9 @@ GB = 1_000_000_000
 
 # Everything a model keeps on disk, removed together when the user removes the model
 MODEL_FOLDERS: dict[str, list[Path]] = {
-    Z_IMAGE.id: [Z_IMAGE_PATH, Z_IMAGE_Q4_PATH, Z_IMAGE_Q4_PATH.with_name(f"{Z_IMAGE_Q4_PATH.name}.building")],
+    Z_IMAGE.id: [Z_IMAGE_PATH] + [
+        path for bits in Z_IMAGE_LEVELS for path in (z_image_quantized_path(bits), MODELS_DIR / f"zimage-q{bits}.building")
+    ],
     WAI_ILLUSTRIOUS.id: [WAI_ILLUSTRIOUS_PATH],
     MOSS_IMAGE.id: [MOSS_IMAGE_PATH],
     ANIME_DESIRE.id: [ANIME_DESIRE_PATH, SDXL_CONFIG_PATH],

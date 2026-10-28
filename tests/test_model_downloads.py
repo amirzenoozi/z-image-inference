@@ -252,7 +252,7 @@ def test_originals_count_as_downloaded_without_compression(download: FakeDownloa
         assert model_server.is_downloaded(model_id), model_id
 
 
-def test_downloading_originals_fetches_what_compression_replaced_and_drops_the_copies(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_downloading_originals_fetches_what_compression_replaced(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
     fetched: list[tuple[str, list[str] | None]] = []
 
     def fake_snapshot(repo_id: str, local_dir: Path, cache_dir: Path, allow_patterns: list[str] | None = None) -> None:
@@ -273,7 +273,8 @@ def test_downloading_originals_fetches_what_compression_replaced_and_drops_the_c
     model_server.download_wai_illustrious()
     model_server.download_moss_image()
 
-    assert not model_server.Z_IMAGE_Q4_PATH.exists()
+    # Z-Image's compressed copy is kept beside the original, for comparing levels
+    assert model_server.Z_IMAGE_Q4_PATH.exists()
     assert model_server.wai_has_original_weights()
     assert not model_server.MOSS_TEXT_ENCODER_Q8_PATH.exists()
     assert fetched == [
