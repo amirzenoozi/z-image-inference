@@ -12,12 +12,15 @@ load_dotenv()
 import openai
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, Path as PathParam, Query, Response
+from datetime import date
+
+from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_validator
 
+import history_export
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
@@ -284,19 +287,37 @@ def cancel_job(job_id: JobId) -> None:
     job_call("POST", job_id, "/cancel")
 
 
-@app.get("/api/history")
-def history(
-    offset: int = Query(0, ge=0),
-    limit: int = Query(30, ge=1, le=MAX_PAGE_SIZE),
+def history_filter(
     model: str | None = None,
     q: str = Query("", max_length=MAX_SEARCH_LENGTH),
     favourites: bool = False,
     ratio: Category | None = None,
-) -> HistoryPage:
+) -> HistoryFilter:
+    """History's filters from the query string, checked the same way wherever History is listed or exported."""
     if model is not None and model not in MODELS:
         raise HTTPException(422, f"Unknown model: {model}")
-    items, total = history_store.page(offset, limit, HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio))
+    return HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio)
+
+
+@app.get("/api/history")
+def history(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(30, ge=1, le=MAX_PAGE_SIZE),
+    filters: HistoryFilter = Depends(history_filter),
+) -> HistoryPage:
+    items, total = history_store.page(offset, limit, filters)
     return HistoryPage(items=items, total=total)
+
+
+@app.get("/api/history/export")
+def export_history(filters: HistoryFilter = Depends(history_filter)) -> StreamingResponse:
+    """The matching images as a zip: each PNG with a text file of its prompts and settings, and history.json."""
+    filename = f"z-image-history-{date.today().isoformat()}.zip"
+    return StreamingResponse(
+        history_export.chunks(history_export.build_zip(filters)),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 class FavouriteUpdate(BaseModel):

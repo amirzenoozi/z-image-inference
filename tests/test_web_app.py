@@ -1,4 +1,6 @@
 import io
+import json
+import zipfile
 from json import dumps
 import base64
 import sqlite3
@@ -486,3 +488,41 @@ def test_reloading_the_history_view_serves_the_app_page(client: TestClient) -> N
     assert resp.text == (main.FRONTEND_DIST / "index.html").read_text()
     assert client.get("/history/").text == resp.text
     assert client.get("/api/history").headers["content-type"] == "application/json"
+
+
+def exported(client: TestClient, query: str = "") -> zipfile.ZipFile:
+    resp = client.get(f"/api/history/export?{query}")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/zip"
+    assert resp.headers["content-disposition"].startswith('attachment; filename="z-image-history-')
+    return zipfile.ZipFile(io.BytesIO(resp.content))
+
+
+def test_export_zips_each_image_with_its_prompts_and_settings(client: TestClient, model_server: FakeModelServer) -> None:
+    item = generate(client, prompt="a red fox", negative_prompt="blurry").json()
+
+    archive = exported(client)
+
+    stem = f"{item['id']:04d}-z-image-turbo-1234"
+    assert sorted(archive.namelist()) == sorted([f"{stem}.png", f"{stem}.txt", "history.json"])
+    assert archive.read(f"{stem}.png") == png_bytes()
+    text = archive.read(f"{stem}.txt").decode()
+    assert text.startswith("Prompt:\na red fox\n\nNegative prompt:\nblurry\n")
+    assert "Seed: 1234" in text and "Render time: 52.3 s" in text and "Guidance" not in text
+    assert json.loads(archive.read("history.json")) == [item]
+
+
+def test_export_follows_the_history_filters(client: TestClient, model_server: FakeModelServer) -> None:
+    fox = generate(client, prompt="a red fox").json()["id"]
+    generate(client, prompt="a cat")
+
+    names = exported(client, "q=fox").namelist()
+
+    assert names == [f"{fox:04d}-z-image-turbo-1234.png", f"{fox:04d}-z-image-turbo-1234.txt", "history.json"]
+    assert client.get("/api/history/export?model=not-a-model").status_code == 422
+
+
+def test_exporting_nothing_gives_an_empty_but_valid_zip(client: TestClient) -> None:
+    archive = exported(client)
+    assert archive.namelist() == ["history.json"]
+    assert json.loads(archive.read("history.json")) == []
