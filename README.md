@@ -86,7 +86,7 @@ Open http://127.0.0.1:7860 in your browser.
 2. Write a **prompt**, or click one of the **example** cards below the prompt box to fill it; models that use one also show a **negative prompt**. Each model's examples live in `example_prompts.json`: edit it and reload the page to change them
 3. Choose a **resolution**: pick a category tab, then a size; sizes the model cannot make are greyed out with the reason
 4. Adjust **steps**, **guidance** and **seed** if you like; **Reset to model defaults** undoes your changes
-5. Press **Generate** (or ⌘/Ctrl + Enter). The result area shows what is happening (waiting, loading the model, reading the prompt, or **Step 4 of 9** with a progress bar) and how long it has been running. **Cancel** stops it after the current step, without adding anything to History
+5. Press **Generate** (or ⌘/Ctrl + Enter). The result area shows what is happening (waiting, loading the model, reading the prompt, or **Step 4 of 9** with a progress bar) and how long it has been running. **Cancel** stops it after the current step, without adding anything to History. The tab title shows when a render is running; if it finishes while you are in another tab or app, the title says so and a notification appears (the browser asks once for permission, the first time you press Generate)
 
 Your settings are remembered in the browser between visits.
 
@@ -133,7 +133,7 @@ The **History** tab shows every image, newest first, 30 to a page, with page but
 
 Above the images, **Search prompts** finds images whose prompt contains the text you type, **Model** shows one model's images, **Ratio** shows square, portrait, landscape or widescreen images (grouped as in the resolution picker), and **★ Favourites** shows only the images you starred with the ☆ on each image. **Compare** lets you pick two images and see them side by side, with the facts that differ (seed, steps, size and so on) highlighted.
 
-Each image's facts include how long it took to render (images made before this was recorded show no time). The header shows how much space History uses; **Clean up** deletes the images older than 7, 30 or 90 days, showing how many first and always keeping favourites, and **Delete all** removes everything, favourites included. Both shrink `history.db` afterwards.
+Each image's facts include how long it took to render (images made before this was recorded show no time). The header shows how much space History uses; **Clean up** deletes the images older than 7, 30 or 90 days, showing how many first and always keeping favourites, and **Delete all** removes everything, favourites included. **Export** downloads the images shown by the current filters as a zip: each PNG with a text file of its prompts and settings, and `history.json` with every image's details. In an image's details, **Copy** copies its prompt or negative prompt. Both shrink `history.db` afterwards.
 
 ### Switching models
 
