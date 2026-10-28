@@ -80,12 +80,22 @@ export interface HistoryItem {
   /** How long rendering took; null for images made before render times were recorded. */
   duration_seconds: number | null
   favourite: boolean
+  /** The image this one was turned, flipped or cropped from; null for a generated image. */
+  edited_from: number | null
 }
 
 export interface PaletteColour {
   hex: string
   /** Fraction of the image this colour covers, from 0 to 1. */
   share: number
+}
+
+/** Applied in this order on the server: quarter turns clockwise, flips, then the crop in the turned image's pixels. */
+export interface EditRecipe {
+  quarter_turns: number
+  flip_horizontal: boolean
+  flip_vertical: boolean
+  crop: { x: number; y: number; width: number; height: number } | null
 }
 
 export interface HistoryFilters {

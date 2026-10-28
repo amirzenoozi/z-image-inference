@@ -5,6 +5,7 @@ import { errorMessage } from '../lib/hooks'
 import { secondaryButtonClass } from '../lib/styles'
 import type { HistoryFilters, HistoryItem, Loadable } from '../types'
 import { ColourPalette } from './ColourPalette'
+import { EditSession } from './EditSession'
 import { FavouriteButton } from './FavouriteButton'
 import { ImageFacts } from './ImageFacts'
 import { Modal } from './Modal'
@@ -26,6 +27,8 @@ interface Props {
   /** Called after a star or delete, so History reloads what it shows. */
   onListChanged: () => void
   onReuse: (item: HistoryItem) => void
+  /** Called with the new image after an edit is saved. */
+  onEdited: (item: HistoryItem) => void
   onClose: () => void
 }
 
@@ -134,7 +137,7 @@ function useArmedDelete(onConfirmed: () => void): [boolean, () => void] {
   return [armed, press]
 }
 
-export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListChanged, onReuse, onClose }: Props) {
+export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListChanged, onReuse, onEdited, onClose }: Props) {
   const [index, setIndex] = useState(start.index)
   const image = useImageAt(filters, index, start)
   const area = useRef<HTMLDivElement>(null)
@@ -145,6 +148,16 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
   const [favouriteError, setFavouriteError] = useState<string | null>(null)
   const [deleteState, setDeleteState] = useState<DeleteState>({ status: 'idle' })
   const [armed, pressDelete] = useArmedDelete(() => deleteButton.current?.click())
+  const [editing, setEditing] = useState(false)
+  const [hasEdits, setHasEdits] = useState(false)
+  const [closeRequested, setCloseRequested] = useState(false)
+  // Closing over unsaved edits asks first, in the edit tools
+  const requestClose = () => (editing && hasEdits ? setCloseRequested(true) : onClose())
+  const stopEditing = () => {
+    setEditing(false)
+    setHasEdits(false)
+    setCloseRequested(false)
+  }
 
   const moveTo = (next: number) => {
     if (next < 0 || next >= image.total) return
@@ -169,14 +182,19 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
     else image.replace(next)
   }
 
-  useViewerKeys({
-    ArrowLeft: () => moveTo(index - 1),
-    ArrowRight: () => moveTo(index + 1),
-    z: fullScreen.toggle,
-    f: () => favouriteButton.current?.click(),
-    Delete: pressDelete,
-    Backspace: pressDelete,
-  })
+  // Paused while editing, so browsing, starring or deleting can never happen by accident there
+  useViewerKeys(
+    editing
+      ? {}
+      : {
+          ArrowLeft: () => moveTo(index - 1),
+          ArrowRight: () => moveTo(index + 1),
+          z: fullScreen.toggle,
+          f: () => favouriteButton.current?.click(),
+          Delete: pressDelete,
+          Backspace: pressDelete,
+        },
+  )
 
   const item = image.state.status === 'settled' ? image.state.value : null
   const remove = async (target: HistoryItem) => {
@@ -190,39 +208,59 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
     }
   }
   return (
-    <Modal title="Image details" onClose={onClose} size="xl">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div
-          ref={area}
-          className={`relative flex items-center justify-center overflow-hidden ${fullScreen.active ? 'h-screen bg-black' : 'h-[70vh] rounded-xl bg-zinc-100 dark:bg-zinc-800'}`}
-        >
-          <ImageArea state={image.state} zoomed={zoomed} onZoomedChange={setZoomed} onRetry={image.retry} />
-          <p className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white tabular-nums">
-            {index + 1} of {image.total}
-          </p>
-          <div className="absolute top-3 right-3 flex gap-2">
-            <OverlayButton label={zoomed ? 'Fit to window' : 'Zoom to 100%'} onClick={() => setZoomed(!zoomed)} disabled={!item}>
-              {zoomed ? '⤡' : '⤢'}
-            </OverlayButton>
-            <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} shortcut="Z" onClick={fullScreen.toggle}>
-              ⛶
-            </OverlayButton>
-            {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setFavouriteError} />}
-          </div>
-          <SideButton side="previous" disabled={index === 0} onClick={() => moveTo(index - 1)} />
-          <SideButton side="next" disabled={index >= image.total - 1} onClick={() => moveTo(index + 1)} />
-        </div>
-        {item && (
-          <ViewerDetails
+    <Modal title={editing ? 'Edit image' : 'Image details'} onClose={requestClose} size="full">
+      <div className="grid gap-5 lg:h-full lg:grid-cols-[minmax(0,1fr)_380px]">
+        {editing && item ? (
+          <EditSession
             item={item}
-            label={labelOf(item.model)}
-            favouriteError={favouriteError}
-            deleteError={deleteState.status === 'failed' ? deleteState.error : null}
-            armed={armed}
-            actions={
-              <ViewerActions item={item} deleting={deleteState.status === 'deleting'} deleteButton={deleteButton} onDelete={() => void remove(item)} onReuse={() => onReuse(item)} />
-            }
+            closeRequested={closeRequested}
+            onCloseAnswered={(close) => (close ? onClose() : setCloseRequested(false))}
+            onChangedChange={setHasEdits}
+            onCancel={stopEditing}
+            onSaved={onEdited}
           />
+        ) : (
+          <>
+            <div
+              ref={area}
+              className={`relative flex items-center justify-center overflow-hidden ${fullScreen.active ? 'h-screen bg-black' : 'h-[60vh] rounded-xl bg-zinc-100 lg:h-full dark:bg-zinc-800'}`}
+            >
+              <ImageArea state={image.state} zoomed={zoomed} onZoomedChange={setZoomed} onRetry={image.retry} />
+              <p className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white tabular-nums">
+                {index + 1} of {image.total}
+              </p>
+              <div className="absolute top-3 right-3 flex gap-2">
+                <OverlayButton label={zoomed ? 'Fit to window' : 'Zoom to 100%'} onClick={() => setZoomed(!zoomed)} disabled={!item}>
+                  {zoomed ? '⤡' : '⤢'}
+                </OverlayButton>
+                <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} shortcut="Z" onClick={fullScreen.toggle}>
+                  ⛶
+                </OverlayButton>
+                {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setFavouriteError} />}
+              </div>
+              <SideButton side="previous" disabled={index === 0} onClick={() => moveTo(index - 1)} />
+              <SideButton side="next" disabled={index >= image.total - 1} onClick={() => moveTo(index + 1)} />
+            </div>
+            {item && (
+              <ViewerDetails
+                item={item}
+                label={labelOf(item.model)}
+                favouriteError={favouriteError}
+                deleteError={deleteState.status === 'failed' ? deleteState.error : null}
+                armed={armed}
+                actions={
+                  <ViewerActions
+                    item={item}
+                    deleting={deleteState.status === 'deleting'}
+                    deleteButton={deleteButton}
+                    onDelete={() => void remove(item)}
+                    onEdit={() => setEditing(true)}
+                    onReuse={() => onReuse(item)}
+                  />
+                }
+              />
+            )}
+          </>
         )}
       </div>
     </Modal>
@@ -352,13 +390,16 @@ interface DetailsProps {
 /** The metadata column beside the image; its actions sit at the bottom of the column, under a divider. */
 function ViewerDetails({ item, label, favouriteError, deleteError, armed, actions }: DetailsProps) {
   return (
-    <div className="flex min-h-0 flex-col gap-4 text-sm lg:max-h-[70vh]">
+    <div className="flex min-h-0 flex-col gap-4 text-sm lg:h-full">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <ImageFacts item={item} label={label} />
         <ColourPalette itemId={item.id} />
         <PromptBlock title="Prompt" text={item.prompt} />
         {item.negative_prompt && <PromptBlock title="Negative prompt" text={item.negative_prompt} />}
-        <p className="text-xs text-zinc-400">Created {new Date(`${item.created_at}Z`).toLocaleString()}</p>
+        <p className="text-xs text-zinc-400">
+          Created {new Date(`${item.created_at}Z`).toLocaleString()}
+          {item.edited_from !== null && ` · Edited from image #${item.edited_from}`}
+        </p>
         {favouriteError && <ErrorNotice message={favouriteError} />}
         {deleteError && <ErrorNotice message={deleteError} />}
         {armed && (
@@ -380,15 +421,19 @@ interface ActionsProps {
   deleting: boolean
   deleteButton: RefObject<HTMLButtonElement | null>
   onDelete: () => void
+  onEdit: () => void
   onReuse: () => void
 }
 
-function ViewerActions({ item, deleting, deleteButton, onDelete, onReuse }: ActionsProps) {
+function ViewerActions({ item, deleting, deleteButton, onDelete, onEdit, onReuse }: ActionsProps) {
   return (
     <>
       <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
         Download
       </a>
+      <button type="button" onClick={onEdit} className={secondaryButtonClass}>
+        Edit
+      </button>
       <button ref={deleteButton} type="button" onClick={onDelete} disabled={deleting} className={`${secondaryButtonClass} text-red-600 dark:text-red-400`}>
         {deleting ? 'Deleting…' : 'Delete'}
       </button>
