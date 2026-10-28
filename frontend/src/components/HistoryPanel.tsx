@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { clearHistory, deleteHistoryItem, fetchHistory, imageUrl } from '../api'
+import { clearHistory, deleteHistoryItem, fetchHistory, historyExportUrl, imageUrl } from '../api'
 import { useHistoryAddress, type AddressChange } from '../lib/historyAddress'
 import { NO_FILTERS, isFiltered } from '../lib/historyFilters'
 import { errorMessage } from '../lib/hooks'
@@ -155,6 +155,7 @@ function HistoryResults({ filters, pageNumber, labelOf, onReuse, onClearFilters,
         firstShown={(pageNumber - 1) * PAGE_SIZE + 1}
         lastShown={(pageNumber - 1) * PAGE_SIZE + items.length}
         filtered={filtered}
+        exportUrl={historyExportUrl(filters)}
         onCleaned={() => showPage(1)}
         onCleared={() => showPage(1)}
       />
@@ -195,26 +196,39 @@ interface HeaderProps {
   firstShown: number
   lastShown: number
   filtered: boolean
+  exportUrl: string
   onCleaned: () => void
   onCleared: () => void
 }
 
 /** The image count, and the clean-up and delete-all actions, which only make sense for the whole History. */
-function HistoryHeader({ total, firstShown, lastShown, filtered, onCleaned, onCleared }: HeaderProps) {
+function HistoryHeader({ total, firstShown, lastShown, filtered, exportUrl, onCleaned, onCleared }: HeaderProps) {
   const [confirmClear, setConfirmClear] = useState(false)
   return (
     <div className="flex items-center justify-between">
       <p className="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">{countLabel(total, firstShown, lastShown, filtered)}</p>
-      {total > 0 && !filtered && (
+      {total > 0 && (
         <div className="flex items-center gap-4">
-          <HistoryCleanUp onCleaned={onCleaned} />
-          <button type="button" onClick={() => setConfirmClear(true)} className="text-sm font-medium text-red-600 hover:text-red-500">
-            Delete all
-          </button>
+          <a href={exportUrl} download className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
+            {filtered ? 'Export these' : 'Export'}
+          </a>
+          {!filtered && <WholeHistoryActions onCleaned={onCleaned} onDeleteAll={() => setConfirmClear(true)} />}
         </div>
       )}
       {confirmClear && <ConfirmClear total={total} onClose={() => setConfirmClear(false)} onCleared={onCleared} />}
     </div>
+  )
+}
+
+/** Clean up and Delete all act on the whole History, so they are hidden while a filter is on. */
+function WholeHistoryActions({ onCleaned, onDeleteAll }: { onCleaned: () => void; onDeleteAll: () => void }) {
+  return (
+    <>
+      <HistoryCleanUp onCleaned={onCleaned} />
+      <button type="button" onClick={onDeleteAll} className="text-sm font-medium text-red-600 hover:text-red-500">
+        Delete all
+      </button>
+    </>
   )
 }
 

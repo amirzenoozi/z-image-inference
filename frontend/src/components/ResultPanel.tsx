@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { imageUrl } from '../api'
-import { formatDuration, useElapsedSeconds } from '../lib/hooks'
+import { formatDuration, useCopyToClipboard, useElapsedSeconds } from '../lib/hooks'
 import { useJobProgress } from '../lib/jobProgress'
 import type { GenerationState, HistoryItem, JobPhase, JobProgress, ModelInfo } from '../types'
 import { secondaryButtonClass } from '../lib/styles'
@@ -107,16 +106,8 @@ function StepBar({ step, total }: { step: number; total: number }) {
 }
 
 function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: string; onUseSeed: (seed: number) => void }) {
-  const [copied, setCopied] = useState(false)
-  const copySeed = async () => {
-    try {
-      await navigator.clipboard.writeText(String(item.seed))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      setCopied(false)
-    }
-  }
+  const [copied, copy] = useCopyToClipboard()
+  const copySeed = () => copy(String(item.seed))
   return (
     <figure className="flex w-full max-w-3xl flex-col items-center gap-4">
       <img

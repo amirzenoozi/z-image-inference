@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { fetchPalette } from '../api'
-import { useLoadable } from '../lib/hooks'
+import { useCopyToClipboard, useLoadable } from '../lib/hooks'
 import type { PaletteColour } from '../types'
 import { ErrorNotice } from './ui'
 
@@ -36,21 +36,12 @@ function PaletteSkeleton() {
 }
 
 function Swatch({ colour }: { colour: PaletteColour }) {
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(colour.hex)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      setCopied(false)
-    }
-  }
+  const [copied, copy] = useCopyToClipboard()
   return (
     <li>
       <button
         type="button"
-        onClick={() => void copy()}
+        onClick={() => void copy(colour.hex)}
         aria-label={`Copy ${colour.hex}`}
         title={`Copy ${colour.hex}`}
         className="block h-10 w-full rounded-md border border-black/10 shadow-xs transition hover:scale-105 focus:ring-2 focus:ring-violet-500 focus:outline-none dark:border-white/10"

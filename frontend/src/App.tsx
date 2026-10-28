@@ -8,6 +8,7 @@ import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
 import { loadSettings, saveSettings, settingsFromItem } from './lib/settings'
+import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
 
@@ -38,13 +39,16 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   const [lastSeed, setLastSeed] = useState<number | null>(null)
   const onSuccess = useCallback((item: HistoryItem) => setLastSeed(item.seed), [])
   const generation = useGeneration(onSuccess)
+  useRenderAlerts(generation.state, catalog.models)
   // A generation attempt can start a model download, so status is re-checked whenever its state changes
   const [modelStatus, refreshModelStatus] = useModelStatus(generation.state.status)
   useEffect(() => saveSettings(settings), [settings])
 
   const generating = generation.state.status === 'pending'
   const generateWith = (prompt: string) => {
-    if (!generating && prompt.trim()) void generation.run({ ...settings, prompt })
+    if (generating || !prompt.trim()) return
+    askToNotify()
+    void generation.run({ ...settings, prompt })
   }
   const reuse = (item: HistoryItem) => {
     setSettings(settingsFromItem(item, catalog))

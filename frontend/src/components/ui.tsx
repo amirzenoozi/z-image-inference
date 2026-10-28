@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useCopyToClipboard } from '../lib/hooks'
 
 export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
@@ -35,9 +36,20 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
 }
 
 export function PromptBlock({ title, text }: { title: string; text: string }) {
+  const [copied, copy] = useCopyToClipboard()
   return (
     <div>
-      <h3 className="text-xs font-semibold tracking-wider text-zinc-500 uppercase">{title}</h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold tracking-wider text-zinc-500 uppercase">{title}</h3>
+        <button
+          type="button"
+          onClick={() => void copy(text)}
+          aria-label={`Copy ${title.toLowerCase()}`}
+          className="text-xs font-medium text-violet-600 hover:text-violet-500 dark:text-violet-400"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
       <p className="mt-1 max-h-48 overflow-y-auto rounded-lg bg-zinc-50 p-3 text-xs leading-relaxed whitespace-pre-wrap text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200">{text}</p>
     </div>
   )

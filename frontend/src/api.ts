@@ -105,14 +105,27 @@ export async function cancelJob(jobId: string): Promise<void> {
   await request(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })
 }
 
-export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, signal?: AbortSignal): Promise<HistoryPage> {
-  const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
+function filterParams(filters: HistoryFilters): URLSearchParams {
+  const params = new URLSearchParams()
   if (filters.model) params.set('model', filters.model)
   if (filters.search) params.set('q', filters.search)
   if (filters.favouritesOnly) params.set('favourites', 'true')
   if (filters.ratio) params.set('ratio', filters.ratio)
+  return params
+}
+
+export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, signal?: AbortSignal): Promise<HistoryPage> {
+  const params = filterParams(filters)
+  params.set('offset', String(offset))
+  params.set('limit', String(limit))
   const resp = await request(`/api/history?${params}`, { signal })
   return resp.json() as Promise<HistoryPage>
+}
+
+/** A zip of the images matching the filters, each with its prompts and settings; the browser downloads it. */
+export function historyExportUrl(filters: HistoryFilters): string {
+  const query = filterParams(filters).toString()
+  return `/api/history/export${query ? `?${query}` : ''}`
 }
 
 /** Worked out on the server the first time an image is opened, then saved with it. */

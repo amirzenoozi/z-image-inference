@@ -52,3 +52,20 @@ export function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
   return minutes ? `${minutes}m ${String(seconds % 60).padStart(2, '0')}s` : `${seconds}s`
 }
+
+const COPIED_FOR_MS = 1500
+
+/** Copies text to the clipboard; `copied` is true for a moment afterwards, for a "Copied" label. */
+export function useCopyToClipboard(): [boolean, (text: string) => Promise<void>] {
+  const [copied, setCopied] = useState(false)
+  const copy = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), COPIED_FOR_MS)
+    } catch {
+      setCopied(false)
+    }
+  }, [])
+  return [copied, copy]
+}
