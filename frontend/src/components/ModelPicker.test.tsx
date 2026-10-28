@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { catalog } from '../test/fixtures'
 import type { Loadable, ModelStatusReport } from '../types'
@@ -13,7 +14,7 @@ const report = (models: ModelStatusReport['models']): Loadable<ModelStatusReport
 it('shows a checking placeholder, not a download badge, while status is loading', () => {
   renderPicker({ status: 'pending' })
   expect(screen.getAllByText('Checking download…')).toHaveLength(2)
-  expect(screen.queryByText(/Downloads on first use/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Not downloaded yet/)).not.toBeInTheDocument()
 })
 
 it('shows each model’s download state', () => {
@@ -23,7 +24,8 @@ it('shows each model’s download state', () => {
 })
 
 it.each([
-  ['missing', 'Downloads on first use · ~13 GB'],
+  ['missing', 'Not downloaded yet · ~13 GB'],
+  ['queued', 'Queued for download · ~13 GB'],
   ['failed', 'Download failed · retries when you generate'],
 ] as const)('labels a %s model', (state, text) => {
   renderPicker(report({ 'z-image-turbo': 'ready', 'wai-illustrious': state }))
@@ -36,5 +38,18 @@ it.each<[string, Loadable<ModelStatusReport>]>([
 ])('explains how to start the model server when %s', (_, status) => {
   renderPicker(status)
   expect(screen.getByRole('status')).toHaveTextContent('uv run python model_server.py')
-  expect(screen.queryByText(/Downloads on first use/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Not downloaded yet/)).not.toBeInTheDocument()
+})
+
+it('links each model to its Hugging Face page without selecting it', async () => {
+  const onSelect = vi.fn()
+  render(<ModelPicker models={catalog.models} selectedId="z-image-turbo" status={report({})} onSelect={onSelect} />)
+
+  const link = screen.getByRole('link', { name: 'Open WAI-Illustrious on Hugging Face' })
+  expect(link).toHaveAttribute('href', 'https://huggingface.co/votepurchase/waiNSFWIllustrious_v120')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+
+  await userEvent.click(link)
+  expect(onSelect).not.toHaveBeenCalled()
 })
