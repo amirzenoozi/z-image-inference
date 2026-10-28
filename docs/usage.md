@@ -173,7 +173,7 @@ Click the image to see it at 100% (drag to look around), and click again to fit 
 - If the size you choose is a different shape from the start image, the start image is cropped to fit, centred.
 - **×** on the start image goes back to a normal render. **Reuse settings** on a variation brings its start image back.
 
-Z-Image-Turbo, WAI-Illustrious, Anime Desire and RealVisXL can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
+Z-Image-Turbo, WAI-Illustrious, Anime Desire, RealVisXL and FLUX.1-dev can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
 
 ## Characters
 
