@@ -86,7 +86,7 @@ Open http://127.0.0.1:7860 in your browser.
 2. Write a **prompt**, or click one of the **example** cards below the prompt box to fill it; models that use one also show a **negative prompt**. Each model's examples live in `example_prompts.json`: edit it and reload the page to change them
 3. Choose a **resolution**: pick a category tab, then a size; sizes the model cannot make are greyed out with the reason
 4. Adjust **steps**, **guidance** and **seed** if you like; **Reset to model defaults** undoes your changes
-5. Press **Generate** (or ⌘/Ctrl + Enter). A timer shows how long it has been running
+5. Press **Generate** (or ⌘/Ctrl + Enter). The result area shows what is happening (waiting, loading the model, reading the prompt, or **Step 4 of 9** with a progress bar) and how long it has been running. **Cancel** stops it after the current step, without adding anything to History
 
 Your settings are remembered in the browser between visits.
 
