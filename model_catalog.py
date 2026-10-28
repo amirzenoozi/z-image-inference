@@ -32,6 +32,8 @@ class ModelSpec:
     original_speed_hint: str | None = None
     # How the model reads prompts best: natural sentences or comma-separated tags
     prompt_style: Literal["prose", "tags"] = "prose"
+    # Whether the model can start from an image, for variations
+    supports_variations: bool = True
 
 
 Z_IMAGE = ModelSpec(
@@ -88,6 +90,8 @@ MOSS_IMAGE = ModelSpec(
     uses_guidance=True,
     default_guidance=3.0,
     trigger_word="moss_xvstyle",
+    # Its pipeline only starts from noise
+    supports_variations=False,
 )
 
 ANIME_DESIRE = ModelSpec(
