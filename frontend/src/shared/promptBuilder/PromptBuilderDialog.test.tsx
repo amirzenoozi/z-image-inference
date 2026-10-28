@@ -22,11 +22,11 @@ it('walks through steps with a live preview and confirms into the editor', async
   const useIt = screen.getByRole('button', { name: 'Use this prompt' })
   expect(useIt).toBeDisabled()
 
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
-  await chooseOption(screen.getByLabelText('Age'), 'mid 20s')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await chooseOption(screen.getByLabelText('Age'), 'Mid 20s')
   await step('Face & hair')
-  await chooseOption(screen.getByLabelText('Eye colour'), 'green')
-  await userEvent.click(screen.getByRole('button', { name: 'freckles' }))
+  await chooseOption(screen.getByLabelText('Eye colour'), 'Green')
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Freckles' }))
 
   const prompt = 'A photograph of an adult woman in her mid 20s. She has green eyes. Her skin shows freckles.'
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent(prompt)
@@ -37,7 +37,7 @@ it('walks through steps with a live preview and confirms into the editor', async
 
 it('closes on cancel without inserting anything', async () => {
   const { onConfirm, onClose } = renderDialog()
-  await chooseOption(screen.getByLabelText('Who'), 'man')
+  await chooseOption(screen.getByLabelText('Who'), 'Man')
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(onClose).toHaveBeenCalledOnce()
   expect(onConfirm).not.toHaveBeenCalled()
@@ -45,7 +45,7 @@ it('closes on cancel without inserting anything', async () => {
 
 it('offers appending when the editor already has a prompt', async () => {
   const { onConfirm } = renderDialog({ hasExistingPrompt: true })
-  await chooseOption(screen.getByLabelText('Who'), 'man')
+  await chooseOption(screen.getByLabelText('Who'), 'Man')
   expect(screen.getByText(/replaces the text in the Write box/)).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Append to prompt' }))
   expect(onConfirm).toHaveBeenCalledWith('A photograph of an adult man.', expect.any(String), 'append', false)
@@ -62,12 +62,12 @@ it('shows the 18+ step only in an 18+ mode, and needs an adult age', async () =>
   renderDialog()
   expect(screen.queryByRole('button', { name: /Intimacy/ })).not.toBeInTheDocument()
 
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
   await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
 
   expect(screen.getByText(/need “Who” and an adult age range/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeDisabled()
-  await chooseOption(screen.getByLabelText('Age'), 'early 30s')
+  await chooseOption(screen.getByLabelText('Age'), 'Early 30s')
   await step('Intimacy')
   await userEvent.click(screen.getByRole('button', { name: 'Topless' }))
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent('She is topless with nothing worn above the waist, bare breasts and nipples fully visible')
@@ -75,8 +75,8 @@ it('shows the 18+ step only in an 18+ mode, and needs an adult age', async () =>
 
 it('refuses explicit prompts that suggest a minor', async () => {
   renderDialog()
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
-  await chooseOption(screen.getByLabelText('Age'), 'early 20s')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await chooseOption(screen.getByLabelText('Age'), 'Early 20s')
   await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
   await userEvent.type(screen.getByLabelText('Extra subject details'), 'schoolgirl')
 
@@ -86,7 +86,7 @@ it('refuses explicit prompts that suggest a minor', async () => {
 
 it('blocks prompts over the length limit', async () => {
   renderDialog({ maxPromptLength: 20 })
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
   expect(screen.getByText(/too long/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeDisabled()
 })
@@ -94,8 +94,8 @@ it('blocks prompts over the length limit', async () => {
 it('writes weighted tags for tag-based models, and a description for the others', async () => {
   renderDialog({ model: animeModel })
   expect(screen.getByText(/Written as tags for WAI-Illustrious/)).toBeInTheDocument()
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
-  await chooseOption(screen.getByLabelText('Age'), 'early 30s')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await chooseOption(screen.getByLabelText('Age'), 'Early 30s')
   await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
   await step('Intimacy')
   await userEvent.click(screen.getByRole('button', { name: 'Fully nude' }))
@@ -107,8 +107,8 @@ it('writes weighted tags for tag-based models, and a description for the others'
 
 it('offers partner actions only for a couple', async () => {
   renderDialog()
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
-  await chooseOption(screen.getByLabelText('Age'), 'early 30s')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await chooseOption(screen.getByLabelText('Age'), 'Early 30s')
   await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
   await step('Pose')
   await userEvent.click(screen.getByLabelText('Explicit action'))
@@ -116,7 +116,7 @@ it('offers partner actions only for a couple', async () => {
   await userEvent.keyboard('{Escape}')
 
   await step('Subject')
-  await chooseOption(screen.getByLabelText('Who'), 'couple')
+  await chooseOption(screen.getByLabelText('Who'), 'Couple')
   await step('Pose')
   await userEvent.click(screen.getByLabelText('Explicit action'))
   expect(await screen.findByRole('group', { name: 'With a partner' })).toBeInTheDocument()
@@ -129,7 +129,7 @@ it('shows only the steps of the chosen mode, starting from its defaults', async 
   const nav = screen.getByRole('navigation', { name: 'Builder steps' })
   expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual(['1Scene & light', '2Camera', '3Mood & finish'])
   expect(screen.getByText('Choose a scene or describe the place, to start.')).toBeInTheDocument()
-  await chooseOption(screen.getByLabelText('Scene'), 'beach')
+  await chooseOption(screen.getByLabelText('Scene'), 'Beach')
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/^A photograph of a beach/)
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent('golden hour')
 })
@@ -175,14 +175,14 @@ it('saves the subject and look as a character, once it is an adult with a name',
   const onCharacterSaved = vi.fn()
   render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={null} onCharacterSaved={onCharacterSaved} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
 
-  await chooseOption(screen.getByLabelText('Who'), 'woman')
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
   await userEvent.click(screen.getByRole('button', { name: 'Save as character…' }))
   await userEvent.type(screen.getByLabelText('Character name'), 'Ava')
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(screen.getByRole('alert')).toHaveTextContent('A character needs “Who” and an adult age range.')
   expect(api.createCharacter).not.toHaveBeenCalled()
 
-  await chooseOption(screen.getByLabelText('Age'), 'late 20s')
+  await chooseOption(screen.getByLabelText('Age'), 'Late 20s')
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(api.createCharacter).toHaveBeenCalledExactlyOnceWith({ name: 'Ava', traits: expect.objectContaining({ who: 'woman', age: 'late 20s' }) })
   expect(onCharacterSaved).toHaveBeenCalledWith(character())
@@ -192,4 +192,30 @@ it('offers no 18+ purposes for a character whose face is an uploaded photo', () 
   render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={character({ face_uploaded: true })} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
   const purposes = screen.getAllByRole('radio').map((radio) => radio.textContent)
   expect(purposes).toEqual(['General', 'Portrait', 'Fashion', 'Influencer', 'Scene'])
+})
+
+it('offers the body choices a character leaves out, such as pubic hair, for each image in the 18+ purposes', async () => {
+  render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={character()} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  expect(screen.queryByRole('region', { name: 'For this image' })).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('radio', { name: 'Explicit (18+)' }))
+  const forImage = screen.getByRole('region', { name: 'For this image' })
+  expect(within(forImage).getByLabelText('Pubic hair')).toBeInTheDocument()
+  expect(within(forImage).getByLabelText('Nipples')).toBeInTheDocument()
+  expect(within(forImage).queryByLabelText('Penis')).not.toBeInTheDocument()
+})
+
+it('takes several makeup picks from one select, keeping the list open, with labels starting in capitals', async () => {
+  renderDialog()
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await chooseOption(screen.getByLabelText('Age'), 'Mid 20s')
+  await step('Face & hair')
+  await userEvent.click(screen.getByLabelText('Makeup'))
+  await userEvent.click(await screen.findByRole('option', { name: 'Winged eyeliner' }))
+  await userEvent.click(screen.getByRole('option', { name: 'Bold red lipstick' }))
+  expect(screen.getByLabelText('Makeup')).toHaveTextContent('Winged eyeliner, Bold red lipstick')
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('wearing winged eyeliner and bold red lipstick')
+
+  await userEvent.click(screen.getByRole('option', { name: 'No makeup' }))
+  expect(screen.getByLabelText('Makeup')).toHaveTextContent(/^No makeup$/)
 })

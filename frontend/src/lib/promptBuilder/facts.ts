@@ -44,14 +44,22 @@ export interface Facts {
   /** null when explicit content is off. */
   nudity: Nudity | null
   intimacy: string[]
+  /** Explicit details (EXPLICIT_DETAILS keys) that fit the subject and nudity. */
+  explicitDetails: string[]
   eyes: string
   expression: string
-  makeup: string
+  makeup: string[]
   skinTone: string
   skinDetails: string[]
   appearanceExtra: string
   hair: { length: string; color: string; style: string }
   body: { type: string; height: string; bust: string; hips: string; marks: string[]; extra: string }
+  /** Explicit purpose: '' unless it fits the subject and nudity. */
+  anatomy: { penis: string; nipples: string; pubicHair: string }
+  /** Anyone's build beyond the body type; '' when unset or not offered. */
+  physique: { muscles: string; abs: string; bodyHair: string }
+  /** A man's beard, and his chest and bulge when they show. */
+  male: { facialHair: string[]; chest: string; bulge: string }
   /** Garments and accessories still worn after the nudity level, lower-case, with their colours. */
   clothing: string[]
   removed: string[]
@@ -62,7 +70,7 @@ export interface Facts {
   time: string
   weather: string
   extraDetails: string
-  lighting: Labelled
+  lighting: Labelled[]
   lightingCustom: string
   shot: string
   angle: string

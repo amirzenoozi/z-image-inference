@@ -106,7 +106,7 @@ export function character(overrides: Partial<Character> = {}): Character {
     traits: {
       who: 'woman', age: 'late 20s', ethnicity: '', subject: '', eyeColor: 'green', makeup: '', skinTone: '', skinDetails: [],
       appearanceExtra: '', hairColor: 'auburn', hairstyle: '', hairLength: 'long', bodyType: '', height: '', bust: '', hips: '',
-      tattoos: [], piercings: [], bodyExtra: '',
+      tattoos: [], piercings: [], bodyExtra: '', facialHair: '', muscles: '', abs: '', chest: '', makeupMore: [], facialHairMore: [],
     },
     cover_id: null,
     seed: null,

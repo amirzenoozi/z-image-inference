@@ -19,13 +19,23 @@ import { WHO_OPTIONS, type Nudity, type Who } from './extraData'
 import { pronounFor, withArticle, type Facts, type Labelled, type Pronoun } from './facts'
 import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { resolve } from './random'
-import { choicesFor, includesMan, includesWoman } from './rules'
+import { anatomyShows, choicesFor, explicitDetailOptions, includesMan, includesWoman } from './rules'
+import { picksOf, type MultiChoice } from './multiChoice'
+import { settleChoices } from './settle'
 
 const EXPLICIT_ACTIONS: Readonly<Record<string, string>> = { ...EXPLICIT_SOLO_ACTIONS, ...EXPLICIT_PARTNER_ACTIONS }
 const isSet = (value: string) => value !== NOT_SET
 const NOTHING: Labelled = { label: '', text: '' }
+const BAREFOOT = 'Barefoot'
 
 type Choose = (field: ChoiceField, value: string) => string
+
+/** The first pick resolved (Random settles to an option), then the further picks that still fit, without repeats. */
+function chooseAll(state: BuilderState, mode: BuilderMode, choose: Choose, field: MultiChoice): string[] {
+  const more = picksOf(state, field).slice(1).filter((value) => choicesFor(field, state, mode).includes(value))
+  const first = choose(field, state[field])
+  return isSet(first) ? [...new Set([first, ...more])] : []
+}
 
 function describeWho(who: Who, age: string, ethnicity: string, pronoun: Pronoun): string {
   const eth = isSet(ethnicity) ? `${ethnicity} ` : ''
@@ -87,8 +97,10 @@ function outfitFacts(outfit: OutfitState, nudity: Nudity | null, seed: number, s
     const item = resolve(outfit[slot.item], slot.options, seed, slot.item)
     const color = resolve(outfit[slot.color], CLOTHING_COLORS, seed, slot.color)
     const worn = nudity === null || WORN_WITH[nudity].has(slot.item)
+    // Bare feet have no colour
+    const coloured = isSet(color) && item !== BAREFOOT
     if (item === REMOVE) removed.push(slot.label)
-    else if (isSet(item) && worn) clothing.push(isSet(color) ? `${color} ${item.toLowerCase()}` : item.toLowerCase())
+    else if (isSet(item) && worn) clothing.push(coloured ? `${color} ${item.toLowerCase()}` : item.toLowerCase())
   }
   const accessories = outfit.accessories.map((item, index) => resolve(item, ACCESSORIES, seed, `accessory${index}`).toLowerCase())
   return { clothing: [...clothing, ...new Set(accessories.filter(isSet))], removed }
@@ -114,11 +126,40 @@ function depthOfField(value: string): string {
   return `${words.slice(0, -1).join(' ')} depth of field at ${words[words.length - 1]}`
 }
 
-function personFacts(state: BuilderState, choose: Choose) {
+/** A choice that no longer fits the subject or nudity (kept from earlier) is left out rather than contradicting them. */
+function anatomyFacts(state: BuilderState, mode: BuilderMode) {
+  const fitting = (field: 'penis' | 'nipples' | 'pubicHair') =>
+    choicesFor(field, state, mode).includes(state[field]) && anatomyShows(field, state.nudity) ? state[field] : NOT_SET
+  return { penis: fitting('penis'), nipples: fitting('nipples'), pubicHair: fitting('pubicHair') }
+}
+
+// Tops that leave a man's chest in view
+const OPEN_TOPS = new Set(['Tank top', 'Mesh top', 'Fishnet top', 'Harness top', 'Deep V-neck top', 'Plunge neckline top'])
+
+function chestShows(state: BuilderState, nudity: Nudity | null): boolean {
+  if (nudity === 'topless' || nudity === 'nude') return true
+  return state.outfit.top === REMOVE || OPEN_TOPS.has(state.outfit.top)
+}
+
+/** Choices that no longer fit who is in the scene or the purpose (kept from earlier) are left out. */
+function buildFacts(state: BuilderState, mode: BuilderMode, nudity: Nudity | null) {
+  const fitting = (field: 'muscles' | 'abs' | 'bodyHair' | 'chest' | 'bulge') => (choicesFor(field, state, mode).includes(state[field]) ? state[field] : NOT_SET)
+  return {
+    physique: { muscles: fitting('muscles'), abs: fitting('abs'), bodyHair: fitting('bodyHair') },
+    male: { facialHair: facialHairOf(state, mode), chest: chestShows(state, nudity) ? fitting('chest') : NOT_SET, bulge: fitting('bulge') },
+  }
+}
+
+function facialHairOf(state: BuilderState, mode: BuilderMode): string[] {
+  const fits = (value: string) => choicesFor('facialHair', state, mode).includes(value)
+  return fits(state.facialHair) ? chooseAll(state, mode, (_, value) => value, 'facialHair') : []
+}
+
+function personFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
   return {
     eyes: choose('eyeColor', state.eyeColor),
     expression: choose('expression', state.expression),
-    makeup: choose('makeup', state.makeup),
+    makeup: chooseAll(state, mode, choose, 'makeup'),
     skinTone: choose('skinTone', state.skinTone),
     skinDetails: state.skinDetails,
     appearanceExtra: state.appearanceExtra.trim(),
@@ -134,7 +175,7 @@ function personFacts(state: BuilderState, choose: Choose) {
   }
 }
 
-function settingFacts(state: BuilderState, choose: Choose) {
+function settingFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
   const sceneType = choose('sceneType', state.sceneType)
   return {
     place: placeOf(state.environment, sceneType),
@@ -142,7 +183,7 @@ function settingFacts(state: BuilderState, choose: Choose) {
     time: choose('timeOfDay', state.timeOfDay),
     weather: choose('weather', state.weather),
     extraDetails: state.extraDetails.trim(),
-    lighting: lightingOf(choose('lightingSetup', state.lightingSetup), sceneType),
+    lighting: chooseAll(state, mode, choose, 'lightingSetup').map((setup) => lightingOf(setup, sceneType)).filter((light) => light.text),
     lightingCustom: state.lightingCustom.trim(),
     photoStyle: choose('photoStyle', state.photoStyle),
     shot: choose('shotType', state.shotType),
@@ -174,16 +215,27 @@ function subjectFacts(state: BuilderState, mode: BuilderMode, choose: Choose, sc
   return { who, age, ethnicity, subjectExtra, subject: [core, subjectExtra].filter(Boolean).join(', '), sceneOnly: false }
 }
 
+function hiddenBody(facts: Facts): Partial<Facts> {
+  return {
+    body: { type: '', height: '', bust: '', hips: '', marks: [], extra: '' },
+    anatomy: { penis: '', nipples: '', pubicHair: '' },
+    physique: { muscles: '', abs: '', bodyHair: '' },
+    // The beard belongs to the Face & hair step, so it stays
+    male: { facialHair: facts.male.facialHair, chest: '', bulge: '' },
+  }
+}
+
 /** A step the mode hides contributes nothing, so choices left from another mode never reach the prompt. */
 function withoutHiddenSteps(facts: Facts, mode: BuilderMode): Facts {
   const show = (step: Parameters<typeof showsStep>[1]) => showsStep(mode, step)
   return {
     ...facts,
-    ...(show('appearance') ? {} : { eyes: '', expression: '', makeup: '', skinTone: '', skinDetails: [], appearanceExtra: '', hair: { length: '', color: '', style: '' } }),
-    ...(show('body') ? {} : { body: { type: '', height: '', bust: '', hips: '', marks: [], extra: '' } }),
+    ...(show('appearance') ? {} : { eyes: '', expression: '', makeup: [], skinTone: '', skinDetails: [], appearanceExtra: '', hair: { length: '', color: '', style: '' }, male: { ...facts.male, facialHair: [] } }),
+    ...(show('body') ? {} : hiddenBody(facts)),
     ...(show('outfit') ? {} : { clothing: [], removed: [], outfitDetails: '' }),
+    ...(show('intimacy') ? {} : { explicitDetails: [] }),
     ...(show('pose') ? {} : { pose: { ...NOTHING, explicit: false }, action: NOTHING, freeAction: '' }),
-    ...(show('scene') ? {} : { place: '', time: '', weather: '', lighting: NOTHING, lightingCustom: '' }),
+    ...(show('scene') ? {} : { place: '', time: '', weather: '', lighting: [], lightingCustom: '' }),
     ...(show('camera') ? {} : { photoStyle: '', shot: '', angle: '', lens: '', depthOfField: '' }),
     ...(show('finish') ? {} : { mood: '', grading: '', realism: [], extraDetails: '' }),
   }
@@ -191,10 +243,10 @@ function withoutHiddenSteps(facts: Facts, mode: BuilderMode): Facts {
 
 export function resolveFacts(state: BuilderState, mode: BuilderMode): Facts {
   const seed = state.rollSeed
-  // Random "Who" is settled first, since the options of other fields depend on it
-  const settled = { ...state, who: resolve(state.who, choicesFor('who', state, mode), seed, 'who') }
+  // Random choices are settled first, in an order that keeps them from contradicting each other
+  const settled = settleChoices(state, mode)
   const choose: Choose = (field, value) => resolve(value, choicesFor(field, settled, mode), seed, field)
-  const setting = settingFacts(settled, choose)
+  const setting = settingFacts(settled, mode, choose)
   const subject = subjectFacts(settled, mode, choose, setting.sceneType)
   const nudity = nudityFacts(settled, mode)
   const facts: Facts = {
@@ -207,8 +259,11 @@ export function resolveFacts(state: BuilderState, mode: BuilderMode): Facts {
     freeAction: state.action.trim(),
     nudity,
     intimacy: nudity === null ? [] : state.intimacy,
-    ...personFacts(settled, choose),
-    ...outfitFacts(state.outfit, nudity, seed, isSafeMode(mode)),
+    explicitDetails: settled.explicitDetails.filter((detail) => explicitDetailOptions(settled, mode).includes(detail)),
+    anatomy: anatomyFacts(settled, mode),
+    ...buildFacts(settled, mode, nudity),
+    ...personFacts(settled, mode, choose),
+    ...outfitFacts(settled.outfit, nudity, seed, isSafeMode(mode)),
     outfitDetails: state.outfit.details.trim(),
     ...setting,
     // A scene without people names its place in the opening sentence, so the scene sentence leaves it out

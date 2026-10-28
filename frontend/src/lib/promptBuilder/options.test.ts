@@ -14,7 +14,8 @@ function allOptionValues(): string[] {
     if (isStringList(value)) return [...value]
     return isStringRecord(value) ? Object.keys(value) : []
   })
-  return [...new Set(values)].sort()
+  // The explicit details are a table of wording and tags, keyed by the option
+  return [...new Set([...values, ...Object.keys(extraData.EXPLICIT_DETAILS)])].sort()
 }
 
 it('gives every prompt builder option a label in en/options.json', () => {

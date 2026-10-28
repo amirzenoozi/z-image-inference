@@ -132,7 +132,7 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
 
   await userEvent.click(await screen.findByRole('button', { name: /Prompt builder/ }))
   const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
-  await chooseOption(within(dialog).getByLabelText('Who'), 'man')
+  await chooseOption(within(dialog).getByLabelText('Who'), 'Man')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -197,8 +197,8 @@ it('drops "nsfw" from the negative prompt when an explicit prompt is appended', 
 
   await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
   const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
-  await chooseOption(within(dialog).getByLabelText('Who'), 'woman')
-  await chooseOption(within(dialog).getByLabelText('Age'), 'early 30s')
+  await chooseOption(within(dialog).getByLabelText('Who'), 'Woman')
+  await chooseOption(within(dialog).getByLabelText('Age'), 'Early 30s')
   await userEvent.click(within(dialog).getByRole('radio', { name: 'Explicit (18+)' }))
   await userEvent.click(within(dialog).getByRole('button', { name: 'Append to prompt' }))
 

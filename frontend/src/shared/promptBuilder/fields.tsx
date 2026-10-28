@@ -1,8 +1,8 @@
 import { useId, type ReactNode } from 'react'
-import { optionLabel, t, type MessageKey } from '../../i18n'
+import { optionTitle, t, type MessageKey } from '../../i18n'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../../lib/promptBuilder/build'
-import { chipClass, fieldLabelClass, tabClass } from '../../lib/styles'
-import { Select, type SelectGroup } from '../form/Select'
+import { fieldLabelClass, tabClass } from '../../lib/styles'
+import { MultiSelect, Select, type SelectGroup } from '../form/Select'
 import { TextInput } from '../form/TextInput'
 
 const labelClass = 'text-[11px] font-medium text-zinc-600 dark:text-zinc-300'
@@ -36,7 +36,7 @@ function choiceGroups({ groups, allowRemove = false, allowInherit = false, allow
   const special = [NOT_SET, ...(allowRandom ? [RANDOM] : []), ...(allowRemove ? [REMOVE] : []), ...(allowInherit ? [INHERIT_SCENE] : [])]
   return [
     { options: special.map((value) => ({ value, label: t(SPECIAL_LABELS[value]) })) },
-    ...groups.map((group) => ({ label: group.label, options: group.options.map((option) => ({ value: option, label: optionLabel(option) })) })),
+    ...groups.map((group) => ({ label: group.label, options: group.options.map((option) => ({ value: option, label: optionTitle(option) })) })),
   ]
 }
 
@@ -45,6 +45,18 @@ export function ChoiceSelect(props: ChoiceSelectProps) {
   const groups = choiceGroups(props)
   const known = groups.some((group) => group.options.some((option) => option.value === value))
   return <Select label={label} value={known ? value : NOT_SET} groups={groups} onChange={onChange} />
+}
+
+interface MultiChoiceSelectProps extends Omit<ChoiceSelectProps, 'value' | 'onChange'> {
+  values: string[]
+  onChange: (values: string[]) => void
+}
+
+/** A choice that takes several options; Not set is having none, so it is left out of the list. */
+export function MultiChoiceSelect({ values, onChange, ...props }: MultiChoiceSelectProps) {
+  const groups = choiceGroups({ ...props, value: NOT_SET, onChange: () => {} })
+  const withoutNotSet = groups.map((group) => ({ ...group, options: group.options.filter((option) => option.value !== NOT_SET) }))
+  return <MultiSelect label={props.label} values={values} groups={withoutNotSet} placeholder={t('builder.choiceNotSet')} onChange={onChange} />
 }
 
 interface TextFieldProps {
@@ -67,24 +79,25 @@ export function TextField({ label, value, placeholder, onChange, wide = false }:
   )
 }
 
-interface ChipGroupProps {
+interface CheckboxGroupProps {
   label: string
   options: readonly string[]
   value: string[]
   onChange: (value: string[]) => void
 }
 
-/** Multi-select chips; the order they were picked in is the order they appear in the prompt. */
-export function ChipGroup({ label, options, value, onChange }: ChipGroupProps) {
+/** Checkboxes for picking several options; the order they were ticked in is the order they appear in the prompt. */
+export function CheckboxGroup({ label, options, value, onChange }: CheckboxGroupProps) {
   const toggle = (option: string) => onChange(value.includes(option) ? value.filter((item) => item !== option) : [...value, option])
   return (
     <fieldset className="sm:col-span-2">
       <legend className={labelClass}>{label}</legend>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
+      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
         {options.map((option) => (
-          <button key={option} type="button" aria-pressed={value.includes(option)} onClick={() => toggle(option)} className={`rounded-full border px-2.5 py-1 text-xs transition ${chipClass(value.includes(option))}`}>
-            {optionLabel(option)}
-          </button>
+          <label key={option} className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700 dark:text-zinc-200">
+            <input type="checkbox" checked={value.includes(option)} onChange={() => toggle(option)} className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-violet-600" />
+            {optionTitle(option)}
+          </label>
         ))}
       </div>
     </fieldset>
