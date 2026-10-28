@@ -14,6 +14,8 @@ interface Props {
   model: ModelInfo
   limits: Limits
   builderModes: readonly BuilderModeData[]
+  /** True while an image is being generated: the prompts can be read and copied, but not changed. */
+  locked: boolean
   onChange: (patch: PromptPatch) => void
   onSubmit: () => void
 }
@@ -22,7 +24,7 @@ function joinText(current: string, addition: string, separator: string): string 
   return current.trim() ? `${current.trim()}${separator}${addition}` : addition
 }
 
-export function PromptEditor({ settings, model, limits, builderModes, onChange, onSubmit }: Props) {
+export function PromptEditor({ settings, model, limits, builderModes, locked, onChange, onSubmit }: Props) {
   const [builderOpen, setBuilderOpen] = useState(false)
   const character = useCharacter(settings.characterId)
   const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => {
@@ -39,7 +41,8 @@ export function PromptEditor({ settings, model, limits, builderModes, onChange, 
       <button
         type="button"
         onClick={() => setBuilderOpen(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
+        disabled={locked}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400 py-2.5 text-sm font-semibold text-violet-700 not-disabled:hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-700 dark:text-violet-300 dark:not-disabled:hover:bg-violet-950/40"
       >
         <WandSparkles /> Prompt builder
       </button>
@@ -64,6 +67,8 @@ export function PromptEditor({ settings, model, limits, builderModes, onChange, 
           rows={6}
           maxLength={limits.max_prompt_length}
           value={settings.prompt}
+          readOnly={locked}
+          aria-readonly={locked}
           onChange={(event) => onChange({ prompt: event.target.value })}
           onKeyDown={(event) => {
             if (isModEnter(event)) {
@@ -80,14 +85,14 @@ export function PromptEditor({ settings, model, limits, builderModes, onChange, 
             {settings.prompt.length}/{limits.max_prompt_length}
           </span>
         </p>
-        <ExampleCards examples={model.examples} onPick={(prompt) => onChange({ prompt })} />
+        <ExampleCards examples={model.examples} disabled={locked} onPick={(prompt) => onChange({ prompt })} />
       </div>
-      {model.uses_guidance && <NegativePrompt value={settings.negativePrompt} model={model} onChange={onChange} />}
+      {model.uses_guidance && <NegativePrompt value={settings.negativePrompt} model={model} locked={locked} onChange={onChange} />}
     </div>
   )
 }
 
-function ExampleCards({ examples, onPick }: { examples: string[]; onPick: (prompt: string) => void }) {
+function ExampleCards({ examples, disabled, onPick }: { examples: string[]; disabled: boolean; onPick: (prompt: string) => void }) {
   if (examples.length === 0) return null
   return (
     <div className="mt-2 grid grid-cols-2 gap-2">
@@ -98,7 +103,8 @@ function ExampleCards({ examples, onPick }: { examples: string[]; onPick: (promp
           aria-label={`Example #${index + 1}`}
           title={example}
           onClick={() => onPick(example)}
-          className="min-w-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-left hover:border-violet-400 hover:bg-violet-50 dark:border-zinc-700 dark:hover:border-violet-600 dark:hover:bg-violet-950/40"
+          disabled={disabled}
+          className="min-w-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-left not-disabled:hover:border-violet-400 not-disabled:hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:not-disabled:hover:border-violet-600 dark:not-disabled:hover:bg-violet-950/40"
         >
           <span className="block text-xs font-medium text-zinc-800 dark:text-zinc-100">Example #{index + 1}</span>
           <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400">{example}</span>
@@ -111,10 +117,11 @@ function ExampleCards({ examples, onPick }: { examples: string[]; onPick: (promp
 interface NegativePromptProps {
   value: string
   model: ModelInfo
+  locked: boolean
   onChange: (patch: PromptPatch) => void
 }
 
-function NegativePrompt({ value, model, onChange }: NegativePromptProps) {
+function NegativePrompt({ value, model, locked, onChange }: NegativePromptProps) {
   const isDefault = value === model.default_negative_prompt
   return (
     <div>
@@ -122,7 +129,7 @@ function NegativePrompt({ value, model, onChange }: NegativePromptProps) {
         <label htmlFor="negative-prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
           Negative prompt
         </label>
-        {!isDefault && (
+        {!isDefault && !locked && (
           <button
             type="button"
             onClick={() => onChange({ negativePrompt: model.default_negative_prompt })}
@@ -136,6 +143,8 @@ function NegativePrompt({ value, model, onChange }: NegativePromptProps) {
         id="negative-prompt"
         rows={2}
         value={value}
+        readOnly={locked}
+        aria-readonly={locked}
         onChange={(event) => onChange({ negativePrompt: event.target.value })}
         placeholder="What to avoid…"
         className="mt-1"

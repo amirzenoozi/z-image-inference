@@ -385,3 +385,25 @@ it('does not mark Create for a result seen there', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'History' }))
   expect(createTab()).toHaveAccessibleName('Create')
 })
+
+it.each([
+  ['the image arrives', (pending: ReturnType<typeof deferred<HistoryItem>>) => pending.resolve(historyItem({ prompt: 'a red fox' }))],
+  ['the server fails', (pending: ReturnType<typeof deferred<HistoryItem>>) => pending.reject(new api.ApiError('The model server failed', 502))],
+  ['it is cancelled', (pending: ReturnType<typeof deferred<HistoryItem>>) => pending.reject(new api.ApiError('Cancelled', api.CANCELLED_STATUS))],
+])('locks the prompt while generating, and unlocks it once %s', async (_, end) => {
+  const pending = await startGenerating()
+  const prompt = screen.getByLabelText('Prompt')
+  expect(prompt).toHaveAttribute('readonly')
+  expect(screen.getByRole('button', { name: /Prompt builder/ })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Example #1' })).toBeDisabled()
+  await userEvent.type(prompt, ' at night')
+  expect(prompt).toHaveValue('a red fox')
+  await userEvent.click(screen.getByRole('button', { name: 'Generating…' }))
+  expect(api.generateImage).toHaveBeenCalledOnce()
+
+  await act(async () => end(pending))
+  expect(prompt).not.toHaveAttribute('readonly')
+  expect(screen.getByRole('button', { name: /Prompt builder/ })).toBeEnabled()
+  await userEvent.type(prompt, ' at night')
+  expect(prompt).toHaveValue('a red fox at night')
+})
