@@ -3,6 +3,7 @@ export type Tier = 'S' | 'M' | 'L' | 'XL'
 
 export interface ModelInfo {
   id: string
+  repo_id: string
   label: string
   description: string
   speed_hint: string
@@ -43,7 +44,7 @@ export interface Catalog {
   limits: Limits
 }
 
-export type ModelStatus = 'ready' | 'downloading' | 'missing' | 'failed'
+export type ModelStatus = 'ready' | 'queued' | 'downloading' | 'missing' | 'failed'
 
 export interface ModelStatusReport {
   server_running: boolean

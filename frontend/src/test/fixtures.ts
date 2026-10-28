@@ -2,6 +2,7 @@ import type { Catalog, HistoryItem, ModelInfo } from '../types'
 
 export const fastModel: ModelInfo = {
   id: 'z-image-turbo',
+  repo_id: 'Tongyi-MAI/Z-Image-Turbo',
   label: 'Z-Image-Turbo',
   description: 'Fast photos',
   speed_hint: '~10 s',
@@ -20,6 +21,7 @@ export const fastModel: ModelInfo = {
 
 export const animeModel: ModelInfo = {
   id: 'wai-illustrious',
+  repo_id: 'votepurchase/waiNSFWIllustrious_v120',
   label: 'WAI-Illustrious',
   description: 'Anime',
   speed_hint: '~40 s',
