@@ -51,6 +51,11 @@ export function withModel(settings: GenerationSettings, model: ModelInfo): Gener
   }
 }
 
+/** For when the user picks another model: its sampling defaults apply; prompt, seed and a size that fits are kept. */
+export function switchModel(settings: GenerationSettings, model: ModelInfo): GenerationSettings {
+  return { ...withModel(settings, model), steps: model.default_steps, guidance: model.default_guidance }
+}
+
 /** The settings that produced a history image, keeping the seed fixed so it can be reproduced. */
 export function settingsFromItem(item: HistoryItem, catalog: Catalog): GenerationSettings {
   const model = findModel(catalog, item.model)

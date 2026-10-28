@@ -39,18 +39,19 @@ it('generates exactly once and shows the image only after it arrives', async () 
   expect(api.generateImage).toHaveBeenCalledOnce()
 })
 
-it('keeps settings when switching model and offers that model’s defaults', async () => {
+it('resets sampling when switching model and offers the remaining defaults', async () => {
   render(<App />)
 
   await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
   await userEvent.click(screen.getByRole('radio', { name: /WAI-Illustrious/ }))
-  expect(screen.getByText(/Your settings were kept/)).toBeInTheDocument()
-  expect(screen.getByLabelText('Steps')).toHaveValue(9)
+  expect(screen.getByLabelText('Steps')).toHaveValue(28)
+  expect(screen.getByLabelText('Guidance (CFG)')).toHaveValue(7)
+  expect(screen.getByText(/Sampling was reset to WAI-Illustrious’s defaults/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Negative prompt')).toHaveValue('')
 
   await userEvent.click(screen.getByRole('button', { name: 'Use defaults' }))
-  expect(screen.getByLabelText('Steps')).toHaveValue(28)
   expect(screen.getByLabelText('Negative prompt')).toHaveValue('nsfw, low quality')
-  expect(screen.queryByText(/Your settings were kept/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Sampling was reset/)).not.toBeInTheDocument()
 })
 
 it('shows a retryable error when the catalog cannot load', async () => {
