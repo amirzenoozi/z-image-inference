@@ -117,7 +117,8 @@ Clean up and Delete all also shrink `history.db` on disk.
 Images with nudity or sexual content are blurred in History's list, on character cards and in the face-lock thumbnail, with an eye icon and "Sensitive". Opening one shows it as it is.
 
 - An image is marked sensitive when it is saved, if its prompt has words such as *nude*, *naked*, *nsfw*, *explicit*, *topless*, *lingerie* or *sensual* (so images from the 18+ builder purposes are). Images made before this existed are checked once, on the next start.
-- A model can make nudity the prompt doesn't ask for, so the eye button on an opened image marks it as sensitive, or as not sensitive, by hand. An edited copy keeps its original's setting.
+- The image itself is checked too, by a small image classifier ([Falconsai/nsfw_image_detection](https://huggingface.co/Falconsai/nsfw_image_detection), 343 MB, downloaded once into `models/nsfw-detector/` on the first start). It catches nudity the prompt didn't ask for, such as a typed prompt with a character whose look describes her body. Images saved before it was ready are checked in the background after a start; it takes a few seconds.
+- No check is perfect, so the eye button on an opened image marks it as sensitive, or as not sensitive, by hand; that always wins. An edited copy keeps its original's setting.
 
 ## Image viewer
 
