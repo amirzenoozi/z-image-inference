@@ -1,5 +1,7 @@
 # Z-Image Inference on Apple Silicon
 
+![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](docs/images/create.png)
+
 > Generate images locally on your Mac with Z-Image-Turbo, two SDXL anime models and MOSS-Image, from a clean web interface. Nothing leaves your machine.
 
 Z-Image Inference runs image generation models natively on Apple Silicon (MLX and Metal) and gives them a friendly browser UI: write or build a prompt, pick a model and a size, and generate. Every image is kept in a searchable History, where you can browse, compare, edit and make variations of it.
