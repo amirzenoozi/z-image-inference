@@ -17,7 +17,7 @@ class ModelSpec:
     description: str
     speed_hint: str
     category: ModelCategory
-    # Size of the original download, and what stays on disk after compression (MODEL_COMPRESSION=on)
+    # Size of the original download, and of the compressed copy (Z-Image: its 8-bit copy, kept beside the original)
     download_gb: float
     compressed_gb: float
     default_steps: int
@@ -39,10 +39,10 @@ Z_IMAGE = ModelSpec(
     label="Z-Image-Turbo",
     repo_id="Tongyi-MAI/Z-Image-Turbo",
     description="Fast photorealistic images with sharp text rendering.",
-    speed_hint="~10 s at 512, ~50 s at 1024",
+    speed_hint="~55 s at 1024",
     category="photo",
     download_gb=31,
-    compressed_gb=5.9,
+    compressed_gb=10.7,
     original_speed_hint="~12 min per image on 24 GB (swaps)",
     default_steps=9,
     max_steps=20,
@@ -117,12 +117,32 @@ def compression_enabled() -> bool:
     return os.environ.get("MODEL_COMPRESSION", "off").strip().lower() == "on"
 
 
+# Quantisation levels mflux supports for Z-Image-Turbo
+Z_IMAGE_LEVELS = (8, 6, 5, 4, 3)
+
+
+def z_image_bits() -> int | None:
+    """Z_IMAGE_BITS picks the quantised copy Z-Image-Turbo runs (8 by default); "original" runs the original files, which are always kept."""
+    value = os.environ.get("Z_IMAGE_BITS", "8").strip().lower()
+    if value == "original":
+        return None
+    if value not in {str(bits) for bits in Z_IMAGE_LEVELS}:
+        raise ValueError(f"Z_IMAGE_BITS must be original or one of {', '.join(map(str, Z_IMAGE_LEVELS))}, not {value!r}")
+    return int(value)
+
+
+def runs_compressed(spec: ModelSpec) -> bool:
+    return z_image_bits() is not None if spec.id == Z_IMAGE.id else compression_enabled()
+
+
 def kept_gb(spec: ModelSpec) -> float:
-    return spec.compressed_gb if compression_enabled() else spec.download_gb
+    if spec.id == Z_IMAGE.id:
+        return spec.download_gb + (spec.compressed_gb if runs_compressed(spec) else 0)
+    return spec.compressed_gb if runs_compressed(spec) else spec.download_gb
 
 
 def speed_hint(spec: ModelSpec) -> str:
-    return spec.speed_hint if compression_enabled() or spec.original_speed_hint is None else spec.original_speed_hint
+    return spec.speed_hint if runs_compressed(spec) or spec.original_speed_hint is None else spec.original_speed_hint
 
 
 MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE)}

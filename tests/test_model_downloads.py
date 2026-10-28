@@ -55,12 +55,13 @@ def download(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeDo
     monkeypatch.setattr(model_server, "DOWNLOAD_PATHS", paths)
     monkeypatch.setattr(model_server, "MODEL_FOLDERS", {model_id: [path] for model_id, path in paths.items()})
     monkeypatch.setattr(model_server, "Z_IMAGE_PATH", paths["z-image-turbo"])
-    monkeypatch.setattr(model_server, "Z_IMAGE_Q4_PATH", tmp_path / "zimage-q4")
+    monkeypatch.setattr(model_server, "MODELS_DIR", tmp_path)
     monkeypatch.setattr(model_server, "WAI_ILLUSTRIOUS_PATH", paths[WAI])
     monkeypatch.setattr(model_server, "MOSS_IMAGE_PATH", paths[MOSS])
     monkeypatch.setattr(model_server, "MOSS_IMAGE_MODEL_PATH", paths[MOSS] / "merged-model")
     monkeypatch.setattr(model_server, "MOSS_TEXT_ENCODER_Q8_PATH", paths[MOSS] / "text_encoder-q8")
     monkeypatch.delenv("MODEL_COMPRESSION", raising=False)
+    monkeypatch.delenv("Z_IMAGE_BITS", raising=False)
     monkeypatch.setattr(model_server, "DOWNLOADERS", {**model_server.DOWNLOADERS, WAI: fake})
     monkeypatch.setattr(model_server, "downloads", {})
     monkeypatch.setattr(model_server, "free_bytes", lambda: PLENTY)
@@ -231,13 +232,12 @@ def write_wai_unet(dtype: torch.dtype) -> None:
 @pytest.mark.parametrize(("compression", "ready"), [("off", False), ("on", True)])
 def test_compressed_copies_only_count_when_compression_is_on(download: FakeDownload, monkeypatch: pytest.MonkeyPatch, compression: str, ready: bool) -> None:
     monkeypatch.setenv("MODEL_COMPRESSION", compression)
-    model_server.Z_IMAGE_Q4_PATH.mkdir()
     mark_downloaded(model_server.WAI_ILLUSTRIOUS_PATH)
     write_wai_unet(torch.float16)
     mark_downloaded(model_server.MOSS_IMAGE_PATH)
     model_server.MOSS_TEXT_ENCODER_Q8_PATH.mkdir()
 
-    for model_id in ("z-image-turbo", WAI, MOSS):
+    for model_id in (WAI, MOSS):
         assert model_server.is_downloaded(model_id) is ready, model_id
 
 
@@ -262,7 +262,7 @@ def test_downloading_originals_fetches_what_compression_replaced(download: FakeD
             write_wai_unet(torch.float32)
 
     monkeypatch.setattr(model_server, "snapshot_download", fake_snapshot)
-    model_server.Z_IMAGE_Q4_PATH.mkdir()
+    model_server.z_image_quantized_path(8).mkdir()
     mark_downloaded(model_server.Z_IMAGE_PATH)
     mark_downloaded(model_server.WAI_ILLUSTRIOUS_PATH)
     write_wai_unet(torch.float16)
@@ -274,7 +274,7 @@ def test_downloading_originals_fetches_what_compression_replaced(download: FakeD
     model_server.download_moss_image()
 
     # Z-Image's compressed copy is kept beside the original, for comparing levels
-    assert model_server.Z_IMAGE_Q4_PATH.exists()
+    assert model_server.z_image_quantized_path(8).exists()
     assert model_server.wai_has_original_weights()
     assert not model_server.MOSS_TEXT_ENCODER_Q8_PATH.exists()
     assert fetched == [
