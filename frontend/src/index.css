@@ -11,6 +11,17 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* Tailwind v4 gives buttons the default arrow cursor; buttons here show the pointing hand, and a no-entry sign when disabled */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
 /* Native parts the field components replace with their own */
 @layer components {
   .no-native-spinner {

@@ -62,7 +62,7 @@ function SelectItem({ option }: { option: SelectOption }) {
   return (
     <ListboxOption
       value={option.value}
-      className="group flex cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-zinc-700 select-none data-focus:bg-violet-50 data-focus:text-violet-900 data-selected:font-medium dark:text-zinc-200 dark:data-focus:bg-violet-950/60 dark:data-focus:text-violet-100"
+      className="group flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-zinc-700 select-none data-focus:bg-violet-50 data-focus:text-violet-900 data-selected:font-medium dark:text-zinc-200 dark:data-focus:bg-violet-950/60 dark:data-focus:text-violet-100"
     >
       <span aria-hidden="true" className="invisible w-3.5 shrink-0 text-violet-600 group-data-selected:visible dark:text-violet-400">
         ✓
