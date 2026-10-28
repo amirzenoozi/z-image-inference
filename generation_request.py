@@ -7,6 +7,7 @@ SIDE_STEP = 16
 MAX_SEED = 2**32 - 1
 MAX_PROMPT_LENGTH = 4000
 MAX_NEGATIVE_PROMPT_LENGTH = 2000
+JOB_ID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
 
 class GenerateRequest(BaseModel):
@@ -23,6 +24,8 @@ class GenerateRequest(BaseModel):
     steps: int | None = None
     guidance: float | None = Field(default=None, ge=0, le=20)
     seed: int | None = Field(default=None, ge=0, le=MAX_SEED)
+    # Chosen by the browser, so it can follow and cancel the generation while it runs
+    job_id: str | None = Field(default=None, pattern=JOB_ID_PATTERN)
 
     @model_validator(mode="after")
     def check_against_model(self) -> "GenerateRequest":
