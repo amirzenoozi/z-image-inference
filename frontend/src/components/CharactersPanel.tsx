@@ -6,9 +6,10 @@ import { traitsSummary } from '../lib/promptBuilder/character'
 import { secondaryButtonClass } from '../lib/styles'
 import type { Character } from '../types'
 import { CharacterEditor } from './CharacterEditor'
+import { IconButton } from './IconButton'
 import { Modal } from './Modal'
 import { ErrorNotice } from './ui'
-import { Plus, UserRound } from 'lucide-react'
+import { Images, Pencil, Plus, Trash2, UserRound } from 'lucide-react'
 
 interface Props {
   maxSeed: number
@@ -37,7 +38,7 @@ export function CharactersPanel({ maxSeed, onUse, onShowImages }: Props) {
       {characters.status === 'failed' && <ErrorNotice message={characters.error} onRetry={reload} />}
       {characters.status === 'settled' && characters.value.length === 0 && <NoCharacters />}
       {characters.status === 'settled' && characters.value.length > 0 && (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {characters.value.map((character) => (
             <CharacterCard
               key={character.id}
@@ -72,53 +73,56 @@ interface CardProps {
 function CharacterCard({ character, onUse, onShowImages, onEdit, onDelete }: CardProps) {
   const images = character.image_count === 1 ? '1 image' : `${character.image_count} images`
   return (
-    <li aria-label={character.name} className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <li aria-label={character.name} className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <CharacterCover character={character} />
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div>
-          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{character.name}</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{traitsSummary(character.traits)}</p>
-          <p className="mt-1 text-xs text-zinc-400 tabular-nums">
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{character.name}</h3>
+          <p className="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">{traitsSummary(character.traits)}</p>
+          <p className="mt-1 text-[11px] text-zinc-400 tabular-nums">
             {images}
             {character.seed !== null && ` · seed ${character.seed}`}
             {character.face_id !== null && ' · face locked'}
           </p>
         </div>
-        <div className="mt-auto flex flex-wrap items-center gap-2">
-          <button type="button" onClick={onUse} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
+        <div className="mt-auto flex items-center gap-1">
+          <button type="button" onClick={onUse} className="mr-auto rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-500">
             Use
           </button>
-          <button type="button" onClick={onShowImages} disabled={character.image_count === 0} className={`${secondaryButtonClass} disabled:opacity-50`}>
-            Show images
-          </button>
-          <button type="button" onClick={onEdit} className={secondaryButtonClass}>
-            Edit
-          </button>
-          <button type="button" onClick={onDelete} className="ml-auto text-sm font-medium text-red-600 hover:text-red-500">
-            Delete
-          </button>
+          <IconButton label="Show images" onClick={onShowImages} disabled={character.image_count === 0} className={cardIconClass}>
+            <Images />
+          </IconButton>
+          <IconButton label="Edit" onClick={onEdit} className={cardIconClass}>
+            <Pencil />
+          </IconButton>
+          <IconButton label="Delete" onClick={onDelete} className={`${cardIconClass} hover:text-red-600 dark:hover:text-red-400`}>
+            <Trash2 />
+          </IconButton>
         </div>
       </div>
     </li>
   )
 }
 
+const cardIconClass =
+  'flex size-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
+
 function CharacterCover({ character }: { character: Character }) {
   if (character.cover_id === null) {
     return (
-      <div className="flex aspect-square items-center justify-center bg-zinc-100 text-zinc-400 dark:bg-zinc-800 [&_svg]:size-12">
+      <div className="flex aspect-[3/4] items-center justify-center bg-zinc-100 text-zinc-400 dark:bg-zinc-800 [&_svg]:size-10">
         <UserRound />
       </div>
     )
   }
-  return <img src={imageUrl(character.cover_id, true)} alt="" className="aspect-square w-full bg-zinc-100 object-cover dark:bg-zinc-800" />
+  return <img src={imageUrl(character.cover_id, true)} alt="" className="aspect-[3/4] w-full bg-zinc-100 object-cover dark:bg-zinc-800" />
 }
 
 function CharactersSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading characters" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+    <div aria-busy="true" aria-label="Loading characters" className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="aspect-[3/5] animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       ))}
     </div>
   )
