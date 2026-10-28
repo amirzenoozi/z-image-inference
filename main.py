@@ -51,6 +51,7 @@ class ModelInfo(BaseModel):
     label: str
     description: str
     speed_hint: str
+    download_gb: float
     default_steps: int
     max_steps: int
     max_side: int
@@ -66,7 +67,7 @@ class ModelInfo(BaseModel):
     def from_spec(cls, spec: ModelSpec) -> "ModelInfo":
         width, height = spec.default_size
         return cls(
-            id=spec.id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint,
+            id=spec.id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, download_gb=spec.download_gb,
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
@@ -96,6 +97,14 @@ class Catalog(BaseModel):
     examples: list[str]
     chat_available: bool
     limits: Limits
+
+
+ModelStatus = Literal["ready", "downloading", "missing", "failed"]
+
+
+class ModelStatusReport(BaseModel):
+    server_running: bool
+    models: dict[str, ModelStatus]
 
 
 class HistoryPage(BaseModel):
@@ -140,9 +149,11 @@ def catalog() -> Catalog:
 
 
 def model_server_detail(resp: requests.Response) -> str:
-    """Turn the model server's validation error into one readable line."""
+    """Turn the model server's error, a message or a list of validation errors, into one readable line."""
     try:
         errors = resp.json()["detail"]
+        if isinstance(errors, str):
+            return errors
         return "; ".join(str(error.get("msg", error)) for error in errors)
     except (ValueError, KeyError, TypeError, AttributeError):
         return resp.text or "Invalid request"
@@ -155,8 +166,9 @@ def request_image(req: GenerateRequest) -> tuple[bytes, int]:
         raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
     except requests.Timeout:
         raise HTTPException(504, "The model server took too long. A first-time model download may still be running.")
-    if resp.status_code == 422:
-        raise HTTPException(422, model_server_detail(resp))
+    if resp.status_code in (422, 503):
+        # 503 means the model is still downloading; its message says so
+        raise HTTPException(resp.status_code, model_server_detail(resp))
     if not resp.ok:
         raise HTTPException(502, f"The model server failed ({resp.status_code}). Check its terminal for details.")
     data = resp.json()
@@ -178,6 +190,16 @@ def generate(req: GenerateRequest) -> HistoryItem:
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model,
     ))
+
+
+@app.get("/api/models/status")
+def models_status() -> ModelStatusReport:
+    try:
+        resp = requests.get(f"{MODEL_SERVER_URL}/models/status", timeout=3)
+        resp.raise_for_status()
+    except requests.RequestException:
+        return ModelStatusReport(server_running=False, models={})
+    return ModelStatusReport(server_running=True, models=resp.json())
 
 
 @app.get("/api/history")

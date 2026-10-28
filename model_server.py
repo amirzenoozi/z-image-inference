@@ -6,16 +6,17 @@ import asyncio
 import base64
 import random
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import mlx.core as mx
 import torch
 import uvicorn
 from diffusers import AutoencoderKLFlux2, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from huggingface_hub import snapshot_download
 from mflux.models.z_image.variants.z_image import ZImage
 from optimum.quanto import freeze, qint8, quantization_map, quantize, requantize
@@ -88,9 +89,13 @@ def with_trigger_word(prompt: str, spec: ModelSpec) -> str:
     return f"{spec.trigger_word}, {prompt}"
 
 
+def download_marker(path: Path) -> Path:
+    # Written last, so an interrupted download counts as missing and resumes next time
+    return path / ".download-complete"
+
+
 def ensure_downloaded(spec: ModelSpec, path: Path, allow_patterns: list[str] | None = None) -> None:
-    # The marker is written last, so an interrupted download resumes on the next load
-    marker = path / ".download-complete"
+    marker = download_marker(path)
     if marker.exists():
         return
     print(f"Downloading {spec.repo_id} to {path}...")
@@ -280,6 +285,58 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     MOSS_IMAGE.id: MossImageGenerator,
 }
 
+DOWNLOADERS: dict[str, Callable[[], None]] = {
+    Z_IMAGE.id: lambda: ensure_downloaded(Z_IMAGE, Z_IMAGE_PATH),
+    WAI_ILLUSTRIOUS.id: lambda: ensure_downloaded(WAI_ILLUSTRIOUS, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES),
+    MOSS_IMAGE.id: lambda: ensure_downloaded(MOSS_IMAGE, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES),
+}
+DOWNLOAD_PATHS: dict[str, Path] = {
+    Z_IMAGE.id: Z_IMAGE_PATH,
+    WAI_ILLUSTRIOUS.id: WAI_ILLUSTRIOUS_PATH,
+    MOSS_IMAGE.id: MOSS_IMAGE_PATH,
+}
+
+ModelStatus = Literal["ready", "downloading", "missing", "failed"]
+
+# Downloads get their own thread, so generating with a downloaded model is never blocked by one
+download_thread = ThreadPoolExecutor(max_workers=1)
+downloads: dict[str, Future[None]] = {}
+
+
+def is_downloaded(model_id: str) -> bool:
+    # Z-Image's 4-bit copy replaces its download, which is deleted once the copy is built
+    if model_id == Z_IMAGE.id and Z_IMAGE_Q4_PATH.exists():
+        return True
+    return download_marker(DOWNLOAD_PATHS[model_id]).exists()
+
+
+def model_status(model_id: str) -> ModelStatus:
+    if is_downloaded(model_id):
+        return "ready"
+    download = downloads.get(model_id)
+    if download is None:
+        return "missing"
+    return "downloading" if not download.done() else "failed"
+
+
+def start_download(model_id: str) -> None:
+    if model_status(model_id) in ("missing", "failed"):
+        downloads[model_id] = download_thread.submit(DOWNLOADERS[model_id])
+
+
+def download_started_message(model_id: str) -> str:
+    """Starts the download if needed and explains it, mentioning a previous failure."""
+    spec = MODELS[model_id]
+    previous = downloads.get(model_id)
+    failure = previous.exception() if previous is not None and previous.done() else None
+    start_download(model_id)
+    message = (
+        f"{spec.label} is downloading for first use (about {spec.download_gb:g} GB). "
+        "Try again when it has finished; the model list shows its progress."
+    )
+    return f"The last download failed ({failure}) and has been restarted. {message}" if failure else message
+
+
 loaded_model_id: str | None = None
 loaded_generator: ImageGenerator | None = None
 # MLX streams belong to the thread that created them, so all model work runs on this one thread
@@ -314,7 +371,10 @@ def generate_png(model_id: str, job: Job) -> bytes:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await asyncio.get_running_loop().run_in_executor(model_thread, use_model, DEFAULT_MODEL.id)
+    if is_downloaded(DEFAULT_MODEL.id):
+        await asyncio.get_running_loop().run_in_executor(model_thread, use_model, DEFAULT_MODEL.id)
+    else:
+        start_download(DEFAULT_MODEL.id)
     yield
 
 
@@ -323,9 +383,16 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest) -> GenerateResponse:
+    if model_status(req.model) != "ready":
+        raise HTTPException(503, download_started_message(req.model))
     job = to_job(req)
     png = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job)
     return GenerateResponse(image_base64=base64.b64encode(png).decode("utf-8"), seed=job.seed, model=req.model)
+
+
+@app.get("/models/status")
+def models_status() -> dict[str, ModelStatus]:
+    return {model_id: model_status(model_id) for model_id in MODELS}
 
 
 @app.get("/health")
