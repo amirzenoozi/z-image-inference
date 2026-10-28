@@ -126,9 +126,11 @@ The **History** tab shows every image, newest first. Open one to see its prompt 
 
 ### Switching models
 
+Models that are not downloaded yet show **Downloads on first use** on their card. Generating with one starts its download in the background and tells you so straight away; the card shows **Downloading** until it is ready, then generate again.
+
 Choosing another model keeps your settings where that model allows them, and offers its recommended defaults in one click. The server keeps one model in memory at a time and swaps when a request asks for the other one, which takes about 10 seconds.
 
-The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/` and stores it in float16 (6.6 GB), the precision it runs in anyway. This can take longer than the UI is willing to wait; if the request times out, wait for the download to finish in the server terminal and generate again.
+The first image from WAI-Illustrious downloads it (about 13 GB) into `models/waiNSFWIllustrious_v120/` and stores it in float16 (6.6 GB), the precision it runs in anyway.
 
 The first image from MOSS-Image downloads it (about 26 GB) into `models/moss-image-nsfw/` and replaces its text encoder with an 8-bit copy, leaving 18.5 GB. Each image takes minutes rather than seconds; see [Performance](#performance).
 
@@ -243,4 +245,4 @@ cd frontend && npm test        # frontend
 
 ## Licence
 
-Apache License 2.0. See [LICENSE](LICENSE) for details.
+Apache License 2.0. See [LICENSE](LICENSE) for details, and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for included third-party code and the licences of the downloaded models.
