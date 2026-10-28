@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, ModelState, ModelStatusReport } from './types'
+import type { Catalog, ChatMessage, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -110,8 +110,14 @@ export async function fetchHistory(offset: number, limit: number, filters: Histo
   if (filters.model) params.set('model', filters.model)
   if (filters.search) params.set('q', filters.search)
   if (filters.favouritesOnly) params.set('favourites', 'true')
+  if (filters.ratio) params.set('ratio', filters.ratio)
   const resp = await request(`/api/history?${params}`, { signal })
   return resp.json() as Promise<HistoryPage>
+}
+
+/** Worked out on the server the first time an image is opened, then saved with it. */
+export async function fetchPalette(id: number, signal?: AbortSignal): Promise<PaletteColour[]> {
+  return (await request(`/api/history/${id}/palette`, { signal })).json() as Promise<PaletteColour[]>
 }
 
 export async function setFavourite(id: number, favourite: boolean): Promise<HistoryItem> {

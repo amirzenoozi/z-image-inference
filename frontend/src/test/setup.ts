@@ -9,6 +9,8 @@ class NoopResizeObserver {
   disconnect(): void {}
 }
 globalThis.ResizeObserver ??= NoopResizeObserver
+// jsdom does not scroll either
+Element.prototype.scrollIntoView ??= () => {}
 
 afterEach(() => {
   cleanup()

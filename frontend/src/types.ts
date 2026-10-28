@@ -82,11 +82,19 @@ export interface HistoryItem {
   favourite: boolean
 }
 
+export interface PaletteColour {
+  hex: string
+  /** Fraction of the image this colour covers, from 0 to 1. */
+  share: number
+}
+
 export interface HistoryFilters {
   model: string | null
   /** Text the prompt must contain, ignoring case; empty for no search. */
   search: string
   favouritesOnly: boolean
+  /** The image's shape, grouped as the resolution picker groups sizes. */
+  ratio: Category | null
 }
 
 export interface HistorySummary {
