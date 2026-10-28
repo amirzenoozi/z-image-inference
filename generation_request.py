@@ -66,7 +66,8 @@ def check_face_lock(has_face_image: bool, face_strength: float | None, spec: Mod
     if has_face_image != (face_strength is not None):
         raise ValueError("A face lock needs both a face image and its strength")
     if has_face_image and not spec.supports_face_lock:
-        raise ValueError(f"{spec.label} can't lock a face; use WAI-Illustrious or Anime Desire")
+        able = ", ".join(model.label for model in MODELS.values() if model.supports_face_lock)
+        raise ValueError(f"{spec.label} can't lock a face; use one of: {able}")
 
 
 def check_size(width: int, height: int, spec: ModelSpec) -> None:

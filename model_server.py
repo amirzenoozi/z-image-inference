@@ -39,7 +39,7 @@ from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
 from prompt_weights import a1111_to_compel
-from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
+from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
 
@@ -73,6 +73,9 @@ MOSS_TEXT_ENCODER_Q8_PATH = MOSS_IMAGE_PATH / "text_encoder-q8"
 QUANTO_MAP_FILE = "quanto_qmap.json"
 # Only the merged model; its pipeline code is vendored in moss_pipeline.py
 MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged-model/**/*.safetensors"]
+REALVIS_XL_PATH = MODELS_DIR / "RealVisXL_V5.0"
+# Its float16 copies are the files it runs; the full-precision set would double the download for nothing
+REALVIS_XL_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
 # The face lock for the SDXL models: IP-Adapter plus-face and the image encoder it reads faces with
 FACE_LOCK = "face-lock"
 FACE_LOCK_REPO = "h94/IP-Adapter"
@@ -330,6 +333,18 @@ def load_anime_desire() -> ImageGenerator:
     return sdxl_generator(pipe)
 
 
+def download_realvis_xl() -> None:
+    ensure_downloaded(REALVIS_XL.repo_id, REALVIS_XL_PATH, REALVIS_XL_FILES)
+
+
+def load_realvis_xl() -> ImageGenerator:
+    download_realvis_xl()
+    pipe = StableDiffusionXLPipeline.from_pretrained(REALVIS_XL_PATH, torch_dtype=torch.float16, variant="fp16", use_safetensors=True)
+    # DPM++ 2M SDE Karras: close to the card's DPM++ SDE Karras at 30 steps, without the extra torchsde dependency
+    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config, algorithm_type="sde-dpmsolver++", use_karras_sigmas=True)
+    return sdxl_generator(pipe)
+
+
 SdxlPipeline = StableDiffusionXLPipeline | StableDiffusionXLImg2ImgPipeline
 
 
@@ -541,6 +556,7 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     WAI_ILLUSTRIOUS.id: load_wai_illustrious,
     MOSS_IMAGE.id: MossImageGenerator,
     ANIME_DESIRE.id: load_anime_desire,
+    REALVIS_XL.id: load_realvis_xl,
 }
 
 def download_z_image() -> None:
@@ -580,6 +596,7 @@ DOWNLOADERS: dict[str, Callable[[], None]] = {
     WAI_ILLUSTRIOUS.id: download_wai_illustrious,
     MOSS_IMAGE.id: download_moss_image,
     ANIME_DESIRE.id: download_anime_desire,
+    REALVIS_XL.id: download_realvis_xl,
 }
 GB = 1_000_000_000
 
@@ -591,6 +608,7 @@ MODEL_FOLDERS: dict[str, list[Path]] = {
     WAI_ILLUSTRIOUS.id: [WAI_ILLUSTRIOUS_PATH],
     MOSS_IMAGE.id: [MOSS_IMAGE_PATH],
     ANIME_DESIRE.id: [ANIME_DESIRE_PATH, SDXL_CONFIG_PATH],
+    REALVIS_XL.id: [REALVIS_XL_PATH],
 }
 
 DOWNLOAD_PATHS: dict[str, Path] = {
@@ -598,6 +616,7 @@ DOWNLOAD_PATHS: dict[str, Path] = {
     WAI_ILLUSTRIOUS.id: WAI_ILLUSTRIOUS_PATH,
     MOSS_IMAGE.id: MOSS_IMAGE_PATH,
     ANIME_DESIRE.id: ANIME_DESIRE_PATH,
+    REALVIS_XL.id: REALVIS_XL_PATH,
 }
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]

@@ -53,6 +53,6 @@ function FaceLockNote({ character, model }: { character: Character; model: Model
   const from = character.face_uploaded ? 'the uploaded photo' : `image #${character.face_id}`
   const text = model.supports_face_lock
     ? `Face locked to ${from} at ${Math.round(character.face_strength * 100)}%.`
-    : `${model.label} can't lock a face, so ${character.name}'s look comes from the description only. WAI-Illustrious and Anime Desire keep the face.`
+    : `${model.label} can't lock a face, so ${character.name}'s look comes from the description only. RealVisXL (photo style), WAI-Illustrious and Anime Desire keep the face.`
   return <p className="text-xs text-zinc-500 dark:text-zinc-400">{text}</p>
 }
