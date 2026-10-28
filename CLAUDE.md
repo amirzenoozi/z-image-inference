@@ -27,7 +27,9 @@ cd frontend && npx tsc -b && npx oxlint src      # type-check and lint
 
 Defined once in `model_catalog.py` (shared by the UI and the server); loaders and downloads live in `model_server.py`. Files go in `models/` (not in git).
 
-| Model | Engine | Stored as |
+By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env` switches to the compressed copies below (`compression_enabled()` in `model_catalog.py`).
+
+| Model | Engine | Compressed (`MODEL_COMPRESSION=on`) |
 |-------|--------|-----------|
 | Z-Image-Turbo (default) | mflux (MLX), 4-bit | `models/zimage-q4/`; the original download is deleted after the 4-bit copy is built |
 | WAI-NSFW-Illustrious v12 (SDXL) | diffusers on MPS, float16; VAE decodes in float32 | `models/waiNSFWIllustrious_v120/`, rewritten from float32 to float16 once |
