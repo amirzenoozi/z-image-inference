@@ -129,7 +129,7 @@ Requires an [xAI API key](https://x.ai/). The tab is disabled when no key is set
 
 ### History
 
-The **History** tab shows every image, newest first, 30 to a page, with page buttons below. Open one to see its prompt, settings and **colour palette** (its six main colours with their share of the image; click a colour to copy its hex code), **Reuse settings** to load them into the panel with the same seed, download it or delete it. The palette is worked out the first time an image is opened, then saved with it.
+The **History** tab shows every image, newest first, 30 to a page, with page buttons below. Open one to see its prompt, settings and **colour palette** (its six main colours with their share of the image; click a colour to copy its hex code), **Reuse settings** to load them into the panel with the same seed, download it or delete it. The palette is worked out the first time an image is opened, then saved with it. In the image view, **‹ ›** or the **← →** keys move to the previous or next image, across pages and within the current filters; click the image to see it at 100% (drag to look around), **Z** goes full screen, **F** stars it, and pressing **Delete** twice deletes it and moves on to the next.
 
 Above the images, **Search prompts** finds images whose prompt contains the text you type, **Model** shows one model's images, **Ratio** shows square, portrait, landscape or widescreen images (grouped as in the resolution picker), and **★ Favourites** shows only the images you starred with the ☆ on each image. **Compare** lets you pick two images and see them side by side, with the facts that differ (seed, steps, size and so on) highlighted.
 
