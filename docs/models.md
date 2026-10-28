@@ -7,32 +7,35 @@
 | [Anime Desire](https://huggingface.co/AI-Porn/anime-desire-illustrious) (Illustrious SDXL) | diffusers on MPS, float16, single-file checkpoint | Anime and hentai styles, Danbooru tags |
 | [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) (MOSS-Image with a merged LoRA) | diffusers on MPS, bfloat16; pipeline vendored in `moss_pipeline.py` | Photorealistic adult content; slow |
 | [RealVisXL V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) (SDXL) | diffusers on MPS, float16 | Photorealistic people, and the face lock in photo style |
+| [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (4-bit), alone or with the [create-nsfw](https://huggingface.co/Bigfawg6669/create-nsfw) or [asian-nudity-2](https://huggingface.co/inuptia/asian-nudity-2) LoRA | mflux (MLX), always 4-bit, the LoRA applied while generating | Detailed photorealistic images, and nude photos with a LoRA; slow |
 
-All five are defined in one place, `model_catalog.py`, which both the web app and the model server read.
+All eight are defined in one place, `model_catalog.py`, which both the web app and the model server read.
 
 ## Defaults
 
-| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image | Anime Desire | RealVisXL |
+| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image | Anime Desire | RealVisXL | FLUX.1-dev |
 |---------|---------------|-----------------|------------|--------------|-----------|
-| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) | 30 (up to 50) | 30 (up to 50) |
-| Guidance (CFG) | not used | 7 | 3 | 4 | 5 |
-| Sampler | | Euler Ancestral | | DPM++ 3M SDE Karras | DPM++ 2M SDE Karras |
-| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty | `(worst quality, low quality:1.2), lowres, bad anatomy, bad hands, extra fingers, watermark, signature, text, blurry, jpeg artifacts` | `bad hands, bad anatomy, ugly, deformed, (face asymmetry, eyes asymmetry, deformed eyes, deformed mouth, open mouth)` (the model card's) |
-| Largest side | 1536 px | 1216 px | 1024 px | 1216 px | 1216 px |
-| Prompt style | sentences | tags | sentences | tags | sentences |
-| Prompt weights | no | yes | no | yes | yes |
-| Variations | yes | yes | no | yes | yes |
-| Face lock | no | yes | no | yes | yes, in photo style |
+| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) | 30 (up to 50) | 30 (up to 50) | 25 (up to 50) |
+| Guidance (CFG) | not used | 7 | 3 | 4 | 5 | 3.5 (distilled guidance) |
+| Sampler | | Euler Ancestral | | DPM++ 3M SDE Karras | DPM++ 2M SDE Karras | |
+| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty | `(worst quality, low quality:1.2), lowres, bad anatomy, bad hands, extra fingers, watermark, signature, text, blurry, jpeg artifacts` | `bad hands, bad anatomy, ugly, deformed, (face asymmetry, eyes asymmetry, deformed eyes, deformed mouth, open mouth)` (the model card's) | not used |
+| Largest side | 1536 px | 1216 px | 1024 px | 1216 px | 1216 px | 1536 px |
+| Prompt style | sentences | tags | sentences | tags | sentences | sentences |
+| Prompt weights | no | yes | no | yes | yes | no |
+| Variations | yes | yes | no | yes | yes | yes |
+| Face lock | no | yes | no | yes | yes, in photo style | no |
 
 - WAI-Illustrious's default negative prompt starts with `nsfw` to keep results safe for work; the prompt builder removes it for explicit prompts.
-- MOSS-Image needs its trigger word `moss_xvstyle`; the server adds it to prompts that lack it.
+- MOSS-Image needs its trigger word `moss_xvstyle`; the server adds it to prompts that lack it. So does FLUX.1-dev · asian-nudity-2, with `4s14n`.
+- FLUX.1-dev comes three ways in the model dialog: plain, with create-nsfw, and with asian-nudity-2. They share one download of the base model, and each LoRA is a small extra download. The LoRA is applied while generating, not merged in, which would turn the 4-bit layers 8-bit and need more memory.
+- FLUX.1-dev is gated: accept its licence (non-commercial) on its Hugging Face page while logged in, create a read token, and put `HF_TOKEN=<token>` in `.env`. Without one, **Download** says so. It runs in about 10 GB of memory, and a 1024 × 1024 image takes a few minutes.
 
 ## Downloading and removing models
 
 Only the default model, Z-Image-Turbo, downloads by itself, on the model server's first start. You choose which others to keep, in the model dialog (**Change** next to the selected model):
 
 - **Download** fetches a model in the background, with a progress bar. One download runs at a time; the rest wait as **Queued**.
-- **Remove** deletes a downloaded model and frees its space. The model in use cannot be removed.
+- **Remove** deletes a downloaded model and frees its space. The model in use cannot be removed. Removing a FLUX.1-dev LoRA model deletes only its LoRA; removing plain FLUX.1-dev deletes the base, and the LoRA models then need it again.
 - The dialog shows how much space the models use and how much is free. A download is refused with a clear message if there is not enough room for it and any one-time setup.
 - A model can be selected once it is downloaded; no restart is needed. Each card links to the model's page on Hugging Face.
 
@@ -49,6 +52,8 @@ Files go in `models/` (not in git). One-time builds (compressed copies) are writ
 | MOSS-Image NSFW | 27.2 GB | 19.9 GB |
 | Anime Desire | 6.9 GB | 6.9 GB (already float16) |
 | RealVisXL | 6.9 GB (only its float16 files are fetched) | same |
+| FLUX.1-dev | 33.8 GB, always kept, plus the 4-bit copy it runs (about 9.6 GB) | same |
+| FLUX.1-dev LoRAs | create-nsfw 0.7 GB, asian-nudity-2 0.04 GB | same |
 | Face lock (IP-Adapter, for the SDXL models) | 3.4 GB, downloaded on the first face-locked render, in `models/ip-adapter/` | same |
 
 ## Model compression
