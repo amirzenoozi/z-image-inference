@@ -31,7 +31,7 @@ If renders are very slow, close other memory-hungry apps first.
 | Set-up | Space |
 |--------|-------|
 | Z-Image-Turbo only (default) | about 44 GB (original 32.9 GB plus the 8-bit copy 10.7 GB) |
-| All four models, originals | about 92 GB |
+| All five models, originals | about 99 GB |
 | All four, with `MODEL_COMPRESSION=on` | about 78 GB (Z-Image-Turbo's original is always kept) |
 
 Building a compressed copy needs room for the copy while the original is still there. History is stored in `history.db`; its size is shown in History, and **Clean up** frees space.

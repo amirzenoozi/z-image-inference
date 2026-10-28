@@ -68,7 +68,7 @@ A purpose with an unknown step, choice or option is left out, with a note in the
 
 ## Prompt weights
 
-WAI-Illustrious and Anime Desire understand weights in the usual Automatic1111 / ComfyUI form:
+WAI-Illustrious, Anime Desire and RealVisXL understand weights in the usual Automatic1111 / ComfyUI form:
 
 | Write | Effect |
 |-------|--------|
@@ -156,7 +156,7 @@ Click the image to see it at 100% (drag to look around), and click again to fit 
 - If the size you choose is a different shape from the start image, the start image is cropped to fit, centred.
 - **×** on the start image goes back to a normal render. **Reuse settings** on a variation brings its start image back.
 
-Z-Image-Turbo, WAI-Illustrious and Anime Desire can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
+Z-Image-Turbo, WAI-Illustrious, Anime Desire and RealVisXL can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
 
 ## Characters
 
@@ -175,11 +175,11 @@ The description only keeps a face similar, not identical; models draw a new face
 
 ### Face lock
 
-With **WAI-Illustrious** and **Anime Desire**, a character can keep one face across images (IP-Adapter plus-face).
+With **RealVisXL** (in photo style), **WAI-Illustrious** and **Anime Desire** (in anime style), a character can keep one face across images (IP-Adapter plus-face).
 
 1. Make or crop an image where the character's face is large and clear: crop it with **Edit** in the image viewer if needed (the copy keeps its character).
 2. In the image viewer, choose **Use as face**.
-3. Pick the character in Create and generate with one of the two SDXL models. Create says "Face locked to image #12 at 60%".
+3. Pick the character in Create and generate with RealVisXL, WAI-Illustrious or Anime Desire. Create says "Face locked to image #12 at 60%".
 
 - **Face strength** (in the character's **Edit**, 10% to 100%, 60% to start) sets how closely the face is kept. Higher keeps it closer but follows the prompt less: try 50% to 70%.
 - The first face-locked render downloads the face lock files once (3.4 GB) and asks you to try again when they are there.

@@ -2,7 +2,7 @@
 
 ![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](docs/images/create.png)
 
-> Generate images locally on your Mac with Z-Image-Turbo, two SDXL anime models and MOSS-Image, from a clean web interface. Nothing leaves your machine.
+> Generate images locally on your Mac with Z-Image-Turbo, RealVisXL, two SDXL anime models and MOSS-Image, from a clean web interface. Nothing leaves your machine.
 
 Z-Image Inference runs image generation models natively on Apple Silicon (MLX and Metal) and gives them a friendly browser UI: write or build a prompt, pick a model and a size, and generate. Every image is kept in a searchable History, where you can browse, compare, edit and make variations of it.
 
@@ -12,6 +12,7 @@ Z-Image Inference runs image generation models natively on Apple Silicon (MLX an
 | [WAI-NSFW-Illustrious v12](https://huggingface.co/votepurchase/waiNSFWIllustrious_v120) (SDXL) | Anime and illustration styles |
 | [Anime Desire](https://huggingface.co/AI-Porn/anime-desire-illustrious) (Illustrious SDXL) | Anime and hentai styles, with Danbooru tags |
 | [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) | Photorealistic adult content (slow) |
+| [RealVisXL V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) (SDXL) | Photorealistic people, and keeping a character's face in photo style |
 
 Only Z-Image-Turbo downloads by itself; you add or remove the others from the app.
 
@@ -66,7 +67,7 @@ Restart the model server after changing them. See [Models](docs/models.md) for w
 ## Documentation
 
 - [Using the app](docs/usage.md): creating images, the prompt builder, prompt weights, Grok chat, History, the viewer, the editor and variations
-- [Models](docs/models.md): the four models, their defaults, downloading and removing them, compression and Z-Image-Turbo's levels
+- [Models](docs/models.md): the five models, their defaults, downloading and removing them, compression and Z-Image-Turbo's levels
 - [Performance and hardware](docs/performance.md): render times, memory and disk use
 - [How it works](docs/architecture.md): the two servers, the API, storage and technical notes
 - [Development](docs/development.md): running in development, tests and project layout

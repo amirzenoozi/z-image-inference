@@ -23,5 +23,6 @@ The server downloads these models into `models/` on first use. They are not part
 | Anime Desire | [AI-Porn/anime-desire-illustrious](https://huggingface.co/AI-Porn/anime-desire-illustrious) | OpenRAIL (includes use restrictions) |
 | SDXL configuration files, used to load Anime Desire's single-file checkpoint (no weights) | [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) | CreativeML OpenRAIL++-M |
 | NSFW image classifier, for blurring sensitive images in lists | [Falconsai/nsfw_image_detection](https://huggingface.co/Falconsai/nsfw_image_detection) | Apache 2.0 |
+| RealVisXL V5.0 | [SG161222/RealVisXL_V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) | CreativeML OpenRAIL++-M (includes use restrictions) |
 | IP-Adapter plus-face for SDXL and its image encoder, for the face lock | [h94/IP-Adapter](https://huggingface.co/h94/IP-Adapter) | Apache 2.0 |
 | MOSS-Image NSFW (MOSS-Image with a merged LoRA) | [axiomofmind/Moss-image-nsfw-uncensored-lora](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora), based on [OpenMOSS-Team/MOSS-Image-SFT](https://huggingface.co/OpenMOSS-Team/MOSS-Image-SFT) | Apache 2.0 |
