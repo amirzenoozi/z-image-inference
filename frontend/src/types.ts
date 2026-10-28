@@ -22,6 +22,8 @@ export interface ModelInfo {
   prompt_style: 'prose' | 'tags'
   /** Whether the model can start from an image, for variations. */
   supports_variations: boolean
+  /** Whether it can keep a character's face from its face image (IP-Adapter, the SDXL models). */
+  supports_face_lock: boolean
   examples: string[]
 }
 
@@ -104,6 +106,8 @@ export interface HistoryItem {
   change: number | null
   /** The character the image was made for; null for none, or once that character is deleted. */
   character_id: number | null
+  /** The image whose face this one was locked to; null when no face lock was used. */
+  face_from: number | null
 }
 
 /** The prompt builder's identity choices a character keeps, named as in the builder's state. */
@@ -138,6 +142,10 @@ export interface Character {
   /** A seed every render of the character uses; null for a new seed each time. */
   seed: number | null
   image_count: number
+  /** The History image whose face the SDXL models keep; null for none, or once that image is deleted. */
+  face_id: number | null
+  /** How strongly the face is kept, from 0.1 to 1; higher follows the prompt less. */
+  face_strength: number
 }
 
 export interface CharacterChanges {
@@ -145,6 +153,8 @@ export interface CharacterChanges {
   traits?: CharacterTraits
   cover_id?: number | null
   seed?: number | null
+  face_id?: number | null
+  face_strength?: number
 }
 
 export interface PaletteColour {

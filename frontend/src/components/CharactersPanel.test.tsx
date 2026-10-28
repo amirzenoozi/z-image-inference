@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
@@ -84,4 +84,19 @@ it('edits a character, refusing details that suggest a minor', async () => {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
   expect(api.updateCharacter).toHaveBeenCalledExactlyOnceWith(3, expect.objectContaining({ name: 'Ava', seed: 42, traits: expect.objectContaining({ hairColor: 'auburn' }) }))
   expect(reload).toHaveBeenCalledOnce()
+})
+
+it('changes the face strength or removes the face image', async () => {
+  renderPanel({ status: 'settled', value: [character({ face_id: 12, face_strength: 0.6 })] })
+  expect(screen.getByText('0 images · face locked')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'Edit Ava' })
+  expect(within(dialog).getByRole('img', { name: 'Face image #12' })).toBeInTheDocument()
+
+  fireEvent.change(within(dialog).getByLabelText('Face strength'), { target: { value: '0.8' } })
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Remove face' }))
+  expect(within(dialog).getByText(/No face image/)).toBeInTheDocument()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  expect(api.updateCharacter).toHaveBeenCalledWith(3, expect.objectContaining({ face_id: null, face_strength: 0.8 }))
 })

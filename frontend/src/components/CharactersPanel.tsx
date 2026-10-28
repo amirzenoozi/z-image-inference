@@ -81,6 +81,7 @@ function CharacterCard({ character, onUse, onShowImages, onEdit, onDelete }: Car
           <p className="mt-1 text-xs text-zinc-400 tabular-nums">
             {images}
             {character.seed !== null && ` · seed ${character.seed}`}
+            {character.face_id !== null && ' · face locked'}
           </p>
         </div>
         <div className="mt-auto flex flex-wrap items-center gap-2">
