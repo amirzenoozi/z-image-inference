@@ -1,6 +1,6 @@
 # Z-Image Inference on Apple Silicon
 
-> Run Z-Image-Turbo, an SDXL anime model and MOSS-Image locally on your Mac with two commands.
+> Run Z-Image-Turbo, two SDXL anime models and MOSS-Image locally on your Mac with two commands.
 
 This project runs image generation models natively on Apple Silicon behind a simple web interface. You pick the model for each image from a dropdown:
 
@@ -8,6 +8,7 @@ This project runs image generation models natively on Apple Silicon behind a sim
 |-------|--------|----------|
 | [Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) from Tongyi Lab | [mflux](https://github.com/filipstrand/mflux) (MLX), 4-bit | Photorealistic images and text rendering |
 | [WAI-NSFW-Illustrious v12](https://huggingface.co/votepurchase/waiNSFWIllustrious_v120) (SDXL) | diffusers on MPS, float16 | Anime and illustration styles |
+| [Anime Desire](https://huggingface.co/AI-Porn/anime-desire-illustrious) (Illustrious SDXL) | diffusers on MPS, float16 | Anime and hentai styles, Danbooru tags |
 | [MOSS-Image NSFW](https://huggingface.co/axiomofmind/Moss-image-nsfw-uncensored-lora) (MOSS-Image with a merged LoRA) | diffusers on MPS, bfloat16 image model, 8-bit text encoder | Photorealistic adult content; slow |
 
 ```
@@ -146,12 +147,13 @@ WAI-Illustrious and MOSS-Image are labelled "not for all audiences" on Hugging F
 
 ### Model defaults
 
-| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image |
-|---------|---------------|-----------------|------------|
-| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) |
-| Guidance (CFG) | not used | 7 | 3 |
-| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty |
-| Largest side | 1536px | 1216px | 1024px |
+| Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image | Anime Desire |
+|---------|---------------|-----------------|------------|--------------|
+| Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) | 30 (up to 50) |
+| Guidance (CFG) | not used | 7 | 3 | 4 |
+| Sampler | | Euler Ancestral | | DPM++ 3M SDE Karras |
+| Negative prompt | not used | `nsfw, (low quality, worst quality:1.2), very displeasing, 3d, watermark, signature, ugly, poorly drawn` | empty | `(worst quality, low quality:1.2), lowres, bad anatomy, bad hands, extra fingers, watermark, signature, text, blurry, jpeg artifacts` |
+| Largest side | 1536px | 1216px | 1024px | 1216px |
 
 ## Performance
 
@@ -161,6 +163,7 @@ Measured on an Apple M5 with 24 GB of memory:
 |-------|---------|-----------|
 | Z-Image-Turbo, 9 steps | about 10s | about 48s |
 | WAI-Illustrious, 28 steps | | about 40s |
+| Anime Desire, 30 steps | | about 45-60s |
 | MOSS-Image, 30 steps | about 2 min | about 7 min |
 
 Switching models takes about 10 seconds. A MOSS-Image request with a new prompt adds about 20 seconds to run its text encoder; repeating the last prompt with a new seed or size skips that.
@@ -171,7 +174,7 @@ Switching models takes about 10 seconds. A MOSS-Image request with a new prompt 
 |-----------|-----------|
 | Chip | Apple M5 |
 | Memory | 24 GB |
-| Storage | about 31 GB for all three models (up to 60 GB free during first downloads) |
+| Storage | about 38 GB for all four models (up to 60 GB free during first downloads) |
 
 ## Technical Notes
 
