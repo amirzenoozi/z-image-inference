@@ -31,14 +31,14 @@ class GrokClient:
                 raise ValueError("Please set the XAI_API_KEY environment variable")
             self._client = OpenAI(
                 api_key=api_key,
-                base_url="https://gateway.ai.cloudflare.com/v1/431072ad11c2f0a08c4e8f45d8fcb7bf/local-test/compat",
+                base_url="https://api.x.ai/v1",
             )
         return self._client
 
     def chat_stream(self, messages: list[dict[str, str]]) -> Iterator[str]:
         """Stream a rewritten prompt for the conversation, which ends with the user's message."""
         response = self.client.chat.completions.create(
-            model="grok/grok-4-1-fast-non-reasoning",
+            model="grok-4-1-fast-non-reasoning",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 *messages
