@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { loadLanguage, t } from './i18n'
-import { HistoryPanel } from './components/HistoryPanel'
-import { CharactersPanel } from './components/CharactersPanel'
-import { CharactersProvider } from './components/CharactersProvider'
-import { ResultPanel } from './components/ResultPanel'
-import { SettingsPanel, type PromptMode } from './components/SettingsPanel'
-import { ErrorNotice, Spinner } from './components/ui'
+import { HistoryPage } from './pages/history/HistoryPage'
+import { CharactersPage } from './pages/characters/CharactersPage'
+import { CharactersProvider } from './shared/characters/CharactersProvider'
+import { CreatePage } from './pages/create/CreatePage'
+import type { PromptMode } from './pages/create/SettingsPanel'
+import { ErrorNotice, Spinner } from './shared/ui/ui'
 import { useCharacter, useCharacters } from './lib/characters'
 import { promptToSend } from './lib/characterPrompt'
 import { useGeneration } from './lib/generation'
@@ -111,40 +111,28 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   return (
     <div className="flex h-full flex-col">
       <Header view={view} onViewChange={setView} unseenResult={unseen} />
-      <main className={`grid min-h-0 flex-1 lg:grid-cols-[440px_minmax(0,1fr)] ${view === 'create' ? '' : 'hidden'}`}>
-        <aside className="min-h-0 border-zinc-200 bg-white lg:border-r dark:border-zinc-800 dark:bg-zinc-950">
-          <SettingsPanel
-            catalog={catalog}
-            settings={settings}
-            onChange={setSettings}
-            mode={mode}
-            onModeChange={setMode}
-            generating={generating}
-            lastSeed={lastSeed}
-            modelStatus={modelStatus}
-            onModelStatusChanged={refreshModelStatus}
-            onGenerate={() => generateWith(settings)}
-            onChatPrompt={(prompt) => {
-              // Grok's prompt is new, so it doesn't have the character's look yet
-              const next = { ...settings, prompt, lookIncluded: null }
-              setSettings(next)
-              generateWith(next)
-            }}
-          />
-        </aside>
-        <section aria-label={t('create.resultLabel')} className="min-h-0 overflow-y-auto">
-          <ResultPanel
-            state={generation.state}
-            models={catalog.models}
-            onRetry={generation.retry}
-            onCancel={generation.cancel}
-            onUseSeed={(seed) => setSettings((current) => ({ ...current, seed, randomSeed: false }))}
-          />
-        </section>
-      </main>
+      <CreatePage
+        catalog={catalog}
+        settings={settings}
+        onSettingsChange={setSettings}
+        mode={mode}
+        onModeChange={setMode}
+        generation={generation}
+        lastSeed={lastSeed}
+        modelStatus={modelStatus}
+        onModelStatusChanged={refreshModelStatus}
+        onGenerate={() => generateWith(settings)}
+        onChatPrompt={(prompt) => {
+          // Grok's prompt is new, so it doesn't have the character's look yet
+          const next = { ...settings, prompt, lookIncluded: null }
+          setSettings(next)
+          generateWith(next)
+        }}
+        hidden={view !== 'create'}
+      />
       {view === 'characters' && (
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <CharactersPanel
+          <CharactersPage
             maxSeed={catalog.limits.max_seed}
             onUse={(character) => openInCreate({ ...settings, ...characterSettings(character) })}
             onShowImages={(character) => setView('history', `?character=${character.id}`)}
@@ -153,7 +141,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
       )}
       {view === 'history' && (
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <HistoryPanel models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
+          <HistoryPage models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
         </main>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { TooltipBubble } from '../components/TooltipBubble'
+import { TooltipBubble } from '../shared/ui/TooltipBubble'
 
 export const TOOLTIP_DELAY_MS = 400
 function shownByKeyboard(element: HTMLElement): boolean {

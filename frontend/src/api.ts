@@ -1,4 +1,4 @@
-import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
+import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
 import { t } from './i18n'
 
 export class ApiError extends Error {
@@ -119,12 +119,12 @@ function filterParams(filters: HistoryFilters): URLSearchParams {
   return params
 }
 
-export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, signal?: AbortSignal): Promise<HistoryPage> {
+export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, signal?: AbortSignal): Promise<HistoryPageData> {
   const params = filterParams(filters)
   params.set('offset', String(offset))
   params.set('limit', String(limit))
   const resp = await request(`/api/history?${params}`, { signal })
-  return resp.json() as Promise<HistoryPage>
+  return resp.json() as Promise<HistoryPageData>
 }
 
 /** A zip of the images matching the filters, each with its prompts and settings; the browser downloads it. */

@@ -200,7 +200,7 @@ export interface HistorySummary {
   older_than: { days: number; count: number }[]
 }
 
-export interface HistoryPage {
+export interface HistoryPageData {
   items: HistoryItem[]
   total: number
 }
