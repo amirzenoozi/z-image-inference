@@ -22,7 +22,7 @@ import history_store
 from generation_request import MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
 from history_store import HistoryItem, NewImage
-from model_catalog import MODELS, ModelSpec
+from model_catalog import MODEL_CATEGORIES, MODELS, ModelSpec
 from resolutions import CATEGORIES, PRESETS
 
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
@@ -52,6 +52,7 @@ class ModelInfo(BaseModel):
     label: str
     description: str
     speed_hint: str
+    category: str
     download_gb: float
     default_steps: int
     max_steps: int
@@ -68,7 +69,7 @@ class ModelInfo(BaseModel):
     def from_spec(cls, spec: ModelSpec) -> "ModelInfo":
         width, height = spec.default_size
         return cls(
-            id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, download_gb=spec.download_gb,
+            id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, category=spec.category, download_gb=spec.download_gb,
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
@@ -91,8 +92,14 @@ class Limits(BaseModel):
     max_prompt_length: int = MAX_PROMPT_LENGTH
 
 
+class ModelCategoryInfo(BaseModel):
+    id: str
+    label: str
+
+
 class Catalog(BaseModel):
     models: list[ModelInfo]
+    model_categories: list[ModelCategoryInfo]
     resolutions: list[ResolutionInfo]
     categories: list[str]
     examples: list[str]
@@ -141,6 +148,7 @@ app = FastAPI(title="Z-Image Inference", lifespan=lifespan)
 def catalog() -> Catalog:
     return Catalog(
         models=[ModelInfo.from_spec(spec) for spec in MODELS.values()],
+        model_categories=[ModelCategoryInfo(id=key, label=label) for key, label in MODEL_CATEGORIES.items()],
         resolutions=[ResolutionInfo(**preset.to_dict()) for preset in PRESETS],
         categories=list(CATEGORIES),
         examples=EXAMPLE_PROMPTS,
