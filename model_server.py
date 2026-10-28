@@ -1,4 +1,5 @@
 import io
+import os
 import gc
 import json
 import shutil
@@ -16,7 +17,7 @@ import mlx.core as mx
 import torch
 import uvicorn
 from diffusers import AutoencoderKLFlux2, DPMSolverMultistepScheduler, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from huggingface_hub import snapshot_download
 from mflux.models.z_image.variants.z_image import ZImage
 from optimum.quanto import freeze, qint8, quantization_map, quantize, requantize
@@ -322,6 +323,16 @@ DOWNLOADERS: dict[str, Callable[[], None]] = {
     MOSS_IMAGE.id: lambda: ensure_downloaded(MOSS_IMAGE.repo_id, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES),
     ANIME_DESIRE.id: download_anime_desire,
 }
+GB = 1_000_000_000
+
+# Everything a model keeps on disk, removed together when the user removes the model
+MODEL_FOLDERS: dict[str, list[Path]] = {
+    Z_IMAGE.id: [Z_IMAGE_PATH, Z_IMAGE_Q4_PATH, Z_IMAGE_Q4_PATH.with_name(f"{Z_IMAGE_Q4_PATH.name}.building")],
+    WAI_ILLUSTRIOUS.id: [WAI_ILLUSTRIOUS_PATH],
+    MOSS_IMAGE.id: [MOSS_IMAGE_PATH],
+    ANIME_DESIRE.id: [ANIME_DESIRE_PATH, SDXL_CONFIG_PATH],
+}
+
 DOWNLOAD_PATHS: dict[str, Path] = {
     Z_IMAGE.id: Z_IMAGE_PATH,
     WAI_ILLUSTRIOUS.id: WAI_ILLUSTRIOUS_PATH,
@@ -360,17 +371,29 @@ def start_download(model_id: str) -> None:
         downloads[model_id] = download_thread.submit(DOWNLOADERS[model_id])
 
 
-def download_started_message(model_id: str) -> str:
-    """Starts the download if needed and explains it, mentioning a previous failure."""
+def not_ready_message(model_id: str) -> str:
+    label = MODELS[model_id].label
+    if model_status(model_id) in ("queued", "downloading"):
+        return f"{label} is still downloading. Try again when the model list shows it is ready."
+    return f"{label} is not downloaded. Download it from the model list first."
+
+
+def folder_bytes(paths: list[Path]) -> int:
+    total = 0
+    for path in paths:
+        for root, _, files in os.walk(path):
+            total += sum(os.path.getsize(os.path.join(root, name)) for name in files if not os.path.islink(os.path.join(root, name)))
+    return total
+
+
+def free_bytes() -> int:
+    return shutil.disk_usage(MODELS_DIR if MODELS_DIR.exists() else MODELS_DIR.parent).free
+
+
+def space_needed_bytes(model_id: str) -> int:
+    # The download plus room for the one-time setup, which writes the kept copy before deleting originals
     spec = MODELS[model_id]
-    previous = downloads.get(model_id)
-    failure = previous.exception() if previous is not None and previous.done() else None
-    start_download(model_id)
-    message = (
-        f"{spec.label} is downloading for first use (about {spec.download_gb:g} GB). "
-        "Try again when it has finished; the model list shows its progress."
-    )
-    return f"The last download failed ({failure}) and has been restarted. {message}" if failure else message
+    return int((spec.download_gb + spec.kept_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
 
 
 loaded_model_id: str | None = None
@@ -398,6 +421,17 @@ def use_model(model_id: str) -> ImageGenerator:
     return loaded_generator
 
 
+def unload_and_remove(model_id: str) -> None:
+    """Runs on the model thread, so it waits for any generation in progress to finish first."""
+    global loaded_model_id, loaded_generator
+    if loaded_model_id == model_id:
+        loaded_model_id, loaded_generator = None, None
+        release_memory()
+    for path in MODEL_FOLDERS[model_id]:
+        shutil.rmtree(path, ignore_errors=True)
+    downloads.pop(model_id, None)
+
+
 def generate_png(model_id: str, job: Job) -> bytes:
     image = use_model(model_id)(job)
     buffer = io.BytesIO()
@@ -407,9 +441,8 @@ def generate_png(model_id: str, job: Job) -> bytes:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Queue every missing model at start, default first, so each is ready before it is first chosen
-    for model_id in sorted(MODELS, key=lambda model_id: model_id != DEFAULT_MODEL.id):
-        start_download(model_id)
+    # Only the default model downloads by itself; the user chooses the others, to save disk space
+    start_download(DEFAULT_MODEL.id)
     if is_downloaded(DEFAULT_MODEL.id):
         await asyncio.get_running_loop().run_in_executor(model_thread, use_model, DEFAULT_MODEL.id)
     yield
@@ -421,15 +454,56 @@ app = FastAPI(lifespan=lifespan)
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest) -> GenerateResponse:
     if model_status(req.model) != "ready":
-        raise HTTPException(503, download_started_message(req.model))
+        raise HTTPException(503, not_ready_message(req.model))
     job = to_job(req)
     png = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job)
     return GenerateResponse(image_base64=base64.b64encode(png).decode("utf-8"), seed=job.seed, model=req.model)
 
 
+class ModelState(BaseModel):
+    status: ModelStatus
+    # Bytes on disk now; while downloading, how much has arrived
+    size_bytes: int
+
+
+class ModelsReport(BaseModel):
+    models: dict[str, ModelState]
+    free_bytes: int
+
+
+def known_model(model_id: str) -> str:
+    if model_id not in MODELS:
+        raise HTTPException(404, f"Unknown model: {model_id}")
+    return model_id
+
+
 @app.get("/models/status")
-def models_status() -> dict[str, ModelStatus]:
-    return {model_id: model_status(model_id) for model_id in MODELS}
+def models_status() -> ModelsReport:
+    states = {
+        model_id: ModelState(status=model_status(model_id), size_bytes=folder_bytes(MODEL_FOLDERS[model_id]))
+        for model_id in MODELS
+    }
+    return ModelsReport(models=states, free_bytes=free_bytes())
+
+
+@app.post("/models/{model_id}/download")
+def download_model(model_id: str) -> ModelState:
+    known_model(model_id)
+    if model_status(model_id) in ("missing", "failed"):
+        shortfall = space_needed_bytes(model_id) - free_bytes()
+        if shortfall > 0:
+            raise HTTPException(507, f"Not enough disk space: free about {shortfall / GB:.1f} GB more, then try again.")
+        start_download(model_id)
+    return ModelState(status=model_status(model_id), size_bytes=folder_bytes(MODEL_FOLDERS[model_id]))
+
+
+@app.delete("/models/{model_id}", status_code=204)
+async def remove_model(model_id: str) -> Response:
+    known_model(model_id)
+    if model_status(model_id) in ("queued", "downloading"):
+        raise HTTPException(409, f"{MODELS[model_id].label} is downloading; remove it when the download has finished.")
+    await asyncio.get_running_loop().run_in_executor(model_thread, unload_and_remove, model_id)
+    return Response(status_code=204)
 
 
 @app.get("/health")

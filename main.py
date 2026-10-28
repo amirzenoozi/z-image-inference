@@ -54,6 +54,7 @@ class ModelInfo(BaseModel):
     speed_hint: str
     category: str
     download_gb: float
+    kept_gb: float
     default_steps: int
     max_steps: int
     max_side: int
@@ -69,7 +70,7 @@ class ModelInfo(BaseModel):
     def from_spec(cls, spec: ModelSpec) -> "ModelInfo":
         width, height = spec.default_size
         return cls(
-            id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, category=spec.category, download_gb=spec.download_gb,
+            id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=spec.speed_hint, category=spec.category, download_gb=spec.download_gb, kept_gb=spec.kept_gb,
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
@@ -110,9 +111,15 @@ class Catalog(BaseModel):
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
 
 
+class ModelState(BaseModel):
+    status: ModelStatus
+    size_bytes: int
+
+
 class ModelStatusReport(BaseModel):
     server_running: bool
-    models: dict[str, ModelStatus]
+    models: dict[str, ModelState]
+    free_bytes: int | None
 
 
 class HistoryPage(BaseModel):
@@ -207,8 +214,31 @@ def models_status() -> ModelStatusReport:
         resp = requests.get(f"{MODEL_SERVER_URL}/models/status", timeout=3)
         resp.raise_for_status()
     except requests.RequestException:
-        return ModelStatusReport(server_running=False, models={})
-    return ModelStatusReport(server_running=True, models=resp.json())
+        return ModelStatusReport(server_running=False, models={}, free_bytes=None)
+    return ModelStatusReport(server_running=True, **resp.json())
+
+
+def model_server_call(method: str, model_id: str, path: str = "") -> requests.Response:
+    """Forwards a model action, passing on the model server's status and message when it refuses."""
+    if model_id not in MODELS:
+        raise HTTPException(404, f"Unknown model: {model_id}")
+    try:
+        resp = requests.request(method, f"{MODEL_SERVER_URL}/models/{model_id}{path}", timeout=REQUEST_TIMEOUT)
+    except requests.RequestException:
+        raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
+    if not resp.ok:
+        raise HTTPException(resp.status_code, model_server_detail(resp))
+    return resp
+
+
+@app.post("/api/models/{model_id}/download")
+def download_model(model_id: str) -> ModelState:
+    return ModelState(**model_server_call("POST", model_id, "/download").json())
+
+
+@app.delete("/api/models/{model_id}", status_code=204)
+def remove_model(model_id: str) -> None:
+    model_server_call("DELETE", model_id)
 
 
 @app.get("/api/history")

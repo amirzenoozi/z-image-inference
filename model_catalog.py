@@ -16,8 +16,9 @@ class ModelSpec:
     description: str
     speed_hint: str
     category: ModelCategory
-    # Size of the first-use download, shown while it runs
+    # Size of the download, and what stays on disk after the one-time setup
     download_gb: float
+    kept_gb: float
     default_steps: int
     max_steps: int
     max_side: int
@@ -38,6 +39,7 @@ Z_IMAGE = ModelSpec(
     speed_hint="~10 s at 512, ~50 s at 1024",
     category="photo",
     download_gb=31,
+    kept_gb=5.9,
     default_steps=9,
     max_steps=20,
     max_side=1536,
@@ -53,6 +55,7 @@ WAI_ILLUSTRIOUS = ModelSpec(
     speed_hint="~40 s at 1024",
     category="anime",
     download_gb=13,
+    kept_gb=7.1,
     default_steps=28,
     max_steps=50,
     max_side=1216,
@@ -73,6 +76,7 @@ MOSS_IMAGE = ModelSpec(
     speed_hint="~2 min at 512, ~7 min at 1024",
     category="photo",
     download_gb=26,
+    kept_gb=19.9,
     default_steps=30,
     max_steps=50,
     max_side=1024,
@@ -90,6 +94,7 @@ ANIME_DESIRE = ModelSpec(
     speed_hint="~45–60 s at 1024",
     category="anime",
     download_gb=6.9,
+    kept_gb=6.9,
     default_steps=30,
     max_steps=50,
     max_side=1216,

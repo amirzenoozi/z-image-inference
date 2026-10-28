@@ -202,28 +202,56 @@ def test_chat_errors(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> Non
     assert client.post("/api/chat", json=ends_with_assistant).status_code == 422
 
 
-def test_generate_passes_on_that_a_model_is_still_downloading(client: TestClient, model_server: FakeModelServer) -> None:
+def test_generate_passes_on_that_a_model_is_not_ready(client: TestClient, model_server: FakeModelServer) -> None:
     model_server.status = 503
-    model_server.body = {"detail": "MOSS-Image NSFW is downloading for first use (about 26 GB)."}
+    model_server.body = {"detail": "MOSS-Image NSFW is not downloaded. Download it from the model list first."}
     resp = generate(client)
     assert resp.status_code == 503
-    assert resp.json()["detail"] == "MOSS-Image NSFW is downloading for first use (about 26 GB)."
+    assert resp.json()["detail"] == "MOSS-Image NSFW is not downloaded. Download it from the model list first."
+
+
+def fake_response(status: int, body: object) -> requests.Response:
+    resp = requests.Response()
+    resp.status_code = status
+    resp._content = dumps(body).encode()
+    return resp
 
 
 def test_model_status_reports_the_model_server(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    def running(url: str, timeout: float) -> requests.Response:
-        resp = requests.Response()
-        resp.status_code = 200
-        resp._content = dumps({"z-image-turbo": "ready", "moss-image-nsfw": "downloading"}).encode()
-        return resp
-
-    monkeypatch.setattr(main.requests, "get", running)
-    assert client.get("/api/models/status").json() == {
-        "server_running": True, "models": {"z-image-turbo": "ready", "moss-image-nsfw": "downloading"},
-    }
+    report = {"models": {"z-image-turbo": {"status": "ready", "size_bytes": 5}}, "free_bytes": 99}
+    monkeypatch.setattr(main.requests, "get", lambda url, timeout: fake_response(200, report))
+    assert client.get("/api/models/status").json() == {"server_running": True, **report}
 
     def stopped(url: str, timeout: float) -> requests.Response:
         raise requests.ConnectionError()
 
     monkeypatch.setattr(main.requests, "get", stopped)
-    assert client.get("/api/models/status").json() == {"server_running": False, "models": {}}
+    assert client.get("/api/models/status").json() == {"server_running": False, "models": {}, "free_bytes": None}
+
+
+def test_model_actions_are_forwarded_with_the_model_servers_answer(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str]] = []
+
+    def model_server_says(status: int, body: object):
+        def call(method: str, url: str, timeout: float) -> requests.Response:
+            calls.append((method, url))
+            return fake_response(status, body)
+        return call
+
+    monkeypatch.setattr(main.requests, "request", model_server_says(200, {"status": "queued", "size_bytes": 0}))
+    assert client.post("/api/models/wai-illustrious/download").json() == {"status": "queued", "size_bytes": 0}
+    assert calls[-1] == ("POST", "http://127.0.0.1:8000/models/wai-illustrious/download")
+
+    monkeypatch.setattr(main.requests, "request", model_server_says(507, {"detail": "Not enough disk space: free about 2.0 GB more, then try again."}))
+    resp = client.post("/api/models/wai-illustrious/download")
+    assert (resp.status_code, resp.json()["detail"]) == (507, "Not enough disk space: free about 2.0 GB more, then try again.")
+
+    monkeypatch.setattr(main.requests, "request", model_server_says(204, None))
+    assert client.delete("/api/models/wai-illustrious").status_code == 204
+    assert calls[-1] == ("DELETE", "http://127.0.0.1:8000/models/wai-illustrious")
+
+
+def test_model_actions_reject_unknown_models_before_calling_the_server(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main.requests, "request", lambda *args, **kwargs: pytest.fail("must not reach the model server"))
+    assert client.post("/api/models/not-a-model/download").status_code == 404
+    assert client.delete("/api/models/not-a-model").status_code == 404
