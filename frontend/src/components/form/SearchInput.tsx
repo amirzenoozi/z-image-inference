@@ -1,4 +1,5 @@
 import { TextInput } from './TextInput'
+import { IconButton } from '../IconButton'
 
 interface Props {
   label: string
@@ -20,9 +21,9 @@ export function SearchInput({ label, value, placeholder, onChange, className }: 
       icon={<SearchIcon />}
       end={
         value && (
-          <button type="button" aria-label="Clear search" onClick={() => onChange('')} className="flex size-5 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+          <IconButton label="Clear search" onClick={() => onChange('')} className="flex size-5 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
             ×
-          </button>
+          </IconButton>
         )
       }
     />

@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { IconButton } from './IconButton'
 import type { Category, Limits, ModelInfo, ResolutionInfo } from '../types'
 import { CATEGORY_LABELS } from '../lib/categories'
 import { fitsModel, snapSide } from '../lib/settings'
-import { chipClass, fieldLabelClass, secondaryButtonClass, tabClass } from '../lib/styles'
+import { chipClass, fieldButtonClass, fieldLabelClass, tabClass } from '../lib/styles'
 import { NumberInput } from './form/NumberInput'
 
 type Tab = Category | 'custom'
@@ -161,14 +162,9 @@ function CustomSize({ width, height, model, limits, onChange }: CustomSizeProps)
     <div className="space-y-2">
       <div className="flex items-end gap-2">
         <SideInput label="Width" value={width} limits={limits} maxSide={model.max_side} onCommit={(w) => commit(w, height)} />
-        <button
-          type="button"
-          onClick={() => commit(height, width)}
-          aria-label="Swap width and height"
-          className={`${secondaryButtonClass} mb-px h-[38px]`}
-        >
+        <IconButton label="Swap width and height" onClick={() => commit(height, width)} className={fieldButtonClass}>
           ⇄
-        </button>
+        </IconButton>
         <SideInput label="Height" value={height} limits={limits} maxSide={model.max_side} onCommit={(h) => commit(width, h)} />
       </div>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">

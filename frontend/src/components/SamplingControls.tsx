@@ -1,4 +1,5 @@
 import type { GenerationSettings, Limits, ModelInfo } from '../types'
+import { IconButton } from './IconButton'
 import { fieldButtonClass, fieldLabelClass } from '../lib/styles'
 import { Checkbox } from './form/Checkbox'
 import { NumberInput } from './form/NumberInput'
@@ -110,9 +111,9 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
           onChange={(text) => onChange({ seed: clamp(Math.trunc(Number(text) || 0), 0, limits.max_seed) })}
           className="min-w-0 flex-1"
         />
-        <button type="button" onClick={rollDice} aria-label="Pick a random seed" title="Pick a random seed" className={fieldButtonClass}>
+        <IconButton label="Pick a random seed" onClick={rollDice} className={fieldButtonClass}>
           🎲
-        </button>
+        </IconButton>
         <button
           type="button"
           onClick={() => lastSeed !== null && onChange({ seed: lastSeed, randomSeed: false })}
