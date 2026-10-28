@@ -1,0 +1,112 @@
+import { t } from '../../i18n'
+import { useEffect, useState } from 'react'
+import { chipClass, controlHeight } from '../../lib/styles'
+import { SearchInput } from '../../shared/form/SearchInput'
+import { Select } from '../../shared/form/Select'
+import { CATEGORY_LABELS, isCategory } from '../../lib/categories'
+import { useCharacters } from '../../lib/characters'
+import type { HistoryFilters, ModelInfo } from '../../types'
+import { Star } from 'lucide-react'
+
+export const SEARCH_DELAY_MS = 300
+
+function ratioGroups() {
+  return [{ options: [{ value: '', label: t('history.allRatios') }, ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))] }]
+}
+
+interface Props {
+  models: ModelInfo[]
+  filters: HistoryFilters
+  onChange: (filters: HistoryFilters) => void
+  comparing: boolean
+  selectedCount: number
+  onCompareToggle: () => void
+  onCompare: () => void
+}
+
+export function HistoryFilterBar({ models, filters, onChange, ...compare }: Props) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <SearchBox value={filters.search} onSearch={(search) => onChange({ ...filters, search })} />
+      <Select
+        label={t('history.model')}
+        hideLabel
+        value={filters.model ?? ''}
+        groups={[{ options: [{ value: '', label: t('history.allModels') }, ...models.map((model) => ({ value: model.id, label: model.label }))] }]}
+        onChange={(model) => onChange({ ...filters, model: model || null })}
+        className="w-60"
+      />
+      <Select
+        label={t('history.ratio')}
+        hideLabel
+        value={filters.ratio ?? ''}
+        groups={ratioGroups()}
+        onChange={(ratio) => onChange({ ...filters, ratio: isCategory(ratio) ? ratio : null })}
+        className="w-44"
+      />
+      <CharacterFilter value={filters.character} onChange={(character) => onChange({ ...filters, character })} />
+      <button
+        type="button"
+        aria-pressed={filters.favouritesOnly}
+        onClick={() => onChange({ ...filters, favouritesOnly: !filters.favouritesOnly })}
+        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
+      >
+        <Star className={filters.favouritesOnly ? 'fill-current text-amber-500' : ''} /> {t('history.favourites')}
+      </button>
+      <CompareControls {...compare} />
+    </div>
+  )
+}
+
+/** Shown once there are characters, or while a link filters by one. */
+function CharacterFilter({ value, onChange }: { value: number | null; onChange: (character: number | null) => void }) {
+  const { characters } = useCharacters()
+  const listed = characters.status === 'settled' ? characters.value : []
+  if (listed.length === 0 && value === null) return null
+  const options = listed.map((character) => ({ value: String(character.id), label: character.name }))
+  // A link can name a character that was deleted or has not loaded yet; it still shows, so the filter can be cleared
+  const unknown = value !== null && !listed.some((character) => character.id === value) ? [{ value: String(value), label: t('history.unknownCharacter') }] : []
+  return (
+    <Select
+      label={t('history.character')}
+      hideLabel
+      value={value === null ? '' : String(value)}
+      groups={[{ options: [{ value: '', label: t('history.allCharacters') }, ...options, ...unknown] }]}
+      onChange={(next) => onChange(next ? Number(next) : null)}
+      className="w-48"
+    />
+  )
+}
+
+/** Searches once typing pauses, so each keystroke does not reload History. */
+function SearchBox({ value, onSearch }: { value: string; onSearch: (search: string) => void }) {
+  const [text, setText] = useState(value)
+  useEffect(() => {
+    if (text.trim() === value) return
+    const timer = setTimeout(() => onSearch(text.trim()), SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [text, value, onSearch])
+  return <SearchInput label={t('history.searchPrompts')} placeholder={t('history.searchPlaceholder')} value={text} onChange={setText} className="w-64" />
+}
+
+type CompareProps = Pick<Props, 'comparing' | 'selectedCount' | 'onCompareToggle' | 'onCompare'>
+
+function CompareControls({ comparing, selectedCount, onCompareToggle, onCompare }: CompareProps) {
+  return (
+    <>
+      <button type="button" aria-pressed={comparing} onClick={onCompareToggle} className={`rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(comparing)}`}>
+        {t('history.compare')}
+      </button>
+      {comparing && (
+        <button
+          type="button"
+          onClick={onCompare}
+          disabled={selectedCount < 2}
+          className={`rounded-lg bg-violet-600 px-3 text-sm font-semibold ${controlHeight} text-white hover:bg-violet-500 disabled:opacity-50`}
+        >
+          {selectedCount < 2 ? t('history.pickMore', { count: 2 - selectedCount }) : t('history.compareTwo')}
+        </button>
+      )}
+    </>
+  )
+}
