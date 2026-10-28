@@ -3,7 +3,8 @@ import { streamChat } from '../api'
 import { errorMessage } from '../lib/hooks'
 import type { ChatMessage } from '../types'
 import { isModEnter } from '../lib/keyboard'
-import { fieldClass, secondaryButtonClass } from '../lib/styles'
+import { secondaryButtonClass } from '../lib/styles'
+import { Textarea } from './form/Textarea'
 import { ErrorNotice, Spinner } from './ui'
 
 type ChatStatus = { status: 'idle' } | { status: 'streaming' } | { status: 'failed'; error: string; retry: ChatMessage[] }
@@ -56,7 +57,7 @@ export function ChatPanel({ busy, onPromptReady }: Props) {
       <MessageList messages={messages} streaming={chat.status === 'streaming'} canEdit={!blocked} onEdit={editMessage} />
       {chat.status === 'failed' && <ErrorNotice message={chat.error} onRetry={() => void send(chat.retry)} />}
       <div className="flex gap-2">
-        <textarea
+        <Textarea
           aria-label="Describe the image you want"
           rows={2}
           value={draft}
@@ -68,7 +69,6 @@ export function ChatPanel({ busy, onPromptReady }: Props) {
             }
           }}
           placeholder="Describe the image you want… Grok writes the detailed prompt."
-          className={`${fieldClass} resize-none`}
         />
         <button
           type="button"
@@ -131,7 +131,7 @@ function UserMessage({ content, canEdit, onEdit }: { content: string; canEdit: b
   if (editing !== null) {
     return (
       <div className="ml-6 space-y-1.5">
-        <textarea aria-label="Edit message" rows={2} value={editing} onChange={(event) => setEditing(event.target.value)} className={fieldClass} />
+        <Textarea aria-label="Edit message" rows={2} value={editing} onChange={(event) => setEditing(event.target.value)} />
         <div className="flex justify-end gap-2">
           <button type="button" onClick={() => setEditing(null)} className={secondaryButtonClass}>
             Cancel

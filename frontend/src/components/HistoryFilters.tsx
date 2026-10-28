@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { chipClass, fieldClass } from '../lib/styles'
+import { chipClass, controlHeight } from '../lib/styles'
+import { SearchInput } from './form/SearchInput'
+import { Select } from './form/Select'
 import type { HistoryFilters, ModelInfo } from '../types'
 
 export const SEARCH_DELAY_MS = 300
@@ -18,24 +20,19 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
   return (
     <div className="flex flex-wrap items-center gap-2">
       <SearchBox value={filters.search} onSearch={(search) => onChange({ ...filters, search })} />
-      <select
-        aria-label="Model"
+      <Select
+        label="Model"
+        hideLabel
         value={filters.model ?? ''}
-        onChange={(event) => onChange({ ...filters, model: event.target.value || null })}
-        className={`${fieldClass} w-auto`}
-      >
-        <option value="">All models</option>
-        {models.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.label}
-          </option>
-        ))}
-      </select>
+        groups={[{ options: [{ value: '', label: 'All models' }, ...models.map((model) => ({ value: model.id, label: model.label }))] }]}
+        onChange={(model) => onChange({ ...filters, model: model || null })}
+        className="w-60"
+      />
       <button
         type="button"
         aria-pressed={filters.favouritesOnly}
         onClick={() => onChange({ ...filters, favouritesOnly: !filters.favouritesOnly })}
-        className={`rounded-lg border px-3 py-2 text-sm ${chipClass(filters.favouritesOnly)}`}
+        className={`rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
       >
         ★ Favourites
       </button>
@@ -52,16 +49,7 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (search: stri
     const timer = setTimeout(() => onSearch(text.trim()), SEARCH_DELAY_MS)
     return () => clearTimeout(timer)
   }, [text, value, onSearch])
-  return (
-    <input
-      type="search"
-      aria-label="Search prompts"
-      placeholder="Search prompts…"
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-      className={`${fieldClass} w-56`}
-    />
-  )
+  return <SearchInput label="Search prompts" placeholder="Search prompts…" value={text} onChange={setText} className="w-64" />
 }
 
 type CompareProps = Pick<Props, 'comparing' | 'selectedCount' | 'onCompareToggle' | 'onCompare'>
@@ -69,7 +57,7 @@ type CompareProps = Pick<Props, 'comparing' | 'selectedCount' | 'onCompareToggle
 function CompareControls({ comparing, selectedCount, onCompareToggle, onCompare }: CompareProps) {
   return (
     <>
-      <button type="button" aria-pressed={comparing} onClick={onCompareToggle} className={`rounded-lg border px-3 py-2 text-sm ${chipClass(comparing)}`}>
+      <button type="button" aria-pressed={comparing} onClick={onCompareToggle} className={`rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(comparing)}`}>
         Compare
       </button>
       {comparing && (
@@ -77,7 +65,7 @@ function CompareControls({ comparing, selectedCount, onCompareToggle, onCompare 
           type="button"
           onClick={onCompare}
           disabled={selectedCount < 2}
-          className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+          className={`rounded-lg bg-violet-600 px-3 text-sm font-semibold ${controlHeight} text-white hover:bg-violet-500 disabled:opacity-50`}
         >
           {selectedCount < 2 ? `Pick ${2 - selectedCount} more` : 'Compare 2 images'}
         </button>

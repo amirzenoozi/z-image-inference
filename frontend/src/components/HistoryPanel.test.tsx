@@ -7,6 +7,7 @@ import type { HistoryFilters, HistoryItem, HistoryPage } from '../types'
 import { SEARCH_DELAY_MS } from './HistoryFilters'
 import { NO_FILTERS } from '../lib/historyFilters'
 import { HistoryPanel, PAGE_SIZE } from './HistoryPanel'
+import { chooseOption } from '../test/select'
 
 vi.mock('../api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api')>()),
@@ -197,8 +198,8 @@ it('keeps the newest filter results when an older request answers late', async (
   renderHistory()
   await screen.findByText('2 images')
 
-  await userEvent.selectOptions(screen.getByLabelText('Model'), 'z-image-turbo')
-  await userEvent.selectOptions(screen.getByLabelText('Model'), 'wai-illustrious')
+  await chooseOption(screen.getByLabelText('Model'), 'Z-Image-Turbo')
+  await chooseOption(screen.getByLabelText('Model'), 'WAI-Illustrious')
   expect(await screen.findByRole('button', { name: 'Open: anime image' })).toBeInTheDocument()
 
   await act(async () => slow.resolve(pageOf([historyItem({ id: 9, prompt: 'late photo' })])))

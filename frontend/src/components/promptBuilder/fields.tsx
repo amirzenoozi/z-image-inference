@@ -1,6 +1,8 @@
 import { useId, type ReactNode } from 'react'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../../lib/promptBuilder/build'
-import { chipClass, fieldClass, tabClass } from '../../lib/styles'
+import { chipClass, fieldLabelClass, tabClass } from '../../lib/styles'
+import { Select, type SelectGroup } from '../form/Select'
+import { TextInput } from '../form/TextInput'
 
 const labelClass = 'text-[11px] font-medium text-zinc-600 dark:text-zinc-300'
 
@@ -22,29 +24,26 @@ interface ChoiceSelectProps {
   onChange: (value: string) => void
 }
 
-export function ChoiceSelect({ label, value, groups, allowRemove = false, allowInherit = false, allowRandom = true, onChange }: ChoiceSelectProps) {
-  const id = useId()
-  const known = groups.some((group) => group.options.includes(value)) || [NOT_SET, RANDOM, REMOVE, INHERIT_SCENE].includes(value)
-  return (
-    <div className={labelClass}>
-      <label htmlFor={id}>{label}</label>
-      <select id={id} value={known ? value : NOT_SET} onChange={(event) => onChange(event.target.value)} className={`${fieldClass} mt-1 py-1.5 text-xs`}>
-        <option value={NOT_SET}>Not set</option>
-        {allowRandom && <option value={RANDOM}>🎲 Random</option>}
-        {allowRemove && <option value={REMOVE}>Remove (without)</option>}
-        {allowInherit && <option value={INHERIT_SCENE}>Match the scene</option>}
-        {groups.map((group, index) =>
-          group.label ? (
-            <optgroup key={group.label} label={group.label}>
-              {group.options.map((option) => <option key={option} value={option}>{option}</option>)}
-            </optgroup>
-          ) : (
-            group.options.map((option) => <option key={`${index}-${option}`} value={option}>{option}</option>)
-          ),
-        )}
-      </select>
-    </div>
-  )
+const SPECIAL_LABELS: Record<string, string> = {
+  [NOT_SET]: 'Not set',
+  [RANDOM]: '🎲 Random',
+  [REMOVE]: 'Remove (without)',
+  [INHERIT_SCENE]: 'Match the scene',
+}
+
+function choiceGroups({ groups, allowRemove = false, allowInherit = false, allowRandom = true }: ChoiceSelectProps): SelectGroup[] {
+  const special = [NOT_SET, ...(allowRandom ? [RANDOM] : []), ...(allowRemove ? [REMOVE] : []), ...(allowInherit ? [INHERIT_SCENE] : [])]
+  return [
+    { options: special.map((value) => ({ value, label: SPECIAL_LABELS[value] })) },
+    ...groups.map((group) => ({ label: group.label, options: group.options.map((option) => ({ value: option, label: option })) })),
+  ]
+}
+
+export function ChoiceSelect(props: ChoiceSelectProps) {
+  const { label, value, onChange } = props
+  const groups = choiceGroups(props)
+  const known = groups.some((group) => group.options.some((option) => option.value === value))
+  return <Select label={label} value={known ? value : NOT_SET} groups={groups} onChange={onChange} />
 }
 
 interface TextFieldProps {
@@ -58,9 +57,11 @@ interface TextFieldProps {
 export function TextField({ label, value, placeholder, onChange, wide = false }: TextFieldProps) {
   const id = useId()
   return (
-    <div className={`${labelClass} ${wide ? 'sm:col-span-2' : ''}`}>
-      <label htmlFor={id}>{label}</label>
-      <input id={id} type="text" value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className={`${fieldClass} mt-1 py-1.5 text-xs`} />
+    <div className={wide ? 'sm:col-span-2' : ''}>
+      <label htmlFor={id} className={`${fieldLabelClass} mb-1 block`}>
+        {label}
+      </label>
+      <TextInput id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </div>
   )
 }

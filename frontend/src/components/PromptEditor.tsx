@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { GenerationSettings, Limits, ModelInfo } from '../types'
 import { isModEnter } from '../lib/keyboard'
-import { fieldClass } from '../lib/styles'
+import { Textarea } from './form/Textarea'
 import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
 
 type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt'>>
@@ -48,7 +48,7 @@ export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Pr
         <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
           Prompt
         </label>
-        <textarea
+        <Textarea
           id="prompt"
           rows={6}
           maxLength={limits.max_prompt_length}
@@ -61,7 +61,7 @@ export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Pr
             }
           }}
           placeholder="Describe the image in detail…"
-          className={`${fieldClass} mt-1 resize-y`}
+          className="mt-1 min-h-36"
         />
         <p className="mt-1 flex justify-between text-[11px] text-zinc-400">
           <span>{model.trigger_word ? `“${model.trigger_word}” is added automatically` : '⌘/Ctrl + Enter to generate'}</span>
@@ -121,13 +121,13 @@ function NegativePrompt({ value, model, onChange }: NegativePromptProps) {
           </button>
         )}
       </div>
-      <textarea
+      <Textarea
         id="negative-prompt"
         rows={2}
         value={value}
         onChange={(event) => onChange({ negativePrompt: event.target.value })}
         placeholder="What to avoid…"
-        className={`${fieldClass} mt-1 resize-y`}
+        className="mt-1"
       />
     </div>
   )
