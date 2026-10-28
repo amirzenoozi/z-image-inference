@@ -46,15 +46,16 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 - `generation_request.py`: request model and checks, shared by the web app and the model server.
 - `resolutions.py`: resolution presets with category (square, portrait, landscape, widescreen) and size tier.
 - `example_prompts.json`: each model's example prompts, keyed by model id and read on every catalog request. Keep every person in them clearly adult.
+- `prompt_modes.json`: the prompt builder's purposes (steps, defaults, narrowed options, emphasis, tag weights), served in the catalog. `main.py` checks the shape; `promptBuilder/modes.ts` (`parseModes`) checks steps and options against the builder and leaves out a mode it cannot use.
 - `history_store.py`: SQLite history; images are stored as PNG data in the database.
 - `frontend/src/`: React + TypeScript + Tailwind v4. `lib/` holds logic (settings, API client, prompt builder), `components/` the UI.
-- `frontend/src/lib/promptBuilder/`: the prompt builder. Its option lists (`data.ts`) are generated from ComfyUI Photoreal Prompt Builder (see `THIRD_PARTY_NOTICES.md`); `build.ts` resolves the choices into facts (`facts.ts`), which `prose.ts` writes as a detailed paragraph (Z-Image, MOSS-Image) and `tags.ts` as a weighted tag list (WAI, Anime Desire), chosen by the model's `prompt_style`.
+- `frontend/src/lib/promptBuilder/`: the prompt builder. Its option lists (`data.ts`) are generated from ComfyUI Photoreal Prompt Builder (see `THIRD_PARTY_NOTICES.md`); `build.ts` holds the state and checks; `resolveFacts.ts` turns the choices into facts (`facts.ts`) within what the mode allows (`rules.ts`, `choicesFor`), which `prose.ts` writes as a detailed paragraph in the mode's emphasis order (Z-Image, MOSS-Image) and `tags.ts` as a tag list with the mode's weights (WAI, Anime Desire), chosen by the model's `prompt_style`. A step the mode hides contributes nothing.
 - `image_edits.py`: rotate, flip and crop recipes, applied with Pillow when an edited copy is saved (`POST /api/history/{id}/edits`); the original image is never changed.
 - `prompt_weights.py`: rewrites `(tag:1.3)` weights for Compel, which encodes SDXL prompts with weights and past 77 tokens (`sdxl_conditioning` in `model_server.py`).
 
 ## Rules to keep
 
-- Explicit, nudity and lingerie prompts in the prompt builder require "Who" and an adult age range, and are refused if any free text suggests a minor (`minorTermIn` in `build.ts`). Keep this when changing the builder.
+- Explicit, nudity and lingerie prompts in the prompt builder require "Who" and an adult age range, and are refused if any free text suggests a minor (`minorTermIn` in `build.ts`). A mode that shows the Intimacy step is always adult (`isAdultMode` in `modes.ts`), so editing `prompt_modes.json` can never switch these checks off. Keep this when changing the builder.
 - Only one model is loaded at a time; switching models unloads the previous one first.
 - Icons come from `lucide-react`, never hand-drawn SVGs or text symbols; their size and line weight are set once (`.lucide` in `index.css`). A button that shows only an icon uses `IconButton`, which gives it its accessible name and a tooltip (with its keyboard shortcut, if it has one).
 - Every dialog uses `Modal`: a header with the title and a close button, then the content, then its buttons passed as `actions`, under a divider, secondary action first and main action last. They are centred on their own, or on the right when a note (`actionsNote`) sits beside them on the left. A dialog with two columns (such as the image view) puts its actions at the bottom of the details column instead, under a divider, aligned right.

@@ -39,6 +39,7 @@ z-image-inference/
 ├── moss_pipeline.py        # Vendored MOSS-Image pipeline (Apache 2.0)
 ├── grok_client.py          # xAI Grok client
 ├── example_prompts.json    # Each model's example prompts
+├── prompt_modes.json       # The prompt builder's purposes
 ├── frontend/               # React, TypeScript and Tailwind UI (Vite)
 │   └── src/
 │       ├── components/     # The UI; form/ holds the shared field components

@@ -18,24 +18,51 @@ Switching models resets steps and guidance to the new model's defaults. Your pro
 
 ## Prompt builder
 
-**Prompt builder** (above the prompt box) opens a dialog that assembles a detailed prompt step by step, with a live preview:
+**Prompt builder** (above the prompt box) opens a dialog that assembles a detailed prompt step by step, with a live preview.
+
+First pick a **purpose** at the top. Each one shows only the steps it needs, starts from sensible choices (only those you have not set yet) and writes the parts that matter for it first:
+
+| Purpose | Steps | What it stresses |
+|---------|-------|------------------|
+| **General** | every step except Intimacy | nothing in particular |
+| **Portrait** | Subject, Face & hair, Scene & light, Camera, Mood & finish; close shot types only | the face, hair and light |
+| **Fashion** | every step except Face & hair and Intimacy; starts as a full-body fashion shot in a studio | the outfit and figure |
+| **Glamour (18+)** | every step; nudity up to topless, no explicit acts | the outfit, body and mood |
+| **Explicit (18+)** | every step and option | nudity, explicit poses and acts |
+| **Scene** | Scene & light, Camera, Mood & finish; no people | the place and light |
+
+The steps:
 
 1. **Subject**: who (woman, man, couple, two women, two men), an adult age range, ethnicity and your own details
 2. **Face & hair**: eye colour, expression, makeup, skin tone and details, hair length, colour and style
 3. **Body**: body type, height, bust, hips and legs, tattoos and piercings
 4. **Outfit**: tops, bottoms, lingerie, outerwear, shoes, a colour for each, accessories
 5. **Pose & action**
-6. **Intimacy (18+)**: nudity level (clothed, implied, topless, fully nude) and intimacy details; shown only when explicit content is on
+6. **Intimacy (18+)**: nudity level (clothed, implied, topless, fully nude) and intimacy details; shown only in an 18+ purpose
 7. **Scene & light**: a scene or your own environment, time of day, weather, lighting
 8. **Camera**: photo style, shot type, angle, lens, depth of field
 9. **Mood & finish**: mood, colour grading, realism details, extra details and negative terms
 
 - **Surprise me** fills the main choices with random values you can then adjust. Any choice can also be set to **Random**, and **Re-roll** picks new values for those.
 - **Use this prompt** puts the prompt and negative prompt into the prompt box, replacing what is there; **Append to prompt** adds to it instead.
-- **It writes for the selected model.** For Z-Image-Turbo and MOSS-Image, one detailed paragraph: who and what is happening first, then the person, the outfit, the setting, the light and the camera, each tied to the subject. For WAI-Illustrious and Anime Desire, a tag list: quality tags, who, then adult content weighted higher (for example `(completely nude:1.3)`), then the rest.
+- **It writes for the selected model.** For Z-Image-Turbo and MOSS-Image, one detailed paragraph: who and what is happening first, then the person, the outfit, the setting, the light and the camera, each tied to the subject. For WAI-Illustrious and Anime Desire, a tag list: quality tags, who, then adult content, then the rest, with what the purpose stresses weighted higher (for example `(completely nude:1.3)` in Explicit).
 - **It never contradicts itself.** The nudity level decides the outfit (topless leaves out tops and bras; fully nude and implied nudity leave only shoes and accessories). Partner actions are offered only for a couple, poses and actions about breasts or lingerie only when the subject includes a woman, and actions about taking clothes off only while those clothes are still on.
-- With explicit content, terms such as `nsfw` are taken out of the negative prompt, since they would work against it.
+- In an 18+ purpose, terms such as `nsfw` are taken out of the negative prompt, since they would work against it.
 - **Adults only**: explicit content, nudity and lingerie need "Who" and an adult age range, and the builder refuses any detail that suggests a minor.
+
+### Your own purposes
+
+The purposes live in `prompt_modes.json` in the project folder; edit it and reopen the builder to change them. Each one has:
+
+- `id`, `label` and `description`
+- `steps`: which steps it shows, from `subject`, `appearance`, `body`, `outfit`, `pose`, `intimacy`, `scene`, `camera` and `finish`
+- `defaults`: a starting value per choice, for example `"shotType": "headshot"`
+- `options`: a shorter list for a choice, for example `"nudity": ["clothed", "implied"]`; an empty list hides that choice
+- `emphasis`: the parts of the paragraph to write first, from `face`, `hair`, `body`, `outfit`, `nudity`, `intimacy`, `scene`, `details`, `light`, `camera`, `mood` and `realism`
+- `weights`: tag weights from 0.5 to 2, for `nudity`, `action`, `explicitPose`, `pose`, `outfit`, `face`, `hair`, `body`, `scene` and `light`
+- `adult_only`: marks an 18+ purpose
+
+A purpose with an unknown step, choice or option is left out, with a note in the builder saying why. A purpose that shows the Intimacy step is always treated as 18+, so the adult checks above apply whatever the file says.
 
 ## Prompt weights
 
