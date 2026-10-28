@@ -20,6 +20,7 @@ export interface ModelInfo {
   default_negative_prompt: string
   trigger_word: string
   prompt_style: 'prose' | 'tags'
+  examples: string[]
 }
 
 export interface ResolutionInfo {
@@ -47,7 +48,6 @@ export interface Catalog {
   model_categories: ModelCategory[]
   resolutions: ResolutionInfo[]
   categories: Category[]
-  examples: string[]
   chat_available: boolean
   limits: Limits
 }

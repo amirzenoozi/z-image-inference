@@ -123,7 +123,7 @@ function PromptSection(props: PromptSectionProps) {
         ))}
       </div>
       {mode === 'direct' && (
-        <PromptEditor settings={settings} model={model} examples={catalog.examples} limits={catalog.limits} onChange={patch} onSubmit={onGenerate} />
+        <PromptEditor settings={settings} model={model} limits={catalog.limits} onChange={patch} onSubmit={onGenerate} />
       )}
       {mode === 'chat' && <ChatPanel busy={generating} onPromptReady={props.onChatPrompt} />}
     </Section>

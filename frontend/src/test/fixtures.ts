@@ -19,6 +19,7 @@ export const fastModel: ModelInfo = {
   default_negative_prompt: '',
   trigger_word: '',
   prompt_style: 'prose',
+  examples: ['A red fox in the snow', 'A lighthouse at dawn'],
 }
 
 export const animeModel: ModelInfo = {
@@ -40,6 +41,7 @@ export const animeModel: ModelInfo = {
   default_negative_prompt: 'nsfw, low quality',
   trigger_word: '',
   prompt_style: 'tags',
+  examples: ['1girl, adult woman, kimono'],
 }
 
 export const catalog: Catalog = {
@@ -58,7 +60,6 @@ export const catalog: Catalog = {
     { width: 1280, height: 720, ratio: '16:9', category: 'widescreen', tier: 'L' },
   ],
   categories: ['square', 'portrait', 'landscape', 'widescreen'],
-  examples: ['A red fox in the snow'],
   chat_available: false,
   limits: { min_side: 256, side_step: 16, max_seed: 4294967295, max_prompt_length: 4000 },
 }
