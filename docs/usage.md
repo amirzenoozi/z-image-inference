@@ -8,7 +8,7 @@ The app has three views, **Create**, **History** and **Characters**, switched in
 2. **Prompt**: write it yourself, or click one of the **example** cards below the prompt box to fill it. Models that use one also show a **negative prompt** (what to avoid). Each model's examples live in `example_prompts.json`; edit the file and reload the page to change them.
 3. **Resolution**: pick a category tab (Square, Portrait, Landscape, Widescreen), then a size (S, M, L, XL). Sizes the model cannot make are greyed out, with the reason. **Custom** takes any size, snapped to valid values.
 4. **Sampling**: steps, guidance and seed. **Reset to model defaults** undoes your changes. The seed can be random each time, rolled with the dice, or set to the last image's seed to repeat a result.
-5. **Generate** (or ⌘/Ctrl + Enter).
+5. **Generate** (or ⌘/Ctrl + Enter). While it runs, the prompt can be read and copied but not changed, and Generate waits; both come back when the image arrives, you cancel, or an error comes back. If you switch to History or Characters meanwhile, a red dot on the **Create** tab shows when the image (or an error) is ready.
 
 While an image renders, the result area shows what is happening: waiting, loading the model, reading the prompt, or **Step 4 of 9** with a progress bar, plus how long it has been running. **Cancel** stops it after the current step, without adding anything to History.
 
@@ -112,6 +112,13 @@ The header shows how much space History uses, and offers:
 
 Clean up and Delete all also shrink `history.db` on disk.
 
+### Sensitive images
+
+Images with nudity or sexual content are blurred in History's list, on character cards and in the face-lock thumbnail, with an eye icon and "Sensitive". Opening one shows it as it is.
+
+- An image is marked sensitive when it is saved, if its prompt has words such as *nude*, *naked*, *nsfw*, *explicit*, *topless*, *lingerie* or *sensual* (so images from the 18+ builder purposes are). Images made before this existed are checked once, on the next start.
+- A model can make nudity the prompt doesn't ask for, so the eye button on an opened image marks it as sensitive, or as not sensitive, by hand. An edited copy keeps its original's setting.
+
 ## Image viewer
 
 Opening an image shows it large, with its details beside it: its settings, render time, **colour palette** (its six main colours with their share of the image; click one to copy its hex code), the prompt and negative prompt (each with **Copy**), and where it came from if it is an edit or a variation.
@@ -155,7 +162,8 @@ Z-Image-Turbo, WAI-Illustrious and Anime Desire can make variations. MOSS-Image 
 A **character** is a named person you make many images of, such as "Ava". It keeps the prompt builder's **Subject**, **Face & hair** and **Body** choices (who, age, ethnicity, eyes, skin, hair, makeup, body, tattoos and piercings), but not the outfit, pose or scene, so the same person can go anywhere.
 
 - **Samples**: the app starts with thirteen sample characters, each with a different look, to try right away: Mei, Amara, Sofia, Freya, Elena, Ravi and Kai, and six young adults with one bold feature each: Nova (pastel pink hair), Jax (big tattoos), Tank (huge muscles), Ruby (very large breasts), Zara (blue hair and many piercings) and Ivy (lavender hair and tattoos). They are added once, the first time the app starts with a database; edit or delete them like any other, and a deleted one does not come back. They live in `sample_characters.json`: edit it before the first start to change them.
-- **Make one** with **New character** on the Characters page, or with **Save as character…** under the prompt builder's Subject step.
+- **Browse them** on the Characters page; **All / Women / Men** at the top filters the cards; the choice is kept when you go to another view and come back, and across reloads.
+- **Make one** with **New character** on the Characters page (**Surprise me** there fills in a random adult look you can then adjust; it keeps "Who", the name and anything you typed), or with **Save as character…** under the prompt builder's Subject step.
 - **Use it** by picking it in **Character** at the top of Create's prompt (or **Use** on its card). Every image you then generate is linked to it. In the prompt builder, its look replaces the Subject, Face & hair and Body steps, which become one **Character** step. A prompt you type yourself is left as you wrote it.
 - **Seed**: a character can have its own seed, used for every render of it, which keeps the face closer between images of similar prompts. Leave it empty for a new seed each time.
 - **Find its images** with **Show images** on its card, or the **Character** filter in History. The image viewer shows the character an image belongs to; **Set as cover** puts that image on the character's card (otherwise its newest image is used).

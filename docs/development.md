@@ -37,6 +37,7 @@ z-image-inference/
 ├── image_edits.py          # Rotate, flip and crop, applied with Pillow
 ├── palette.py              # Colour palette of an image
 ├── prompt_weights.py       # Rewrites (tag:1.3) weights for Compel
+├── sensitive.py            # Which prompts mark an image as sensitive (blurred in lists)
 ├── moss_pipeline.py        # Vendored MOSS-Image pipeline (Apache 2.0)
 ├── grok_client.py          # xAI Grok client
 ├── example_prompts.json    # Each model's example prompts

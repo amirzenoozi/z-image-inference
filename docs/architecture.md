@@ -38,6 +38,7 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | `GET /api/history/{id}/image` | an image (`?thumb=true` for a small WebP) |
 | `GET /api/history/{id}/palette` | its colour palette, worked out once and saved |
 | `PUT /api/history/{id}/favourite` | star or unstar |
+| `PUT /api/history/{id}/sensitive` | mark as sensitive (blurred in lists) or not |
 | `POST /api/history/{id}/edits` | save a rotated, flipped or cropped copy |
 | `DELETE /api/history/{id}` | delete one image |
 | `GET /api/characters`, `POST /api/characters` | list or create characters |
