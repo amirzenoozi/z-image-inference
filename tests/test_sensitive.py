@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 import history_store
 import main
+import nsfw_detector
 from sensitive import is_sensitive
 from test_characters import use_samples
 from test_web_app import FakeModelServer, generate
@@ -74,3 +75,42 @@ def test_images_from_before_the_flag_are_checked_once_on_start(tmp_path: Path, m
     history_store.init_db()
 
     assert [item.sensitive for item in history_store.page(0, 10)[0]] == [True, True]
+
+
+def test_a_new_image_the_classifier_finds_nsfw_is_marked_whatever_its_prompt(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(nsfw_detector, "is_nsfw", lambda png: True)
+    assert generate(client, prompt="a girl under the rain").json()["sensitive"] is True
+
+    monkeypatch.setattr(nsfw_detector, "is_nsfw", lambda png: False)
+    assert generate(client, prompt="a red fox").json()["sensitive"] is False
+    assert generate(client, prompt="a nude woman").json()["sensitive"] is True
+
+
+def test_images_saved_before_the_check_was_ready_are_checked_in_the_background(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    rain = generate(client, prompt="a girl under the rain").json()
+    fox = generate(client, prompt="a red fox").json()
+    hand = generate(client, prompt="a nude statue").json()
+    client.put(f"/api/history/{hand['id']}/sensitive", json={"sensitive": False})
+    assert rain["sensitive"] is False
+
+    monkeypatch.setattr(nsfw_detector, "load", lambda: None)
+    monkeypatch.setattr(nsfw_detector, "is_nsfw", lambda png: True)
+    flagged = {rain["id"]}
+    monkeypatch.setattr(main, "image_is_nsfw", lambda item_id: item_id in flagged)
+    main.check_unchecked_images()
+
+    items = {item["id"]: item["sensitive"] for item in client.get("/api/history").json()["items"]}
+    assert items == {rain["id"]: True, fox["id"]: False, hand["id"]: False}
+    assert history_store.unchecked_image_ids(10) == []
+
+
+def test_a_check_that_cannot_start_leaves_the_prompt_words_in_charge(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    generate(client, prompt="a red fox")
+
+    def broken() -> None:
+        raise OSError("no network")
+
+    monkeypatch.setattr(nsfw_detector, "load", broken)
+    main.check_unchecked_images()
+
+    assert len(history_store.unchecked_image_ids(10)) == 1

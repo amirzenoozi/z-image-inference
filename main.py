@@ -1,6 +1,7 @@
 import io
 import base64
 import itertools
+import threading
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -22,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 
 import character_store
 import history_export
+import nsfw_detector
 from character_store import Character, CharacterUpdate, DuplicateName, MissingImage, NewCharacter
 from image_edits import EditOutsideImage, EditRecipe, apply_edits
 import history_store
@@ -185,10 +187,41 @@ class ChatRequest(BaseModel):
         return self
 
 
+# Images checked per database read; the check runs one image at a time
+IMAGE_CHECK_BATCH = 20
+
+
+def check_unchecked_images() -> None:
+    """Loads the sensitive-image check (downloading it once), then checks every image saved before it was ready."""
+    try:
+        nsfw_detector.load()
+    except Exception as error:  # A failed download or load leaves the prompt words as the only check, as before
+        print(f"The sensitive-image check could not start: {error}")
+        return
+    while ids := history_store.unchecked_image_ids(IMAGE_CHECK_BATCH):
+        for item_id in ids:
+            history_store.record_image_check(item_id, image_is_nsfw(item_id))
+
+
+def image_is_nsfw(item_id: int) -> bool:
+    png = history_store.image_png(item_id)
+    try:
+        return png is not None and bool(nsfw_detector.is_nsfw(png))
+    except Exception as error:  # An image the classifier can't read keeps what its prompt said
+        print(f"Image #{item_id} could not be checked: {error}")
+        return False
+
+
+def start_image_checks() -> None:
+    """Runs in the background, so the app starts at once; images saved meanwhile are checked when it is ready."""
+    threading.Thread(target=check_unchecked_images, name="image-checks", daemon=True).start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     history_store.init_db()
     character_store.add_samples_once()
+    start_image_checks()
     yield
 
 
@@ -324,12 +357,16 @@ def generate(req: WebGenerateRequest) -> HistoryItem:
     server_request = model_server_request(req, face_lock)
     rendered = request_image(server_request)
     spec = MODELS[req.model]
+    png = base64.b64decode(rendered.image_base64)
+    # The image itself is checked too, since a model can make nudity the prompt doesn't ask for
+    nsfw = nsfw_detector.is_nsfw(png)
     return history_store.add(NewImage(
-        png=base64.b64decode(rendered.image_base64), prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
+        png=png, prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
         face_from=face_lock[0] if face_lock and server_request.face_image else None,
+        sensitive=True if nsfw else None, image_checked=nsfw is not None,
     ))
 
 
@@ -449,7 +486,9 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
     return history_store.add(NewImage(
         png=edited, prompt=source.prompt, negative_prompt=source.negative_prompt, seed=source.seed,
         width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
-        duration_seconds=None, edited_from=source.id, character_id=source.character_id, sensitive=source.sensitive,
+        duration_seconds=None, edited_from=source.id, character_id=source.character_id,
+        # A cropped or turned copy keeps its original's flag, which may have been set by hand
+        sensitive=source.sensitive, image_checked=True,
     ))
 
 

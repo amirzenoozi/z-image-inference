@@ -34,6 +34,8 @@ ADDED_COLUMNS: dict[str, str] = {
     "face_from": "INTEGER",
     # Blurred in the list: worked out from the prompt (rows from before it existed are checked at start), changeable per image
     "sensitive": "INTEGER",
+    # Whether the image itself has been checked for nudity (nsfw_detector.py); unchecked ones are checked in the background
+    "image_checked": "INTEGER NOT NULL DEFAULT 0",
 }
 # Character columns added after characters were first released
 ADDED_CHARACTER_COLUMNS: dict[str, str] = {
@@ -138,6 +140,8 @@ class NewImage:
     face_from: int | None = None
     # None works it out from the prompt; an edited copy passes its original's, which may have been set by hand
     sensitive: bool | None = None
+    # Whether the image itself was checked already (its result is in `sensitive`), so the background check skips it
+    image_checked: bool = False
 
 
 @contextmanager
@@ -210,11 +214,12 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id, face_from, sensitive)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (image.png, image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
-             image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive)),
+             image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive),
+             int(image.image_checked)),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)
@@ -270,10 +275,25 @@ def set_favourite(item_id: int, favourite: bool) -> HistoryItem | None:
 
 
 def set_sensitive(item_id: int, sensitive: bool) -> HistoryItem | None:
+    """Set by hand, it wins: the image counts as checked, so the background check never changes it."""
     with connection() as conn:
-        conn.execute("UPDATE images SET sensitive = ? WHERE id = ?", (int(sensitive), item_id))
+        conn.execute("UPDATE images SET sensitive = ?, image_checked = 1 WHERE id = ?", (int(sensitive), item_id))
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (item_id,)).fetchone()
     return to_item(row) if row else None
+
+
+def unchecked_image_ids(limit: int) -> list[int]:
+    """Images the background check has not looked at yet, oldest first."""
+    with connection() as conn:
+        return [row[0] for row in conn.execute("SELECT id FROM images WHERE image_checked = 0 ORDER BY id LIMIT ?", (limit,))]
+
+
+def record_image_check(item_id: int, nsfw: bool) -> None:
+    """The check only ever adds the flag: an image the prompt marked stays marked, and one set by hand is not touched."""
+    with connection() as conn:
+        conn.execute(
+            "UPDATE images SET sensitive = MAX(sensitive, ?), image_checked = 1 WHERE id = ? AND image_checked = 0", (int(nsfw), item_id),
+        )
 
 
 def image_png(item_id: int) -> bytes | None:
