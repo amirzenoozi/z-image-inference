@@ -27,8 +27,10 @@ import uvicorn
 from compel import CompelForSDXL
 from diffusers import AutoencoderKLFlux2, DPMSolverMultistepScheduler, EulerAncestralDiscreteScheduler, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLPipeline
 from fastapi import FastAPI, HTTPException, Response
-from huggingface_hub import snapshot_download
+from huggingface_hub import get_token, snapshot_download
 from mflux.models.common.config.config import Config
+from mflux.models.common.config.model_config import ModelConfig
+from mflux.models.flux.variants.txt2img.flux import Flux1
 from mflux.models.z_image.variants.z_image import ZImage
 from optimum.quanto import freeze, qint8, quantization_map, quantize, requantize
 from PIL import Image, ImageOps
@@ -40,7 +42,7 @@ from transformers import AutoConfig, AutoModel, AutoTokenizer
 from generation_request import MAX_SEED, GenerateRequest
 from i18n import t
 from prompt_weights import a1111_to_compel
-from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
+from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, FLUX_ASIAN_NUDITY, FLUX_CREATE_NSFW, FLUX_DEV, MODELS, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 from paths import MODELS_DIR
 
@@ -77,6 +79,17 @@ MOSS_IMAGE_FILES = ["merged-model/**/*.json", "merged-model/**/*.jinja", "merged
 REALVIS_XL_PATH = MODELS_DIR / "RealVisXL_V5.0"
 # Its float16 copies are the files it runs; the full-precision set would double the download for nothing
 REALVIS_XL_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
+FLUX_DEV_PATH = MODELS_DIR / "FLUX.1-dev"
+# The 4-bit copy it always runs: about 10 GB in memory, against 24 GB for the original
+FLUX_Q4_PATH = MODELS_DIR / "flux-dev-q4"
+# The diffusers folders mflux reads; the repo's single-file checkpoint repeats them
+FLUX_DEV_FILES = ["model_index.json", "scheduler/*", "text_encoder/*", "text_encoder_2/*", "tokenizer/*", "tokenizer_2/*", "transformer/*", "vae/*"]
+
+
+def lora_path(spec: ModelSpec) -> Path:
+    return MODELS_DIR / f"lora-{spec.id}"
+
+
 # The face lock for the SDXL models: IP-Adapter plus-face and the image encoder it reads faces with
 FACE_LOCK = "face-lock"
 FACE_LOCK_REPO = "h94/IP-Adapter"
@@ -206,17 +219,28 @@ def ensure_downloaded(repo_id: str, path: Path, allow_patterns: list[str] | None
     marker.touch()
 
 
-def build_z_image_quantized(bits: int, target: Path) -> None:
-    """Quantise Z-Image once into `target`. The original is kept, to compare against and rebuild from."""
-    ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH)
+def build_once(target: Path, build: Callable[[Path], None]) -> None:
+    """Run a one-time build into `target`, unless it is there already."""
     if target.exists():
         return
-    print(f"Creating {bits}-bit model at {target}...")
+    print(f"Creating {target}...")
     # Built beside the final folder and renamed when complete, so an interrupted build is never used
     building = target.with_name(f"{target.name}.building")
     shutil.rmtree(building, ignore_errors=True)
-    ZImage(quantize=bits, model_path=str(Z_IMAGE_PATH)).save_model(str(building))
+    build(building)
     building.rename(target)
+
+
+def build_z_image_quantized(bits: int, target: Path) -> None:
+    """Quantise Z-Image once into `target`. The original is kept, to compare against and rebuild from."""
+    ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH)
+    build_once(target, lambda building: ZImage(quantize=bits, model_path=str(Z_IMAGE_PATH)).save_model(str(building)))
+
+
+def build_flux_q4() -> None:
+    """Quantise FLUX.1-dev to 4 bits once; the original is kept to rebuild from."""
+    ensure_downloaded(FLUX_DEV.repo_id, FLUX_DEV_PATH, FLUX_DEV_FILES)
+    build_once(FLUX_Q4_PATH, lambda building: Flux1(quantize=4, model_path=str(FLUX_DEV_PATH), model_config=ModelConfig.dev()).save_model(str(building)))
 
 
 def z_image_model_path() -> Path:
@@ -254,14 +278,14 @@ def start_image_file(image: Image.Image | None) -> Iterator[str | None]:
         yield file.name
 
 
-def load_z_image() -> ImageGenerator:
-    model = ZImage(model_path=str(z_image_model_path()))
+def mflux_generator(model: ZImage | Flux1, uses_guidance: bool) -> ImageGenerator:
     reporter = MfluxStepReporter()
     model.callbacks.register(reporter)
 
     def generate(job: Job, progress: JobProgress) -> Image.Image:
         reporter.progress = progress
         progress.enter("generating")
+        guidance = {"guidance": job.guidance} if uses_guidance else {}
         with start_image_file(job.start_image) as start_path:
             return model.generate_image(
                 seed=job.seed,
@@ -272,9 +296,25 @@ def load_z_image() -> ImageGenerator:
                 image_path=start_path,
                 # mflux's strength is how much of the start image to keep, the opposite of "change"
                 image_strength=None if job.change is None else 1 - job.change,
+                **guidance,
             ).image
 
     return generate
+
+
+def load_z_image() -> ImageGenerator:
+    return mflux_generator(ZImage(model_path=str(z_image_model_path())), uses_guidance=False)
+
+
+def load_flux(spec: ModelSpec) -> ImageGenerator:
+    """The 4-bit copy, with the model's LoRA applied while generating: merged in, it would turn the 4-bit layers 8-bit."""
+    build_flux_q4()
+    loras = [str(lora_path(spec) / spec.lora_file)] if spec.lora_file else None
+    model = Flux1(
+        model_path=str(FLUX_Q4_PATH), model_config=ModelConfig.dev(),
+        lora_paths=loras, lora_scales=[1.0] if loras else None, bake_lora=False,
+    )
+    return mflux_generator(model, uses_guidance=True)
 
 
 def has_float32(file: Path) -> bool:
@@ -558,6 +598,7 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     MOSS_IMAGE.id: MossImageGenerator,
     ANIME_DESIRE.id: load_anime_desire,
     REALVIS_XL.id: load_realvis_xl,
+    **{spec.id: (lambda spec=spec: load_flux(spec)) for spec in (FLUX_DEV, FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
 }
 
 def download_z_image() -> None:
@@ -592,12 +633,23 @@ def download_moss_image() -> None:
     shutil.rmtree(MOSS_TEXT_ENCODER_Q8_PATH, ignore_errors=True)
 
 
+def download_flux_dev() -> None:
+    ensure_downloaded(FLUX_DEV.repo_id, FLUX_DEV_PATH, FLUX_DEV_FILES)
+
+
+def download_flux_lora(spec: ModelSpec) -> None:
+    download_flux_dev()
+    ensure_downloaded(spec.repo_id, lora_path(spec), [spec.lora_file])
+
+
 DOWNLOADERS: dict[str, Callable[[], None]] = {
     Z_IMAGE.id: download_z_image,
     WAI_ILLUSTRIOUS.id: download_wai_illustrious,
     MOSS_IMAGE.id: download_moss_image,
     ANIME_DESIRE.id: download_anime_desire,
     REALVIS_XL.id: download_realvis_xl,
+    FLUX_DEV.id: download_flux_dev,
+    **{spec.id: (lambda spec=spec: download_flux_lora(spec)) for spec in (FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
 }
 GB = 1_000_000_000
 
@@ -610,6 +662,9 @@ MODEL_FOLDERS: dict[str, list[Path]] = {
     MOSS_IMAGE.id: [MOSS_IMAGE_PATH],
     ANIME_DESIRE.id: [ANIME_DESIRE_PATH, SDXL_CONFIG_PATH],
     REALVIS_XL.id: [REALVIS_XL_PATH],
+    FLUX_DEV.id: [FLUX_DEV_PATH, FLUX_Q4_PATH, MODELS_DIR / f"{FLUX_Q4_PATH.name}.building"],
+    # A LoRA model removes only its LoRA; the base stays for the others
+    **{spec.id: [lora_path(spec)] for spec in (FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
 }
 
 DOWNLOAD_PATHS: dict[str, Path] = {
@@ -618,6 +673,8 @@ DOWNLOAD_PATHS: dict[str, Path] = {
     MOSS_IMAGE.id: MOSS_IMAGE_PATH,
     ANIME_DESIRE.id: ANIME_DESIRE_PATH,
     REALVIS_XL.id: REALVIS_XL_PATH,
+    FLUX_DEV.id: FLUX_DEV_PATH,
+    **{spec.id: lora_path(spec) for spec in (FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
 }
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -630,8 +687,12 @@ downloads: dict[str, Future[None]] = {}
 def is_downloaded(model_id: str) -> bool:
     """Whether the files the current mode needs are on disk (compressed copies, or the originals).
 
-    Z-Image's original is always kept, and its quantised copy is built from it when the model loads.
+    Z-Image's original is always kept, and its quantised copy is built from it when the model loads. A LoRA
+    model also needs its base model.
     """
+    base = MODELS[model_id].base_model_id
+    if base is not None and not is_downloaded(base):
+        return False
     if compression_enabled():
         return download_marker(DOWNLOAD_PATHS[model_id]).exists()
     return download_marker(DOWNLOAD_PATHS[model_id]).exists() and not missing_original_parts(model_id)
@@ -703,7 +764,16 @@ def space_needed_bytes(model_id: str) -> int:
     # The download plus room for the one-time setup, which writes the compressed copy beside the originals
     spec = MODELS[model_id]
     setup_gb = spec.compressed_gb if runs_compressed(spec) else 0
-    return int((spec.download_gb + setup_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
+    own = int((spec.download_gb + setup_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
+    if spec.base_model_id is None or is_downloaded(spec.base_model_id):
+        return own
+    return own + space_needed_bytes(spec.base_model_id)
+
+
+def download_problem(model_id: str) -> str | None:
+    """FLUX.1-dev is gated on Hugging Face, so fetching it needs a token from an account that accepted its licence."""
+    needs_flux = FLUX_DEV.id in (model_id, MODELS[model_id].base_model_id) and not is_downloaded(FLUX_DEV.id)
+    return t("needsHfToken", label=FLUX_DEV.label) if needs_flux and not get_token() else None
 
 
 loaded_model_id: str | None = None
@@ -736,7 +806,7 @@ def use_model(model_id: str) -> ImageGenerator:
 def unload_and_remove(model_id: str) -> None:
     """Runs on the model thread, so it waits for any generation in progress to finish first."""
     global loaded_model_id, loaded_generator
-    if loaded_model_id == model_id:
+    if loaded_model_id is not None and model_id in (loaded_model_id, MODELS[loaded_model_id].base_model_id):
         loaded_model_id, loaded_generator = None, None
         release_memory()
     for path in MODEL_FOLDERS[model_id]:
@@ -817,6 +887,9 @@ def models_status() -> ModelsReport:
 def download_model(model_id: str) -> ModelState:
     known_model(model_id)
     if model_status(model_id) in ("missing", "failed"):
+        problem = download_problem(model_id)
+        if problem:
+            raise HTTPException(400, problem)
         shortfall = space_needed_bytes(model_id) - free_bytes()
         if shortfall > 0:
             raise HTTPException(507, t("notEnoughSpace", gb=f"{shortfall / GB:.1f}"))

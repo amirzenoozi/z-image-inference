@@ -84,3 +84,35 @@ def test_an_unknown_z_image_level_is_refused(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("Z_IMAGE_BITS", "2")
     with pytest.raises(ValueError, match="Z_IMAGE_BITS"):
         model_server.z_image_model_path()
+
+
+class FakeFlux:
+    """Stands in for mflux's Flux1, recording how each one was made."""
+
+    made: list[dict[str, object]] = []
+
+    def __init__(self, **kwargs: object) -> None:
+        FakeFlux.made.append(kwargs)
+        self.callbacks = type("Callbacks", (), {"register": lambda self, reporter: None})()
+
+    def save_model(self, base_path: str) -> None:
+        Path(base_path).mkdir(parents=True)
+
+
+def test_a_flux_lora_model_builds_the_4_bit_copy_once_and_applies_its_lora_while_generating(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_server, "Flux1", FakeFlux)
+    monkeypatch.setattr(model_server, "ensure_downloaded", lambda *args, **kwargs: None)
+    monkeypatch.setattr(model_server, "FLUX_Q4_PATH", tmp_path / "flux-dev-q4")
+    monkeypatch.setattr(model_server, "MODELS_DIR", tmp_path)
+    FakeFlux.made = []
+    spec = model_server.MODELS["flux-asian-nudity"]
+
+    model_server.load_flux(spec)
+    model_server.load_flux(spec)
+
+    built, *loaded = FakeFlux.made
+    assert built["quantize"] == 4
+    assert len(loaded) == 2
+    assert loaded[0]["model_path"] == str(tmp_path / "flux-dev-q4")
+    assert loaded[0]["lora_paths"] == [str(tmp_path / "lora-flux-asian-nudity" / "asian-nudity-2.safetensors")]
+    assert loaded[0]["bake_lora"] is False
