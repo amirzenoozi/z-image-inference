@@ -3,6 +3,7 @@ import { chipClass, controlHeight } from '../lib/styles'
 import { SearchInput } from './form/SearchInput'
 import { Select } from './form/Select'
 import { CATEGORY_LABELS, isCategory } from '../lib/categories'
+import { useCharacters } from '../lib/characters'
 import type { HistoryFilters, ModelInfo } from '../types'
 import { Star } from 'lucide-react'
 
@@ -42,6 +43,7 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
         onChange={(ratio) => onChange({ ...filters, ratio: isCategory(ratio) ? ratio : null })}
         className="w-44"
       />
+      <CharacterFilter value={filters.character} onChange={(character) => onChange({ ...filters, character })} />
       <button
         type="button"
         aria-pressed={filters.favouritesOnly}
@@ -52,6 +54,26 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
       </button>
       <CompareControls {...compare} />
     </div>
+  )
+}
+
+/** Shown once there are characters, or while a link filters by one. */
+function CharacterFilter({ value, onChange }: { value: number | null; onChange: (character: number | null) => void }) {
+  const { characters } = useCharacters()
+  const listed = characters.status === 'settled' ? characters.value : []
+  if (listed.length === 0 && value === null) return null
+  const options = listed.map((character) => ({ value: String(character.id), label: character.name }))
+  // A link can name a character that was deleted or has not loaded yet; it still shows, so the filter can be cleared
+  const unknown = value !== null && !listed.some((character) => character.id === value) ? [{ value: String(value), label: 'Unknown character' }] : []
+  return (
+    <Select
+      label="Character"
+      hideLabel
+      value={value === null ? '' : String(value)}
+      groups={[{ options: [{ value: '', label: 'All characters' }, ...options, ...unknown] }]}
+      onChange={(next) => onChange(next ? Number(next) : null)}
+      className="w-48"
+    />
   )
 }
 

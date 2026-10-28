@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { HistoryPanel } from './components/HistoryPanel'
+import { CharactersPanel } from './components/CharactersPanel'
+import { CharactersProvider } from './components/CharactersProvider'
 import { ResultPanel } from './components/ResultPanel'
 import { SettingsPanel, type PromptMode } from './components/SettingsPanel'
 import { ErrorNotice, Spinner } from './components/ui'
+import { useCharacters } from './lib/characters'
 import { useGeneration } from './lib/generation'
 import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
-import { loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
+import { characterSettings, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
 import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
@@ -30,7 +33,20 @@ export default function App() {
       </div>
     )
   }
-  return <Workspace catalog={catalog.value} />
+  return (
+    <CharactersProvider>
+      <Workspace catalog={catalog.value} />
+    </CharactersProvider>
+  )
+}
+
+/** A character chosen in Create that has since been deleted is let go, so the next render does not fail on it. */
+function useForgetDeletedCharacter(characterId: number | null, forget: () => void) {
+  const { characters } = useCharacters()
+  const deleted = characterId !== null && characters.status === 'settled' && !characters.value.some((character) => character.id === characterId)
+  useEffect(() => {
+    if (deleted) forget()
+  }, [deleted, forget])
 }
 
 function Workspace({ catalog }: { catalog: Catalog }) {
@@ -44,6 +60,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   // A generation attempt can start a model download, so status is re-checked whenever its state changes
   const [modelStatus, refreshModelStatus] = useModelStatus(generation.state.status)
   useEffect(() => saveSettings(settings), [settings])
+  const forgetCharacter = useCallback(() => setSettings((current) => ({ ...current, characterId: null })), [])
+  useForgetDeletedCharacter(settings.characterId, forgetCharacter)
 
   const generating = generation.state.status === 'pending'
   const generateWith = (prompt: string) => {
@@ -89,6 +107,15 @@ function Workspace({ catalog }: { catalog: Catalog }) {
           />
         </section>
       </main>
+      {view === 'characters' && (
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <CharactersPanel
+            maxSeed={catalog.limits.max_seed}
+            onUse={(character) => openInCreate({ ...settings, ...characterSettings(character) })}
+            onShowImages={(character) => setView('history', `?character=${character.id}`)}
+          />
+        </main>
+      )}
       {view === 'history' && (
         <main className="min-h-0 flex-1 overflow-y-auto">
           <HistoryPanel models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
@@ -102,6 +129,7 @@ function Header({ view, onViewChange }: { view: View; onViewChange: (view: View)
   const views: { id: View; label: string }[] = [
     { id: 'create', label: 'Create' },
     { id: 'history', label: 'History' },
+    { id: 'characters', label: 'Characters' },
   ]
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950">

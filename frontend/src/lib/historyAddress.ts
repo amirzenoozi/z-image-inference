@@ -16,12 +16,14 @@ function readAddress(search: string, models: ModelInfo[]): HistoryAddress {
   const model = params.get('model')
   const ratio = params.get('ratio') ?? ''
   const page = Number(params.get('page'))
+  const character = Number(params.get('character'))
   return {
     filters: {
       model: models.some((candidate) => candidate.id === model) ? model : null,
       search: (params.get('q') ?? '').trim(),
       favouritesOnly: params.get('favourites') === '1',
       ratio: isCategory(ratio) ? ratio : null,
+      character: Number.isInteger(character) && character > 0 ? character : null,
     },
     page: Number.isInteger(page) && page > 1 ? page : 1,
   }
@@ -34,6 +36,7 @@ function queryOf({ filters, page }: HistoryAddress): string {
   if (filters.search) params.set('q', filters.search)
   if (filters.model) params.set('model', filters.model)
   if (filters.ratio) params.set('ratio', filters.ratio)
+  if (filters.character !== null) params.set('character', String(filters.character))
   if (filters.favouritesOnly) params.set('favourites', '1')
   const query = params.toString()
   return query ? `?${query}` : ''

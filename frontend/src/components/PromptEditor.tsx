@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCharacter } from '../lib/characters'
 import type { BuilderModeData, GenerationSettings, Limits, ModelInfo } from '../types'
 import { isModEnter } from '../lib/keyboard'
 import { Textarea } from './form/Textarea'
@@ -6,7 +7,7 @@ import { withoutSafeForWorkTerms } from '../lib/promptBuilder/build'
 import { PromptBuilderDialog, type InsertMode } from './promptBuilder/PromptBuilderDialog'
 import { WandSparkles } from 'lucide-react'
 
-type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt'>>
+type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt' | 'characterId'>>
 
 interface Props {
   settings: GenerationSettings
@@ -23,6 +24,7 @@ function joinText(current: string, addition: string, separator: string): string 
 
 export function PromptEditor({ settings, model, limits, builderModes, onChange, onSubmit }: Props) {
   const [builderOpen, setBuilderOpen] = useState(false)
+  const character = useCharacter(settings.characterId)
   const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => {
     // An existing "nsfw" negative would work against the explicit prompt being added
     const existingNegative = explicit ? withoutSafeForWorkTerms(settings.negativePrompt) : settings.negativePrompt
@@ -45,6 +47,8 @@ export function PromptEditor({ settings, model, limits, builderModes, onChange, 
         <PromptBuilderDialog
           model={model}
           modes={builderModes}
+          character={character}
+          onCharacterSaved={(saved) => onChange({ characterId: saved.id })}
           hasExistingPrompt={settings.prompt.trim() !== ''}
           maxPromptLength={limits.max_prompt_length}
           onClose={() => setBuilderOpen(false)}

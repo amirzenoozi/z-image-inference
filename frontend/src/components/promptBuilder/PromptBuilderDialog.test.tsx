@@ -1,14 +1,17 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
-import { animeModel, builderModes, fastModel } from '../../test/fixtures'
+import * as api from '../../api'
+import { animeModel, builderModes, character, fastModel } from '../../test/fixtures'
 import type { ModelInfo } from '../../types'
 import { PromptBuilderDialog } from './PromptBuilderDialog'
 import { chooseOption } from '../../test/select'
 
+vi.mock('../../api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../api')>()), createCharacter: vi.fn() }))
+
 function renderDialog({ model = fastModel, hasExistingPrompt = false, maxPromptLength = 4000 }: { model?: ModelInfo; hasExistingPrompt?: boolean; maxPromptLength?: number } = {}) {
   const handlers = { onClose: vi.fn(), onConfirm: vi.fn() }
-  render(<PromptBuilderDialog model={model} modes={builderModes} hasExistingPrompt={hasExistingPrompt} maxPromptLength={maxPromptLength} {...handlers} />)
+  render(<PromptBuilderDialog model={model} modes={builderModes} character={null} onCharacterSaved={vi.fn()} hasExistingPrompt={hasExistingPrompt} maxPromptLength={maxPromptLength} {...handlers} />)
   return handlers
 }
 
@@ -132,7 +135,7 @@ it('shows only the steps of the chosen mode, starting from its defaults', async 
 })
 
 it('reports a broken mode and keeps the others', () => {
-  render(<PromptBuilderDialog model={fastModel} modes={[...builderModes, { ...builderModes[0], id: 'odd', steps: ['dance'] }]} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  render(<PromptBuilderDialog model={fastModel} character={null} onCharacterSaved={vi.fn()} modes={[...builderModes, { ...builderModes[0], id: 'odd', steps: ['dance'] }]} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
   expect(screen.getByRole('alert')).toHaveTextContent('Mode "odd" was left out: unknown step "dance".')
   expect(screen.getAllByRole('radio')).toHaveLength(builderModes.length)
 })
@@ -156,4 +159,31 @@ it('puts its buttons, and the note about them, in the actions footer', async () 
   const footer = within(screen.getByRole('group', { name: 'Dialog actions' }))
   expect(footer.getAllByRole('button').map((button) => button.textContent)).toEqual(['Cancel', 'Append to prompt', 'Use this prompt'])
   expect(footer.getByText('Use this prompt replaces the text in the Write box.')).toBeInTheDocument()
+})
+
+it('writes the chosen character’s look, showing one Character step in place of its choices', async () => {
+  render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={character()} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+
+  const nav = screen.getByRole('navigation', { name: 'Builder steps' })
+  expect(within(nav).queryByRole('button', { name: /Face & hair|Body/ })).not.toBeInTheDocument()
+  expect(screen.getByText('woman, late 20s, green eyes, long auburn hair')).toBeInTheDocument()
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/^A photograph of an adult woman in her late 20s\. She has green eyes\. She has long auburn hair\.$/)
+})
+
+it('saves the subject and look as a character, once it is an adult with a name', async () => {
+  vi.mocked(api.createCharacter).mockResolvedValue(character())
+  const onCharacterSaved = vi.fn()
+  render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={null} onCharacterSaved={onCharacterSaved} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+
+  await chooseOption(screen.getByLabelText('Who'), 'woman')
+  await userEvent.click(screen.getByRole('button', { name: 'Save as character…' }))
+  await userEvent.type(screen.getByLabelText('Character name'), 'Ava')
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('A character needs “Who” and an adult age range.')
+  expect(api.createCharacter).not.toHaveBeenCalled()
+
+  await chooseOption(screen.getByLabelText('Age'), 'late 20s')
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(api.createCharacter).toHaveBeenCalledExactlyOnceWith({ name: 'Ava', traits: expect.objectContaining({ who: 'woman', age: 'late 20s' }) })
+  expect(onCharacterSaved).toHaveBeenCalledWith(character())
 })

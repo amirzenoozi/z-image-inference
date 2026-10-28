@@ -3,7 +3,9 @@ import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, switchMode, 
 import { parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../lib/styles'
-import type { BuilderModeData, ModelInfo } from '../../types'
+import { withTraits } from '../../lib/promptBuilder/character'
+import type { BuilderModeData, Character, ModelInfo } from '../../types'
+import { CharacterSummary, SaveAsCharacter } from './CharacterParts'
 import { Modal } from '../Modal'
 import { ModePicker } from './ModePicker'
 import { AppearanceStep, BodyStep, CameraStep, FinishStep, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
@@ -31,10 +33,22 @@ const STEPS: Step[] = [
 
 const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 
+// A chosen character fixes these steps, so one Character step shows its look in their place
+const CHARACTER_STEPS: ReadonlySet<StepId> = new Set(['appearance', 'body'])
+
+function stepsFor(mode: BuilderMode, character: Character | null): Step[] {
+  const shown = STEPS.filter((step) => mode.steps.includes(step.id))
+  if (!character) return shown
+  return shown.filter((step) => !CHARACTER_STEPS.has(step.id)).map((step) => (step.id === 'subject' ? { ...step, label: 'Character' } : step))
+}
+
 interface Props {
   model: ModelInfo
   /** The modes from prompt_modes.json; the builder checks them and leaves out any it cannot use. */
   modes: readonly BuilderModeData[]
+  /** The character chosen in Create: its look replaces the Subject, Face & hair and Body choices. */
+  character: Character | null
+  onCharacterSaved: (character: Character) => void
   hasExistingPrompt: boolean
   maxPromptLength: number
   onClose: () => void
@@ -42,15 +56,19 @@ interface Props {
   onConfirm: (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => void
 }
 
-export function PromptBuilderDialog({ model, modes: modeData, hasExistingPrompt, maxPromptLength, onClose, onConfirm }: Props) {
+export function PromptBuilderDialog({ model, modes: modeData, character, onCharacterSaved, hasExistingPrompt, maxPromptLength, onClose, onConfirm }: Props) {
   const [state, setState] = useState<BuilderState>(loadBuilderState)
   const [stepId, setStepId] = useState<StepId>(STEPS[0].id)
   useEffect(() => saveBuilderState(state), [state])
   const { modes, problems } = useMemo(() => parseModes(modeData), [modeData])
   const mode = modes.find((candidate) => candidate.id === state.mode) ?? modes[0]
-  const result = useMemo(() => buildPrompt(state, mode, model.prompt_style), [state, mode, model.prompt_style])
+  // The character's look is applied when building, not saved into the builder, so your own choices come back without it
+  const result = useMemo(
+    () => buildPrompt(character ? withTraits(state, character.traits) : state, mode, model.prompt_style),
+    [state, character, mode, model.prompt_style],
+  )
 
-  const steps = STEPS.filter((step) => mode.steps.includes(step.id))
+  const steps = stepsFor(mode, character)
   const step = steps.find((candidate) => candidate.id === stepId) ?? steps[0]
   const set = (patch: Partial<BuilderState>) => setState((current) => ({ ...current, ...patch }))
   const setOutfit = (patch: Partial<OutfitState>) => setState((current) => ({ ...current, outfit: { ...current.outfit, ...patch } }))
@@ -74,7 +92,7 @@ export function PromptBuilderDialog({ model, modes: modeData, hasExistingPrompt,
         <StepNav steps={steps} current={step.id} onSelect={setStepId} />
         <section aria-label={step.label} className="min-h-0 overflow-y-auto pr-1">
           <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{step.label}</h3>
-          <step.Component state={state} mode={mode} set={set} setOutfit={setOutfit} />
+          <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={state} mode={mode} set={set} setOutfit={setOutfit} />
         </section>
         <PreviewPane
           result={result}
@@ -87,6 +105,23 @@ export function PromptBuilderDialog({ model, modes: modeData, hasExistingPrompt,
         />
       </div>
     </Modal>
+  )
+}
+
+interface StepContentProps extends StepProps {
+  step: Step
+  character: Character | null
+  onCharacterSaved: (character: Character) => void
+}
+
+function StepContent({ step, character, onCharacterSaved, ...props }: StepContentProps) {
+  if (step.id !== 'subject') return <step.Component {...props} />
+  if (character) return <CharacterSummary character={character} />
+  return (
+    <>
+      <step.Component {...props} />
+      <SaveAsCharacter state={props.state} onSaved={onCharacterSaved} />
+    </>
   )
 }
 

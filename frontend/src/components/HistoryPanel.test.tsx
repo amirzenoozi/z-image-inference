@@ -2,7 +2,8 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
-import { catalog, deferred, historyItem } from '../test/fixtures'
+import { catalog, character, deferred, historyItem } from '../test/fixtures'
+import { CharactersContext } from '../lib/characters'
 import type { HistoryFilters, HistoryItem, HistoryPage } from '../types'
 import { SEARCH_DELAY_MS } from './HistoryFilters'
 import { NO_FILTERS } from '../lib/historyFilters'
@@ -46,7 +47,11 @@ beforeEach(() => {
 
 function renderHistory() {
   const onReuse = vi.fn()
-  render(<HistoryPanel models={catalog.models} onReuse={onReuse} onVary={vi.fn()} />)
+  render(
+    <CharactersContext.Provider value={{ characters: { status: 'settled', value: [character()] }, reload: vi.fn() }}>
+      <HistoryPanel models={catalog.models} onReuse={onReuse} onVary={vi.fn()} />
+    </CharactersContext.Provider>,
+  )
   return onReuse
 }
 
@@ -426,14 +431,15 @@ it('shows an error with a retry when the palette cannot be worked out', async ()
 })
 
 it('opens the page and filters named in the address, and fills the controls', async () => {
-  window.history.replaceState(null, '', '/history?page=2&q=fox&model=wai-illustrious&ratio=portrait&favourites=1')
+  window.history.replaceState(null, '', '/history?page=2&q=fox&model=wai-illustrious&ratio=portrait&character=3&favourites=1')
   fetchHistory.mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE * 3))
   renderHistory()
 
   await screen.findByRole('button', { name: 'Page 2', current: 'page' })
   expect(fetchHistory).toHaveBeenCalledOnce()
-  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE, { model: 'wai-illustrious', search: 'fox', favouritesOnly: true, ratio: 'portrait' }, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE, { model: 'wai-illustrious', search: 'fox', favouritesOnly: true, ratio: 'portrait', character: 3 }, expect.any(AbortSignal))
   expect(screen.getByLabelText('Search prompts')).toHaveValue('fox')
+  expect(screen.getByLabelText('Character')).toHaveTextContent('Ava')
   expect(screen.getByLabelText('Model')).toHaveTextContent('WAI-Illustrious')
   expect(screen.getByLabelText('Ratio')).toHaveTextContent('Portrait')
   expect(screen.getByRole('button', { name: 'Favourites' })).toHaveAttribute('aria-pressed', 'true')
