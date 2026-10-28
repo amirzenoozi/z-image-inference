@@ -55,6 +55,28 @@ it('resets sampling when switching model and offers the remaining defaults', asy
   expect(screen.queryByText(/Sampling was reset/)).not.toBeInTheDocument()
 })
 
+it('fills the prompt from an example card, with each model offering its own examples', async () => {
+  render(<App />)
+
+  await userEvent.type(await screen.findByLabelText('Prompt'), 'my own idea')
+  await userEvent.click(screen.getByRole('button', { name: 'Example #2' }))
+  expect(screen.getByLabelText('Prompt')).toHaveValue('A lighthouse at dawn')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Change' }))
+  await userEvent.click(screen.getByRole('radio', { name: /WAI-Illustrious/ }))
+  expect(screen.queryByRole('button', { name: 'Example #2' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Example #1' }))
+  expect(screen.getByLabelText('Prompt')).toHaveValue('1girl, adult woman, kimono')
+})
+
+it('shows no example cards for a model without examples', async () => {
+  vi.mocked(api.fetchCatalog).mockResolvedValue({ ...catalog, models: catalog.models.map((model) => ({ ...model, examples: [] })) })
+  render(<App />)
+
+  await screen.findByLabelText('Prompt')
+  expect(screen.queryByRole('button', { name: /^Example #/ })).not.toBeInTheDocument()
+})
+
 it('shows a retryable error when the catalog cannot load', async () => {
   vi.mocked(api.fetchCatalog).mockRejectedValueOnce(new Error('Could not reach the app server'))
   render(<App />)

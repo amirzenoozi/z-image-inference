@@ -90,6 +90,34 @@ def test_catalog_lists_models_resolutions_and_limits(client: TestClient) -> None
     assert {model["category"] for model in data["models"]} == set(category_ids)
 
 
+def test_catalog_gives_each_model_its_examples_from_the_examples_file(client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    examples = tmp_path / "example_prompts.json"
+    examples.write_text(dumps({"z-image-turbo": ["  A red fox in the snow  "], "wai-illustrious": ["1girl, adult woman, kimono"]}))
+    monkeypatch.setattr(main, "EXAMPLE_PROMPTS_FILE", examples)
+
+    models = {model["id"]: model["examples"] for model in client.get("/api/catalog").json()["models"]}
+
+    assert models["z-image-turbo"] == ["A red fox in the snow"]
+    assert models["wai-illustrious"] == ["1girl, adult woman, kimono"]
+    assert models["moss-image-nsfw"] == []
+
+
+def test_the_shipped_examples_file_is_valid() -> None:
+    examples = main.example_prompts()
+    assert set(examples) == set(main.MODELS)
+    assert all(examples.values())
+
+
+@pytest.mark.parametrize("content", [{"no-such-model": ["a cat"]}, {"z-image-turbo": [""]}, {"z-image-turbo": ["x" * 5000]}])
+def test_a_broken_examples_file_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: dict[str, list[str]]) -> None:
+    examples = tmp_path / "example_prompts.json"
+    examples.write_text(dumps(content))
+    monkeypatch.setattr(main, "EXAMPLE_PROMPTS_FILE", examples)
+
+    with pytest.raises(ValueError):
+        main.example_prompts()
+
+
 def test_generate_rejects_invalid_settings_without_calling_the_model_server(
     client: TestClient, model_server: FakeModelServer
 ) -> None:

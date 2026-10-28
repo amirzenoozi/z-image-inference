@@ -4,7 +4,7 @@ import itertools
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_validator
 
 import history_store
 from generation_request import MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
@@ -35,13 +35,10 @@ MAX_CHAT_MESSAGES = 50
 # History images never change: ids are not reused after a delete
 IMMUTABLE = {"Cache-Control": "private, max-age=31536000, immutable"}
 
-EXAMPLE_PROMPTS: list[str] = [
-    'A man and his poodle wearing matching outfits at a dog show, indoor lighting, an audience in the background.',
-    'Moody, low-key portrait of an elegant Chinese woman in a dark room. A strong beam of light passes through a gobo and casts a sharp lightning-bolt-shaped shadow across her face, lighting exactly one eye. High contrast, crisp light-to-shadow transition, mysterious atmosphere, Leica colour tones.',
-    'A medium-shot phone selfie of a young East Asian woman with long black hair taking a mirror selfie in a brightly lit elevator. She wears a black off-the-shoulder crop top with a white floral pattern and dark jeans. Her head is tilted slightly and her lips are pursed in a playful kiss, very cute. She holds a dark grey smartphone in her right hand, partly covering her face, with the rear camera facing the mirror.',
-    "Young Chinese woman in red Hanfu, intricate embroidery. Impeccable makeup, red floral forehead pattern. Elaborate high bun, golden phoenix headdress, red flowers, beads. Holds round folding fan with lady, trees, bird. Neon lightning-bolt lamp (⚡️), bright yellow glow, above extended left palm. Soft-lit outdoor night background, silhouetted tiered pagoda (Xi'an Giant Wild Goose Pagoda), blurred colorful distant lights.",
-    'A vertical digital illustration depicting a serene and majestic Chinese landscape, rendered in a style reminiscent of traditional Shanshui painting but with a modern, clean aesthetic. The scene is dominated by towering, steep cliffs in various shades of blue and teal, which frame a central valley. In the distance, layers of mountains fade into a light blue and white mist, creating a strong sense of atmospheric perspective and depth. A calm, turquoise river flows through the center of the composition, with a small, traditional Chinese boat, possibly a sampan, navigating its waters. The boat has a bright yellow canopy and a red hull, and it leaves a gentle wake behind it. It carries several indistinct figures of people. Sparse vegetation, including green trees and some bare-branched trees, clings to the rocky ledges and peaks. The overall lighting is soft and diffused, casting a tranquil glow over the entire scene. Centered in the image is overlaid text. At the top of the text block is a small, red, circular seal-like logo containing stylized characters. Below it, in a smaller, black, sans-serif font, are the words \'Zao-Xiang * East Beauty & West Fashion * Z-Image\'. Directly beneath this, in a larger, elegant black serif font, is the word \'SHOW & SHARE CREATIVITY WITH THE WORLD\'. Among them, there are "SHOW & SHARE", "CREATIVITY", and "WITH THE WORLD"',
-]
+# Each model's example prompts; edit the file and reload the page to change them
+EXAMPLE_PROMPTS_FILE = Path(__file__).parent / "example_prompts.json"
+ExamplePrompt = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_PROMPT_LENGTH)]
+EXAMPLE_PROMPTS = TypeAdapter(dict[str, list[ExamplePrompt]])
 
 grok_client = GrokClient()
 
@@ -65,16 +62,17 @@ class ModelInfo(BaseModel):
     default_negative_prompt: str
     trigger_word: str
     prompt_style: Literal["prose", "tags"]
+    examples: list[str]
 
     @classmethod
-    def from_spec(cls, spec: ModelSpec) -> "ModelInfo":
+    def from_spec(cls, spec: ModelSpec, examples: list[str]) -> "ModelInfo":
         width, height = spec.default_size
         return cls(
             id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=speed_hint(spec), category=spec.category, download_gb=spec.download_gb, kept_gb=kept_gb(spec),
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
-            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style,
+            trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, examples=examples,
         )
 
 
@@ -103,7 +101,6 @@ class Catalog(BaseModel):
     model_categories: list[ModelCategoryInfo]
     resolutions: list[ResolutionInfo]
     categories: list[str]
-    examples: list[str]
     chat_available: bool
     limits: Limits
 
@@ -151,14 +148,22 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Z-Image Inference", lifespan=lifespan)
 
 
+def example_prompts() -> dict[str, list[str]]:
+    prompts = EXAMPLE_PROMPTS.validate_json(EXAMPLE_PROMPTS_FILE.read_bytes())
+    unknown = prompts.keys() - MODELS.keys()
+    if unknown:
+        raise ValueError(f"{EXAMPLE_PROMPTS_FILE.name} lists unknown models: {', '.join(sorted(unknown))}")
+    return prompts
+
+
 @app.get("/api/catalog")
 def catalog() -> Catalog:
+    examples = example_prompts()
     return Catalog(
-        models=[ModelInfo.from_spec(spec) for spec in MODELS.values()],
+        models=[ModelInfo.from_spec(spec, examples.get(spec.id, [])) for spec in MODELS.values()],
         model_categories=[ModelCategoryInfo(id=key, label=label) for key, label in MODEL_CATEGORIES.items()],
         resolutions=[ResolutionInfo(**preset.to_dict()) for preset in PRESETS],
         categories=list(CATEGORIES),
-        examples=EXAMPLE_PROMPTS,
         chat_available=grok_client.available,
         limits=Limits(),
     )

@@ -9,7 +9,6 @@ type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'negativePrompt'>
 interface Props {
   settings: GenerationSettings
   model: ModelInfo
-  examples: string[]
   limits: Limits
   onChange: (patch: PromptPatch) => void
   onSubmit: () => void
@@ -19,7 +18,7 @@ function joinText(current: string, addition: string, separator: string): string 
   return current.trim() ? `${current.trim()}${separator}${addition}` : addition
 }
 
-export function PromptEditor({ settings, model, examples, limits, onChange, onSubmit }: Props) {
+export function PromptEditor({ settings, model, limits, onChange, onSubmit }: Props) {
   const [builderOpen, setBuilderOpen] = useState(false)
   const insertBuilt = (prompt: string, negativePrompt: string, mode: InsertMode) =>
     onChange(
@@ -46,12 +45,9 @@ export function PromptEditor({ settings, model, examples, limits, onChange, onSu
         />
       )}
       <div>
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-            Prompt
-          </label>
-          <ExamplePicker examples={examples} onPick={(prompt) => onChange({ prompt })} />
-        </div>
+        <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+          Prompt
+        </label>
         <textarea
           id="prompt"
           rows={6}
@@ -73,27 +69,31 @@ export function PromptEditor({ settings, model, examples, limits, onChange, onSu
             {settings.prompt.length}/{limits.max_prompt_length}
           </span>
         </p>
+        <ExampleCards examples={model.examples} onPick={(prompt) => onChange({ prompt })} />
       </div>
       {model.uses_guidance && <NegativePrompt value={settings.negativePrompt} model={model} onChange={onChange} />}
     </div>
   )
 }
 
-function ExamplePicker({ examples, onPick }: { examples: string[]; onPick: (prompt: string) => void }) {
+function ExampleCards({ examples, onPick }: { examples: string[]; onPick: (prompt: string) => void }) {
+  if (examples.length === 0) return null
   return (
-    <select
-      aria-label="Insert an example prompt"
-      value=""
-      onChange={(event) => event.target.value && onPick(event.target.value)}
-      className="max-w-48 truncate rounded-md border-0 bg-transparent py-0.5 text-xs text-violet-600 hover:text-violet-500 focus:ring-0 dark:text-violet-400"
-    >
-      <option value="">Examples…</option>
-      {examples.map((example) => (
-        <option key={example} value={example}>
-          {example.length > 70 ? `${example.slice(0, 70)}…` : example}
-        </option>
+    <div className="mt-2 grid grid-cols-2 gap-2">
+      {examples.map((example, index) => (
+        <button
+          key={example}
+          type="button"
+          aria-label={`Example #${index + 1}`}
+          title={example}
+          onClick={() => onPick(example)}
+          className="min-w-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-left hover:border-violet-400 hover:bg-violet-50 dark:border-zinc-700 dark:hover:border-violet-600 dark:hover:bg-violet-950/40"
+        >
+          <span className="block text-xs font-medium text-zinc-800 dark:text-zinc-100">Example #{index + 1}</span>
+          <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400">{example}</span>
+        </button>
       ))}
-    </select>
+    </div>
   )
 }
 
