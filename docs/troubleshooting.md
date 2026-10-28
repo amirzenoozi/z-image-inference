@@ -4,7 +4,7 @@
 Run `cd frontend && npm ci && npm run build`, then reload.
 
 **The result says the model server is not running**
-Start it in its own terminal with `uv run python model_server.py`, and keep it running alongside `main.py`.
+Start it in its own terminal with `uv run python backend/model_server.py`, and keep it running alongside `main.py`.
 
 **A model can't be selected**
 It isn't downloaded yet. Open the model dialog (**Change**), press **Download**, and wait for its progress bar to finish. If the download is refused for space, free the amount it asks for.

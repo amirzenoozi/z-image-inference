@@ -85,11 +85,11 @@ At 1024 × 1024, the 8-bit copy takes about 55 seconds instead of about 12 minut
 
 ### Comparing levels
 
-`tools/z_image_levels.py` builds a level and compares it with the original, using the same prompts and seed: time per image, peak memory, pixel difference and a side-by-side image, saved in `comparisons/z-image/`. Stop the model server first, as the original needs about 20 GB of memory.
+`backend/tools/z_image_levels.py` builds a level and compares it with the original, using the same prompts and seed: time per image, peak memory, pixel difference and a side-by-side image, saved in `comparisons/z-image/`. Stop the model server first, as the original needs about 20 GB of memory.
 
 ```bash
-uv run python tools/z_image_levels.py build --bits 8
-uv run python tools/z_image_levels.py compare --bits 8
+uv run python backend/tools/z_image_levels.py build --bits 8
+uv run python backend/tools/z_image_levels.py compare --bits 8
 ```
 
 ## Licences

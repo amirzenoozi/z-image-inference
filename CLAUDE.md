@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Z-Image-Inference runs image generation models locally on Apple Silicon, with a React UI. It is two processes:
+Z-Image-Inference runs image generation models locally on Apple Silicon, with a React UI. All Python code is in `backend/` (tests in `backend/tests/`), the UI in `frontend/`; the data (`models/`, `history.db`, `.env` and the editable JSON files) stays at the project root, found through `backend/paths.py`. It is two processes:
 
 - **`model_server.py`** (port 8000): loads one model at a time and generates images. All model work runs on one thread (`model_thread`), because MLX only works on the thread that created it.
 - **`main.py`** (port 7860): FastAPI web app. Serves the built UI from `frontend/dist` and the `/api/*` endpoints (catalog, generate, history, chat, model status), and keeps history in `history.db`.
@@ -14,8 +14,8 @@ Z-Image-Inference runs image generation models locally on Apple Silicon, with a 
 ```bash
 uv sync                                          # Python dependencies
 cd frontend && npm ci && npm run build           # build the UI (needed before main.py serves it)
-uv run python model_server.py                    # model server
-uv run python main.py                            # web app at http://127.0.0.1:7860
+uv run python backend/model_server.py            # model server
+uv run python backend/main.py                    # web app at http://127.0.0.1:7860
 cd frontend && npm run dev                       # UI with live reload; proxies /api to main.py
 
 uv run pytest                                    # backend tests

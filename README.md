@@ -46,8 +46,8 @@ cd frontend && npm ci && npm run build && cd ..
 Then run the two parts, each in its own terminal:
 
 ```bash
-uv run python model_server.py   # loads and runs the models
-uv run python main.py           # the web app
+uv run python backend/model_server.py   # loads and runs the models
+uv run python backend/main.py           # the web app
 ```
 
 Open **http://127.0.0.1:7860**. The first start downloads Z-Image-Turbo (about 33 GB) and builds its 8-bit copy, so it takes a while once; after that it starts in seconds.
