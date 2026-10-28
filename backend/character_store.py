@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 
 from generation_request import MAX_FACE_STRENGTH, MAX_SEED, MIN_FACE_STRENGTH
 from history_store import connection
+from i18n import t
 from paths import PROJECT_DIR
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
@@ -125,7 +126,7 @@ def face_photo_png(data: str) -> bytes:
         image = Image.open(io.BytesIO(base64.b64decode(data, validate=True)))
         image.load()
     except (binascii.Error, UnidentifiedImageError, OSError, ValueError):
-        raise BadPhoto("The face photo could not be read; use a JPEG, PNG or WebP image")
+        raise BadPhoto(t("badPhoto"))
     image = image.convert("RGB")
     image.thumbnail((MAX_PHOTO_SIDE, MAX_PHOTO_SIDE))
     buffer = io.BytesIO()
@@ -169,14 +170,14 @@ def character(character_id: int) -> Character | None:
     return to_character(row) if row else None
 
 
-def check_image(conn: sqlite3.Connection, image_id: int | None, role: str) -> None:
+def check_image(conn: sqlite3.Connection, image_id: int | None, missing_message: str) -> None:
     if image_id is not None and conn.execute("SELECT 1 FROM images WHERE id = ?", (image_id,)).fetchone() is None:
-        raise MissingImage(f"The {role} image is not in History")
+        raise MissingImage(t(missing_message))
 
 
 def one_face(face_id: int | None, face_upload: str | None) -> None:
     if face_id is not None and face_upload is not None:
-        raise BadPhoto("Choose a face image from History or upload a photo, not both")
+        raise BadPhoto(t("oneFace"))
 
 
 def create(new: NewCharacter) -> Character:
@@ -184,14 +185,14 @@ def create(new: NewCharacter) -> Character:
     photo = face_photo_png(new.face_upload) if new.face_upload is not None else None
     try:
         with connection() as conn:
-            check_image(conn, new.cover_id, "cover")
-            check_image(conn, new.face_id, "face")
+            check_image(conn, new.cover_id, "missingCoverImage")
+            check_image(conn, new.face_id, "missingFaceImage")
             cursor = conn.execute(
                 "INSERT INTO characters (name, traits, cover_id, seed, face_id, face_strength, face_upload) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (new.name, new.traits.model_dump_json(), new.cover_id, new.seed, new.face_id, new.face_strength, photo),
             )
     except sqlite3.IntegrityError:
-        raise DuplicateName(f"There is already a character called {new.name}")
+        raise DuplicateName(t("duplicateName", name=new.name))
     created = character(cursor.lastrowid or 0)
     assert created is not None
     return created
@@ -222,13 +223,13 @@ def update(character_id: int, changes: CharacterUpdate) -> Character | None:
     columns = changed_columns(changes)
     try:
         with connection() as conn:
-            check_image(conn, changes.cover_id, "cover")
-            check_image(conn, changes.face_id, "face")
+            check_image(conn, changes.cover_id, "missingCoverImage")
+            check_image(conn, changes.face_id, "missingFaceImage")
             if columns:
                 assignments = ", ".join(f"{column} = ?" for column in columns)
                 conn.execute(f"UPDATE characters SET {assignments} WHERE id = ?", (*columns.values(), character_id))
     except sqlite3.IntegrityError:
-        raise DuplicateName(f"There is already a character called {changes.name}")
+        raise DuplicateName(t("duplicateName", name=changes.name))
     return character(character_id)
 
 

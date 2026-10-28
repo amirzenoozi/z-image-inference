@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchCatalog } from '../api'
 import type { Catalog, Loadable } from '../types'
+import { t } from '../i18n'
 
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong'
+  return error instanceof Error ? error.message : t('create.somethingWrong')
 }
 
 function isAbort(error: unknown): boolean {

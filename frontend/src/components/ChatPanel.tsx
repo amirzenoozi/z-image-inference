@@ -6,6 +6,7 @@ import { isModEnter } from '../lib/keyboard'
 import { secondaryButtonClass } from '../lib/styles'
 import { Textarea } from './form/Textarea'
 import { ErrorNotice, Spinner } from './ui'
+import { t } from '../i18n'
 
 type ChatStatus = { status: 'idle' } | { status: 'streaming' } | { status: 'failed'; error: string; retry: ChatMessage[] }
 
@@ -58,7 +59,7 @@ export function ChatPanel({ busy, onPromptReady }: Props) {
       {chat.status === 'failed' && <ErrorNotice message={chat.error} onRetry={() => void send(chat.retry)} />}
       <div className="flex gap-2">
         <Textarea
-          aria-label="Describe the image you want"
+          aria-label={t('create.chatInputLabel')}
           rows={2}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -68,7 +69,7 @@ export function ChatPanel({ busy, onPromptReady }: Props) {
               submit()
             }
           }}
-          placeholder="Describe the image you want… Grok writes the detailed prompt."
+          placeholder={t('create.chatPlaceholder')}
         />
         <button
           type="button"
@@ -76,12 +77,12 @@ export function ChatPanel({ busy, onPromptReady }: Props) {
           disabled={blocked || !draft.trim()}
           className="rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
         >
-          Send
+          {t('create.send')}
         </button>
       </div>
       {messages.length > 0 && (
         <button type="button" onClick={() => setMessages([])} disabled={blocked} className={secondaryButtonClass}>
-          Clear chat
+          {t('create.clearChat')}
         </button>
       )}
     </div>
@@ -99,12 +100,12 @@ function MessageList({ messages, streaming, canEdit, onEdit }: MessageListProps)
   if (messages.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-        Describe an idea in plain words. Grok turns it into a detailed prompt, then the image is generated.
+        {t('create.chatEmpty')}
       </p>
     )
   }
   return (
-    <ol aria-label="Chat" className="max-h-72 space-y-2 overflow-y-auto pr-1">
+    <ol aria-label={t('create.chatLabel')} className="max-h-72 space-y-2 overflow-y-auto pr-1">
       {messages.map((message, index) => (
         <li key={index}>
           {message.role === 'user' ? (
@@ -131,10 +132,10 @@ function UserMessage({ content, canEdit, onEdit }: { content: string; canEdit: b
   if (editing !== null) {
     return (
       <div className="ml-6 space-y-1.5">
-        <Textarea aria-label="Edit message" rows={2} value={editing} onChange={(event) => setEditing(event.target.value)} />
+        <Textarea aria-label={t('create.editMessage')} rows={2} value={editing} onChange={(event) => setEditing(event.target.value)} />
         <div className="flex justify-end gap-2">
           <button type="button" onClick={() => setEditing(null)} className={secondaryButtonClass}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -145,7 +146,7 @@ function UserMessage({ content, canEdit, onEdit }: { content: string; canEdit: b
             }}
             className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            Save & regenerate
+            {t('create.saveAndRegenerate')}
           </button>
         </div>
       </div>
@@ -155,7 +156,7 @@ function UserMessage({ content, canEdit, onEdit }: { content: string; canEdit: b
     <div className="group ml-6 flex items-start justify-end gap-2">
       {canEdit && (
         <button type="button" onClick={() => setEditing(content)} className="text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-violet-500 focus:opacity-100">
-          Edit
+          {t('common.edit')}
         </button>
       )}
       <p className="rounded-xl bg-violet-600 px-3 py-2 text-xs text-white">{content}</p>

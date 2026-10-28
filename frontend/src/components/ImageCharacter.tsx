@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState } from 'react'
 import { updateCharacter } from '../api'
 import { useCharacter, useCharacters } from '../lib/characters'
@@ -36,8 +37,8 @@ export function ImageCharacter({ item }: { item: HistoryItem }) {
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-600 dark:text-zinc-300">
         <UserRound className="text-violet-500" />
         <span className="font-semibold text-zinc-800 dark:text-zinc-100">{character.name}</span>
-        <RoleAction active={character.cover_id === item.id} activeLabel="its cover" label="Set as cover" disabled={saving} onClick={() => void change({ cover_id: item.id })} />
-        <RoleAction active={character.face_id === item.id} activeLabel="its face" label="Use as face" disabled={saving} onClick={() => void change({ face_id: item.id })} />
+        <RoleAction active={character.cover_id === item.id} activeLabel={t('history.itsCover')} label={t('history.setAsCover')} disabled={saving} onClick={() => void change({ cover_id: item.id })} />
+        <RoleAction active={character.face_id === item.id} activeLabel={t('history.itsFace')} label={t('history.useAsFace')} disabled={saving} onClick={() => void change({ face_id: item.id })} />
       </p>
       {state.status === 'failed' && (
         <p role="alert" className="text-xs text-red-600 dark:text-red-400">

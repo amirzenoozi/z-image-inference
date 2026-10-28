@@ -55,6 +55,8 @@ export interface Catalog {
   chat_available: boolean
   limits: Limits
   builder_modes: BuilderModeData[]
+  /** The UI's language code, from APP_LANGUAGE in .env. */
+  language: string
 }
 
 /** A prompt builder mode as prompt_modes.json writes it; the builder checks it against its own steps and options. */

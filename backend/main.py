@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 
 import character_store
 import history_export
+import i18n
 import nsfw_detector
 import paths
 import safe_for_work
@@ -147,6 +148,8 @@ class Catalog(BaseModel):
     chat_available: bool
     limits: Limits
     builder_modes: list[BuilderMode]
+    # The UI's language, from APP_LANGUAGE in .env
+    language: str
 
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -185,7 +188,7 @@ class ChatRequest(BaseModel):
     @model_validator(mode="after")
     def ends_with_user(self) -> "ChatRequest":
         if self.messages[-1].role != "user":
-            raise ValueError("the last message must be from the user")
+            raise ValueError(i18n.t("lastMessageFromUser"))
         return self
 
 
@@ -257,6 +260,7 @@ def catalog() -> Catalog:
         chat_available=grok_client.available,
         limits=Limits(),
         builder_modes=prompt_modes(),
+        language=i18n.language(),
     )
 
 
@@ -268,7 +272,7 @@ def model_server_detail(resp: requests.Response) -> str:
             return errors
         return "; ".join(str(error.get("msg", error)) for error in errors)
     except (ValueError, KeyError, TypeError, AttributeError):
-        return resp.text or "Invalid request"
+        return resp.text or i18n.t("invalidRequest")
 
 
 class RenderedImage(BaseModel):
@@ -283,14 +287,14 @@ def request_image(req: GenerateRequest) -> RenderedImage:
     try:
         resp = requests.post(f"{MODEL_SERVER_URL}/generate", json=req.model_dump(), timeout=REQUEST_TIMEOUT)
     except requests.ConnectionError:
-        raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
+        raise HTTPException(503, i18n.t("modelServerDown"))
     except requests.Timeout:
-        raise HTTPException(504, "The model server took too long. A first-time model download may still be running.")
+        raise HTTPException(504, i18n.t("modelServerSlow"))
     if resp.status_code in (409, 422, 503):
         # 409 means the user cancelled it; 503 that the model is still downloading, which its message says
         raise HTTPException(resp.status_code, model_server_detail(resp))
     if not resp.ok:
-        raise HTTPException(502, f"The model server failed ({resp.status_code}). Check its terminal for details.")
+        raise HTTPException(502, i18n.t("modelServerFailed", status=resp.status_code))
     return RenderedImage.model_validate(resp.json())
 
 
@@ -320,7 +324,7 @@ def start_image_fields(req: WebGenerateRequest) -> dict[str, str]:
         return {}
     png = history_store.image_png(req.source_image_id)
     if png is None:
-        raise HTTPException(404, "The start image is no longer in History; remove it and try again")
+        raise HTTPException(404, i18n.t("startImageGone"))
     return {"init_image": base64.b64encode(png).decode()}
 
 
@@ -359,7 +363,7 @@ def character_of(character_id: int | None) -> Character | None:
         return None
     character = character_store.character(character_id)
     if character is None:
-        raise HTTPException(404, "That character no longer exists; pick another one and try again")
+        raise HTTPException(404, i18n.t("characterGone"))
     return character
 
 
@@ -417,11 +421,11 @@ def models_status() -> ModelStatusReport:
 def model_server_call(method: str, model_id: str, path: str = "") -> requests.Response:
     """Forwards a model action, passing on the model server's status and message when it refuses."""
     if model_id not in MODELS:
-        raise HTTPException(404, f"Unknown model: {model_id}")
+        raise HTTPException(404, i18n.t("unknownModel", model=model_id))
     try:
         resp = requests.request(method, f"{MODEL_SERVER_URL}/models/{model_id}{path}", timeout=REQUEST_TIMEOUT)
     except requests.RequestException:
-        raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
+        raise HTTPException(503, i18n.t("modelServerDown"))
     if not resp.ok:
         raise HTTPException(resp.status_code, model_server_detail(resp))
     return resp
@@ -444,7 +448,7 @@ def job_call(method: str, job_id: str, path: str = "") -> requests.Response:
     try:
         resp = requests.request(method, f"{MODEL_SERVER_URL}/jobs/{job_id}{path}", timeout=5)
     except requests.RequestException:
-        raise HTTPException(503, "The model server is not running. Start it with: uv run python model_server.py")
+        raise HTTPException(503, i18n.t("modelServerDown"))
     if not resp.ok:
         raise HTTPException(resp.status_code, model_server_detail(resp))
     return resp
@@ -469,7 +473,7 @@ def history_filter(
 ) -> HistoryFilter:
     """History's filters from the query string, checked the same way wherever History is listed or exported."""
     if model is not None and model not in MODELS:
-        raise HTTPException(422, f"Unknown model: {model}")
+        raise HTTPException(422, i18n.t("unknownModel", model=model))
     return HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio, character_id=character)
 
 
@@ -502,7 +506,7 @@ class FavouriteUpdate(BaseModel):
 def history_palette(item_id: int) -> list[PaletteColour]:
     colours = history_store.palette(item_id)
     if colours is None:
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, i18n.t("imageNotFound"))
     return colours
 
 
@@ -512,7 +516,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
     source = history_store.item(item_id)
     png = history_store.image_png(item_id)
     if source is None or png is None:
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, i18n.t("imageNotFound"))
     try:
         edited, width, height = apply_edits(png, recipe)
     except EditOutsideImage as error:
@@ -530,7 +534,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
 def set_favourite(item_id: int, update: FavouriteUpdate) -> HistoryItem:
     item = history_store.set_favourite(item_id, update.favourite)
     if item is None:
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, i18n.t("imageNotFound"))
     return item
 
 
@@ -542,7 +546,7 @@ class SensitiveUpdate(BaseModel):
 def set_sensitive(item_id: int, update: SensitiveUpdate) -> HistoryItem:
     item = history_store.set_sensitive(item_id, update.sensitive)
     if item is None:
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, i18n.t("imageNotFound"))
     return item
 
 
@@ -558,7 +562,7 @@ def thumbnail(png: bytes) -> bytes:
 def history_image(item_id: int, thumb: bool = False) -> Response:
     png = history_store.image_png(item_id)
     if png is None:
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, i18n.t("imageNotFound"))
     if thumb:
         return Response(thumbnail(png), media_type="image/webp", headers=IMMUTABLE)
     return Response(png, media_type="image/png", headers=IMMUTABLE)
@@ -567,7 +571,7 @@ def history_image(item_id: int, thumb: bool = False) -> Response:
 @app.delete("/api/history/{item_id}", status_code=204)
 def delete_history_item(item_id: int) -> None:
     if not history_store.delete(item_id):
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, i18n.t("imageNotFound"))
 
 
 @app.delete("/api/history", status_code=204)
@@ -587,7 +591,7 @@ class Deleted(BaseModel):
 @app.delete("/api/history/older-than/{days}")
 def delete_old_history(days: int) -> Deleted:
     if days not in CLEANUP_AGES_DAYS:
-        raise HTTPException(422, f"days must be one of {', '.join(map(str, CLEANUP_AGES_DAYS))}")
+        raise HTTPException(422, i18n.t("cleanupDays", days=", ".join(map(str, CLEANUP_AGES_DAYS))))
     return Deleted(deleted=history_store.delete_older_than(days))
 
 
@@ -615,7 +619,7 @@ def update_character(character_id: int, changes: CharacterUpdate) -> Character:
     except (MissingImage, BadPhoto) as error:
         raise HTTPException(422, str(error))
     if updated is None:
-        raise HTTPException(404, "Character not found")
+        raise HTTPException(404, i18n.t("characterNotFound"))
     return updated
 
 
@@ -623,7 +627,7 @@ def update_character(character_id: int, changes: CharacterUpdate) -> Character:
 def uploaded_face(character_id: int, thumb: bool = False) -> Response:
     photo = character_store.uploaded_face(character_id)
     if photo is None:
-        raise HTTPException(404, "This character has no uploaded face")
+        raise HTTPException(404, i18n.t("noUploadedFace"))
     # A new upload replaces it at the same address, so it is never cached for long
     headers = {"Cache-Control": "no-cache"}
     return Response(thumbnail(photo), media_type="image/webp", headers=headers) if thumb else Response(photo, media_type="image/png", headers=headers)
@@ -632,20 +636,20 @@ def uploaded_face(character_id: int, thumb: bool = False) -> Response:
 @app.delete("/api/characters/{character_id}", status_code=204)
 def delete_character(character_id: int) -> None:
     if not character_store.delete(character_id):
-        raise HTTPException(404, "Character not found")
+        raise HTTPException(404, i18n.t("characterNotFound"))
 
 
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
     """Stream Grok's rewritten prompt as plain text chunks."""
     if not grok_client.available:
-        raise HTTPException(503, "Chat is unavailable: set XAI_API_KEY in .env")
+        raise HTTPException(503, i18n.t("chatUnavailable"))
     chunks = grok_client.chat_stream([message.model_dump() for message in req.messages])
     # Pull the first chunk here, so auth and connection errors become a proper error response
     try:
         first: Iterator[str] = iter([next(chunks, "")])
     except (openai.OpenAIError, ValueError) as e:
-        raise HTTPException(502, f"Grok API error: {e}")
+        raise HTTPException(502, i18n.t("grokError", error=e))
     return StreamingResponse(itertools.chain(first, chunks), media_type="text/plain; charset=utf-8")
 
 

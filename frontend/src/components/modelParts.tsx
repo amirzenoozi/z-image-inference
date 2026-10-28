@@ -2,6 +2,7 @@ import { formatGb, gigabytes } from '../lib/format'
 import type { Loadable, ModelInfo, ModelStatusReport } from '../types'
 import { Spinner } from './ui'
 import { ExternalLink } from 'lucide-react'
+import { t } from '../i18n'
 
 export function HuggingFaceLink({ model }: { model: ModelInfo }) {
   return (
@@ -9,28 +10,28 @@ export function HuggingFaceLink({ model }: { model: ModelInfo }) {
       href={`https://huggingface.co/${model.repo_id}`}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`Open ${model.label} on Hugging Face`}
+      aria-label={t('create.openOnHuggingFace', { model: model.label })}
       className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-200/70 hover:text-violet-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
     >
-      Hugging Face <ExternalLink className="size-3" />
+      {t('create.huggingFace')} <ExternalLink className="size-3" />
     </a>
   )
 }
 
 export function DownloadBadge({ model, status }: { model: ModelInfo; status: Loadable<ModelStatusReport> }) {
-  if (status.status === 'pending') return <span className="mt-1.5 block text-[11px] text-zinc-400">Checking download…</span>
+  if (status.status === 'pending') return <span className="mt-1.5 block text-[11px] text-zinc-400">{t('create.checkingDownload')}</span>
   if (status.status !== 'settled') return null
   const state = status.value.models[model.id]
   const size = `~${model.download_gb} GB`
   switch (state?.status) {
     case 'missing':
-      return <span className="mt-1.5 block text-[11px] text-zinc-500 dark:text-zinc-400">Not downloaded · {size}</span>
+      return <span className="mt-1.5 block text-[11px] text-zinc-500 dark:text-zinc-400">{t('create.notDownloaded', { size })}</span>
     case 'queued':
-      return <span className="mt-1.5 block text-[11px] text-zinc-500 dark:text-zinc-400">Queued for download · {size}</span>
+      return <span className="mt-1.5 block text-[11px] text-zinc-500 dark:text-zinc-400">{t('create.queuedDownload', { size })}</span>
     case 'downloading':
       return <DownloadProgress model={model} receivedBytes={state.size_bytes} />
     case 'failed':
-      return <span className="mt-1.5 block text-[11px] text-red-600 dark:text-red-400">Download failed · try again</span>
+      return <span className="mt-1.5 block text-[11px] text-red-600 dark:text-red-400">{t('create.downloadFailed')}</span>
     default:
       return null
   }
@@ -43,11 +44,11 @@ function DownloadProgress({ model, receivedBytes }: { model: ModelInfo; received
   return (
     <span className="mt-2 block">
       <span className="flex items-center gap-1.5 text-[11px] font-medium text-violet-700 dark:text-violet-300">
-        <Spinner className="size-3" /> Downloading · {formatGb(receivedBytes)} of {model.download_gb} GB
+        <Spinner className="size-3" /> {t('create.downloadingProgress', { received: formatGb(receivedBytes), total: model.download_gb })}
       </span>
       <span
         role="progressbar"
-        aria-label={`${model.label} download`}
+        aria-label={t('create.downloadProgressLabel', { model: model.label })}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}

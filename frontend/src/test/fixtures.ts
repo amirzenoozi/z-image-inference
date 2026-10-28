@@ -55,6 +55,7 @@ export const animeModel: ModelInfo = {
 
 export const catalog: Catalog = {
   builder_modes: builderModes,
+  language: 'en',
   models: [fastModel, animeModel],
   model_categories: [
     { id: 'photo', label: 'Photorealistic' },

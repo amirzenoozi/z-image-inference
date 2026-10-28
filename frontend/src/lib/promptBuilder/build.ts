@@ -1,6 +1,7 @@
 // Builder state, choices and the age safeguard. The option lists come from ComfyUI Photoreal Prompt Builder
 // (MIT License, Copyright (c) 2025 artokun; see data.ts for the source links); the wording is written here, as
 // a flowing paragraph (prose.ts) or a weighted tag list (tags.ts), depending on the model, and shaped by the mode.
+import { t } from '../../i18n'
 import type { ModelInfo } from '../../types'
 import { CHOICE_OPTIONS, TEXT_CHOICES, type ChoiceField } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
@@ -149,11 +150,11 @@ function adultContentProblem(state: BuilderState, mode: BuilderMode): BuildResul
   if (minorTerm) {
     return {
       status: 'blocked',
-      reason: `Prompts with explicit content or lingerie must describe adults. Remove “${minorTerm}” (for example, write “adult woman” or “adult man”).`,
+      reason: t('builder.reasonMinor', { term: minorTerm }),
     }
   }
   if (state.who === NOT_SET || state.age === NOT_SET) {
-    return { status: 'incomplete', reason: 'Explicit and lingerie prompts need “Who” and an adult age range, in the Subject step.' }
+    return { status: 'incomplete', reason: t('builder.reasonNeedsAdult') }
   }
   return null
 }
@@ -235,9 +236,9 @@ export function switchMode(state: BuilderState, mode: BuilderMode): BuilderState
 
 function missingStart(state: BuilderState, mode: BuilderMode): BuildResult | null {
   if (!showsStep(mode, 'subject')) {
-    return state.environment.trim() || state.sceneType !== NOT_SET ? null : { status: 'incomplete', reason: 'Choose a scene or describe the place, to start.' }
+    return state.environment.trim() || state.sceneType !== NOT_SET ? null : { status: 'incomplete', reason: t('builder.reasonNeedsScene') }
   }
-  return state.subject.trim() || state.who !== NOT_SET ? null : { status: 'incomplete', reason: 'Choose who the photo is of, or describe the subject, to start.' }
+  return state.subject.trim() || state.who !== NOT_SET ? null : { status: 'incomplete', reason: t('builder.reasonNeedsSubject') }
 }
 
 export function buildPrompt(state: BuilderState, mode: BuilderMode, style: PromptStyle = 'prose'): BuildResult {

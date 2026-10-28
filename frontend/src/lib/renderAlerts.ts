@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { imageUrl } from '../api'
 import type { GenerationState, HistoryItem, ModelInfo } from '../types'
 import { formatDuration } from './hooks'
+import { t } from '../i18n'
 
 export const APP_TITLE = 'Z-Image Studio'
 /** The app's icon as a PNG, since notifications can't show SVG; public/app-icon.svg is its source. */
@@ -70,23 +71,23 @@ function readyContent(item: HistoryItem, context: RenderAlertContext): Notificat
     item.sensitive || !item.prompt.trim() ? null : `“${excerpt(item.prompt)}”`,
   ]
   return {
-    title: name ? `${name}'s image is ready` : 'Your image is ready',
+    title: name ? t('create.notifyReadyFor', { name }) : t('create.notifyReady'),
     body: parts.filter(Boolean).join(' · '),
     icon: item.sensitive ? APP_ICON : imageUrl(item.id, true),
   }
 }
 
 function failedContent(error: string): NotificationContent {
-  return { title: "Couldn't make your image", body: `${error.replace(/\.?$/, '.')} Open ${APP_TITLE} to try again.`, icon: APP_ICON }
+  return { title: t('create.notifyFailed'), body: t('create.notifyTryAgain', { error: error.replace(/\.?$/, '.'), app: APP_TITLE }), icon: APP_ICON }
 }
 
 /** A cancelled render goes back to idle: the title just returns to normal. */
 function announceEnd(state: GenerationState, context: RenderAlertContext): void {
   if (state.status === 'settled') {
-    document.title = `✓ Image ready · ${APP_TITLE}`
+    document.title = t('create.titleReady', { app: APP_TITLE })
     notify(readyContent(state.item, context), context.onOpen)
   } else if (state.status === 'failed') {
-    document.title = `✕ Generation failed · ${APP_TITLE}`
+    document.title = t('create.titleFailed', { app: APP_TITLE })
     notify(failedContent(state.error), context.onOpen)
   } else {
     document.title = APP_TITLE
@@ -108,7 +109,7 @@ export function useRenderAlerts(state: GenerationState, context: RenderAlertCont
   useEffect(() => {
     const wasPending = previous.current === 'pending'
     previous.current = state.status
-    if (state.status === 'pending') document.title = `Generating… · ${APP_TITLE}`
+    if (state.status === 'pending') document.title = t('create.titleGenerating', { app: APP_TITLE })
     else if (wasPending && document.hidden) announceEnd(state, latestContext.current)
     else document.title = APP_TITLE
   }, [state])

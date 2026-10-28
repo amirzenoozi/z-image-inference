@@ -5,6 +5,8 @@ import { secondaryButtonClass } from '../lib/styles'
 import { Modal } from './Modal'
 import { ModelChooser } from './ModelChooser'
 import { DownloadBadge, HuggingFaceLink } from './modelParts'
+import { modelDescription } from '../lib/categories'
+import { t } from '../i18n'
 
 interface Props {
   models: ModelInfo[]
@@ -25,11 +27,11 @@ export function ModelPicker({ models, categories, selectedId, status, onSelect, 
       <SelectedModel model={selected} status={status} serverDown={serverDown} onChange={() => setChoosing(true)} />
       {serverDown && (
         <p role="status" className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          The model server isn’t running. Start it with <code>uv run python model_server.py</code>.
+          <ServerDownNote />
         </p>
       )}
       {choosing && (
-        <Modal title="Choose a model" onClose={() => setChoosing(false)} size="lg">
+        <Modal title={t('create.chooseModel')} onClose={() => setChoosing(false)} size="lg">
           <ModelChooser
             models={models}
             categories={categories}
@@ -57,19 +59,31 @@ interface SelectedModelProps {
 
 function SelectedModel({ model, status, serverDown, onChange }: SelectedModelProps) {
   return (
-    <div role="group" aria-label="Selected model" className="rounded-xl border border-violet-500 bg-violet-50/60 p-3 dark:bg-violet-950/40">
+    <div role="group" aria-label={t('create.selectedModel')} className="rounded-xl border border-violet-500 bg-violet-50/60 p-3 dark:bg-violet-950/40">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-violet-900 dark:text-violet-100">{model.label}</span>
         <button type="button" onClick={onChange} className={`${secondaryButtonClass} shrink-0 bg-white py-1 text-xs dark:bg-zinc-900`}>
-          Change
+          {t('create.change')}
         </button>
       </div>
-      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{model.description}</p>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{modelDescription(model)}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{model.speed_hint}</span>
         <HuggingFaceLink model={model} />
       </div>
       {!serverDown && <DownloadBadge model={model} status={status} />}
     </div>
+  )
+}
+
+/** The command stays as it is; only the sentence around it is translated. */
+function ServerDownNote() {
+  const [before, after] = t('create.serverDownNote').split('{command}')
+  return (
+    <>
+      {before}
+      <code>uv run python backend/model_server.py</code>
+      {after}
+    </>
   )
 }

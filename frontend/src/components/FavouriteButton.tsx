@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState, type Ref } from 'react'
 import { IconButton } from './IconButton'
 import { setFavourite } from '../api'
@@ -34,7 +35,7 @@ export function FavouriteButton({ item, onChanged, onFailed, className = '', sho
       onClick={() => void toggle()}
       disabled={saving}
       aria-pressed={item.favourite}
-      label={item.favourite ? 'Remove from favourites' : 'Add to favourites'}
+      label={item.favourite ? t('history.removeFavourite') : t('history.addFavourite')}
       shortcut={shortcut}
       className={`flex size-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm [&_svg]:size-[18px] transition hover:bg-black/60 disabled:opacity-50 ${
         item.favourite ? 'text-amber-300' : 'text-white'

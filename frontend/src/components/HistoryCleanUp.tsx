@@ -1,3 +1,4 @@
+import { t, tn } from '../i18n'
 import { useState } from 'react'
 import { deleteHistoryOlderThan, fetchHistorySummary } from '../api'
 import { formatSize } from '../lib/format'
@@ -17,7 +18,7 @@ export function HistoryCleanUp({ onCleaned }: { onCleaned: () => void }) {
     <>
       <StorageSize summary={summary} />
       <button type="button" onClick={() => setOpen(true)} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
-        Clean up
+        {t('history.cleanUp')}
       </button>
       {open && <CleanUpDialog summary={summary} onRetry={retry} onClose={() => setOpen(false)} onCleaned={onCleaned} />}
     </>
@@ -28,7 +29,7 @@ function StorageSize({ summary }: { summary: Loadable<HistorySummary> }) {
   if (summary.status === 'pending') return <span aria-hidden="true" className="h-4 w-14 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
   // The size is extra information: when it cannot load it is left out, and the dialog shows the error with a retry
   if (summary.status === 'failed') return null
-  return <span className="text-sm text-zinc-500 dark:text-zinc-400">{formatSize(summary.value.bytes)} used</span>
+  return <span className="text-sm text-zinc-500 dark:text-zinc-400">{t('history.storageUsed', { size: formatSize(summary.value.bytes) })}</span>
 }
 
 interface DialogProps {
@@ -57,12 +58,12 @@ function CleanUpDialog({ summary, onRetry, onClose, onCleaned }: DialogProps) {
 
   return (
     <Modal
-      title="Clean up history"
+      title={t('history.cleanUpTitle')}
       onClose={onClose}
       actions={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <DeleteOldButton count={count} days={days} deleting={state.status === 'deleting'} onDelete={() => void remove()} />
         </>
@@ -89,7 +90,7 @@ function CleanUpContent({ summary, days, onDaysChange, onRetry }: ContentProps) 
   if (summary.status === 'pending') {
     return (
       <p role="status" className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner className="size-4" /> Counting images…
+        <Spinner className="size-4" /> {t('history.countingImages')}
       </p>
     )
   }
@@ -101,9 +102,9 @@ function AgeChoices({ summary, days, onDaysChange }: { summary: HistorySummary; 
   return (
     <div className="space-y-5 py-1">
       <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-        History uses {formatSize(summary.bytes)} for {summary.total} images. Delete the images older than:
+        {t('history.cleanUpUsage', { size: formatSize(summary.bytes), count: summary.total })}
       </p>
-      <div role="radiogroup" aria-label="Age" className="grid grid-cols-3 gap-3">
+      <div role="radiogroup" aria-label={t('history.age')} className="grid grid-cols-3 gap-3">
         {summary.older_than.map((age) => (
           <button
             key={age.days}
@@ -113,20 +114,20 @@ function AgeChoices({ summary, days, onDaysChange }: { summary: HistorySummary; 
             onClick={() => onDaysChange(age.days)}
             className={`rounded-lg border px-3 py-3 text-sm ${chipClass(days === age.days)}`}
           >
-            {age.days} days
-            <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">{age.count === 1 ? '1 image' : `${age.count} images`}</span>
+            {tn('history.days', age.days)}
+            <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">{tn('history.imageCount', age.count)}</span>
           </button>
         ))}
       </div>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">Favourites are always kept.</p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('history.favouritesKept')}</p>
     </div>
   )
 }
 
 function deleteLabel(count: number | null, days: number): string {
-  if (count === null) return 'Delete'
-  if (count === 0) return `No images older than ${days} days`
-  return `Delete ${count === 1 ? '1 image' : `${count} images`}`
+  if (count === null) return t('common.delete')
+  if (count === 0) return t('history.noneOlderThan', { days })
+  return tn('history.deleteImages', count)
 }
 
 function DeleteOldButton({ count, days, deleting, onDelete }: { count: number | null; days: number; deleting: boolean; onDelete: () => void }) {
@@ -137,7 +138,7 @@ function DeleteOldButton({ count, days, deleting, onDelete }: { count: number | 
       disabled={deleting || !count}
       className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
     >
-      {deleting ? 'Deleting…' : deleteLabel(count, days)}
+      {deleting ? t('common.deleting') : deleteLabel(count, days)}
     </button>
   )
 }

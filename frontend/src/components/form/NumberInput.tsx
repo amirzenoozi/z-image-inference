@@ -1,3 +1,4 @@
+import { t } from '../../i18n'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { IconButton } from '../IconButton'
 import { controlHeight, fieldFrameClass } from '../../lib/styles'
@@ -40,7 +41,7 @@ export function NumberInput({ id, label, value, min, max, step = 1, disabled = f
   }
   return (
     <div className={`${fieldFrameClass} ${controlHeight} flex items-center ${className}`}>
-      <StepButton label={`Decrease ${label ?? 'value'}`} disabled={disabled || current <= min} onClick={() => stepBy(-1)}>
+      <StepButton label={t('common.decrease', { name: label ?? t('common.value') })} disabled={disabled || current <= min} onClick={() => stepBy(-1)}>
         <Minus />
       </StepButton>
       <input
@@ -58,7 +59,7 @@ export function NumberInput({ id, label, value, min, max, step = 1, disabled = f
         onKeyDown={onKeyDown}
         className="no-native-spinner h-full w-full min-w-0 bg-transparent text-center tabular-nums outline-none disabled:cursor-not-allowed"
       />
-      <StepButton label={`Increase ${label ?? 'value'}`} disabled={disabled || current >= max} onClick={() => stepBy(1)}>
+      <StepButton label={t('common.increase', { name: label ?? t('common.value') })} disabled={disabled || current >= max} onClick={() => stepBy(1)}>
         <Plus />
       </StepButton>
     </div>

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { imageUrl, uploadedFaceUrl } from '../api'
+import { t } from '../i18n'
 import { isPhoto, MAX_PHOTO_BYTES, type FaceLock, type FaceSource } from '../lib/characterFace'
 import { secondaryButtonClass } from '../lib/styles'
 import { Slider } from './form/Slider'
@@ -25,10 +26,7 @@ export function CharacterFace({ face, characterId, name, onChange }: Props) {
   return (
     <div className="space-y-3">
       {face.source.kind === 'none' ? (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          No face. Open an image of this character in History and choose <span className="font-medium">Use as face</span> (a close crop of the face works
-          best), or upload a photo. RealVisXL (in photo style), WAI-Illustrious and Anime Desire then keep that face.
-        </p>
+        <NoFace />
       ) : (
         <div className="flex items-start gap-4">
           <FacePreview source={face.source} characterId={characterId} />
@@ -39,7 +37,7 @@ export function CharacterFace({ face, characterId, name, onChange }: Props) {
         <PhotoPicker replacing={isPhoto(face.source)} onPicked={(dataUrl) => setSource({ kind: 'photo', dataUrl })} />
         {face.source.kind !== 'none' && (
           <button type="button" onClick={() => setSource({ kind: 'none' })} className={secondaryButtonClass}>
-            {isPhoto(face.source) ? 'Remove photo' : 'Remove face'}
+            {isPhoto(face.source) ? t('characters.removePhoto') : t('characters.removeFace')}
           </button>
         )}
       </div>
@@ -48,33 +46,45 @@ export function CharacterFace({ face, characterId, name, onChange }: Props) {
   )
 }
 
+/** The explanation, with the name of the viewer's "Use as face" action set in bold wherever the language puts it. */
+function NoFace() {
+  const [before, after] = t('characters.noFace').split('{action}')
+  return (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      {before}
+      <span className="font-medium">{t('characters.useAsFace')}</span>
+      {after}
+    </p>
+  )
+}
+
 function FacePreview({ source, characterId }: { source: FaceSource; characterId: number | null }) {
   if (source.kind === 'history') {
     return (
-      <span role="img" aria-label={`Face image #${source.id}`} className="shrink-0">
+      <span role="img" aria-label={t('characters.faceImage', { id: source.id })} className="shrink-0">
         <SensitiveImage src={imageUrl(source.id, true)} sensitive={source.sensitive} compact className="size-20 rounded-lg" />
       </span>
     )
   }
   const src = source.kind === 'photo' ? source.dataUrl : characterId !== null ? uploadedFaceUrl(characterId, true) : ''
-  return <img src={src} alt="Uploaded face photo" className="size-20 shrink-0 rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800" />
+  return <img src={src} alt={t('characters.uploadedPhoto')} className="size-20 shrink-0 rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800" />
 }
 
 function StrengthSlider({ strength, onChange }: { strength: number; onChange: (strength: number) => void }) {
   return (
     <div className="min-w-0 flex-1 space-y-2">
       <div className="flex justify-between text-xs font-medium text-zinc-600 dark:text-zinc-300">
-        <span>Face strength</span>
+        <span>{t('characters.faceStrength')}</span>
         <span className="tabular-nums">{Math.round(strength * 100)}%</span>
       </div>
-      <Slider label="Face strength" min={MIN_STRENGTH} max={MAX_STRENGTH} step={STRENGTH_STEP} value={strength} onChange={(text) => onChange(Number(text))} />
+      <Slider label={t('characters.faceStrength')} min={MIN_STRENGTH} max={MAX_STRENGTH} step={STRENGTH_STEP} value={strength} onChange={(text) => onChange(Number(text))} />
       <div className="flex justify-between text-[11px] text-zinc-400">
-        <span>Follows the prompt</span>
-        <span>Keeps the face</span>
+        <span>{t('characters.followsPrompt')}</span>
+        <span>{t('characters.keepsFace')}</span>
       </div>
       {strength > COPYING_STRENGTH && (
         <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
-          Above 80% the face image is copied, often with its pose and clothes, and most of the prompt is ignored. 50–65% usually keeps the face and follows the prompt.
+          {t('characters.copyingWarning')}
         </p>
       )}
     </div>
@@ -87,20 +97,20 @@ function PhotoPicker({ replacing, onPicked }: { replacing: boolean; onPicked: (d
   const [error, setError] = useState<string | null>(null)
   const read = (file: File | undefined) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) return setError('Choose an image file (JPEG, PNG or WebP).')
-    if (file.size > MAX_PHOTO_BYTES) return setError('The photo is larger than 10 MB; choose a smaller one.')
+    if (!file.type.startsWith('image/')) return setError(t('characters.photoNotImage'))
+    if (file.size > MAX_PHOTO_BYTES) return setError(t('characters.photoTooLarge'))
     setError(null)
     const reader = new FileReader()
     reader.onload = () => typeof reader.result === 'string' && onPicked(reader.result)
-    reader.onerror = () => setError('The photo could not be read; try another one.')
+    reader.onerror = () => setError(t('characters.photoUnreadable'))
     reader.readAsDataURL(file)
   }
   return (
     <>
       <button type="button" onClick={() => input.current?.click()} className={secondaryButtonClass}>
-        {replacing ? 'Replace photo…' : 'Upload a photo…'}
+        {replacing ? t('characters.replacePhoto') : t('characters.uploadPhoto')}
       </button>
-      <input ref={input} type="file" accept="image/*" aria-label="Face photo" className="hidden" onChange={(event) => read(event.target.files?.[0])} />
+      <input ref={input} type="file" accept="image/*" aria-label={t('characters.facePhoto')} className="hidden" onChange={(event) => read(event.target.files?.[0])} />
       {error && (
         <p role="alert" className="basis-full text-xs text-red-600 dark:text-red-400">
           {error}
@@ -111,11 +121,10 @@ function PhotoPicker({ replacing, onPicked }: { replacing: boolean; onPicked: (d
 }
 
 function SafeForWorkNote({ name }: { name: string }) {
-  const who = name.trim() || 'this character'
+  const who = name.trim() || t('characters.thisCharacter')
   return (
     <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-      An uploaded photo can show a real person, so images of {who} are kept safe for work: nude or sexual prompts are refused, the 18+ purposes are
-      hidden in the prompt builder, and any image that comes out with nudity is discarded.
+      {t('characters.safeForWorkNote', { name: who })}
     </p>
   )
 }

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { imageUrl } from '../api'
 import type { HistoryItem } from '../types'
 import { FavouriteButton } from './FavouriteButton'
@@ -33,7 +34,7 @@ function CardButton({ item, label, selected, onClick }: { item: HistoryItem; lab
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${comparing ? 'Select' : 'Open'}: ${item.prompt}`}
+      aria-label={t(comparing ? 'history.selectImage' : 'history.openImage', { prompt: item.prompt })}
       aria-pressed={comparing ? selected : undefined}
       className={`group relative block aspect-square w-full overflow-hidden rounded-xl bg-zinc-100 focus:ring-2 focus:ring-violet-500 focus:outline-none dark:bg-zinc-800 ${
         selected ? 'ring-4 ring-violet-500' : ''

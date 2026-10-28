@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { EyeOff } from 'lucide-react'
 
 interface Props {
@@ -18,7 +19,7 @@ export function SensitiveImage({ src, sensitive, className = '', imgClassName = 
       {sensitive && (
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/20 text-xs font-medium text-white">
           <EyeOff />
-          {!compact && 'Sensitive'}
+          {!compact && t('history.sensitive')}
         </span>
       )}
     </span>

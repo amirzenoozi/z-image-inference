@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { createCharacter, updateCharacter } from '../api'
+import { t } from '../i18n'
 import { useCharacters } from '../lib/characters'
 import { errorMessage } from '../lib/hooks'
 import { emptyBuilderState, type BuilderState } from '../lib/promptBuilder/build'
@@ -26,7 +27,7 @@ function parseSeed(text: string, maxSeed: number): number | null | undefined {
 }
 
 function problemWith(name: string, state: BuilderState, seed: number | null | undefined, maxSeed: number): string | null {
-  if (seed === undefined) return `The seed must be a whole number from 0 to ${maxSeed}, or empty.`
+  if (seed === undefined) return t('characters.seedProblem', { max: String(maxSeed) })
   return characterProblem(name, traitsOf(state))
 }
 
@@ -64,16 +65,16 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
 
   return (
     <Modal
-      title={character ? `Edit ${character.name}` : 'New character'}
+      title={character ? t('characters.editTitle', { name: character.name }) : t('characters.newCharacter')}
       onClose={onClose}
       size="lg"
       actions={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="button" onClick={() => void submit()} disabled={save.status === 'saving'} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50">
-            {save.status === 'saving' ? 'Saving…' : 'Save'}
+            {save.status === 'saving' ? t('common.saving') : t('common.save')}
           </button>
         </>
       }
@@ -81,31 +82,31 @@ export function CharacterEditor({ character, maxSeed, onClose }: Props) {
       <div className="max-h-[65vh] space-y-5 overflow-y-auto pr-1">
         <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <label className="block">
-            <span className={`${fieldLabelClass} mb-1 block`}>Name</span>
-            <TextInput value={name} maxLength={40} onChange={(event) => setName(event.target.value)} placeholder="e.g. Ava" />
+            <span className={`${fieldLabelClass} mb-1 block`}>{t('characters.name')}</span>
+            <TextInput value={name} maxLength={40} onChange={(event) => setName(event.target.value)} placeholder={t('characters.namePlaceholder')} />
           </label>
           <label className="block">
-            <span className={`${fieldLabelClass} mb-1 block`}>Seed</span>
-            <TextInput value={seedText} inputMode="numeric" onChange={(event) => setSeedText(event.target.value)} placeholder="Empty: a new seed each time" />
+            <span className={`${fieldLabelClass} mb-1 block`}>{t('characters.seed')}</span>
+            <TextInput value={seedText} inputMode="numeric" onChange={(event) => setSeedText(event.target.value)} placeholder={t('characters.seedPlaceholder')} />
           </label>
           <button
             type="button"
             onClick={() => setState((current) => surpriseLook(current, newSeed()))}
             className="flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-90"
           >
-            <Dices /> Surprise me
+            <Dices /> {t('characters.surpriseMe')}
           </button>
         </div>
-        <EditorSection title="Subject">
+        <EditorSection title={t('characters.sectionSubject')}>
           <SubjectStep {...steps} />
         </EditorSection>
-        <EditorSection title="Face & hair">
+        <EditorSection title={t('characters.sectionFaceHair')}>
           <AppearanceStep {...steps} />
         </EditorSection>
-        <EditorSection title="Body">
+        <EditorSection title={t('characters.sectionBody')}>
           <BodyStep {...steps} />
         </EditorSection>
-        <EditorSection title="Face lock">
+        <EditorSection title={t('characters.sectionFaceLock')}>
           <CharacterFace face={face} characterId={character?.id ?? null} name={name} onChange={setFace} />
         </EditorSection>
         {save.status === 'failed' && (

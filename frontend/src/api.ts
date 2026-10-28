@@ -1,4 +1,5 @@
 import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPage, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport } from './types'
+import { t } from './i18n'
 
 export class ApiError extends Error {
   readonly status: number
@@ -34,7 +35,7 @@ async function errorFrom(resp: Response): Promise<ApiError> {
   } catch {
     // Not JSON: fall back to the status text
   }
-  return new ApiError(detail ?? `Request failed (${resp.status} ${resp.statusText})`, resp.status)
+  return new ApiError(detail ?? t('create.requestFailed', { status: resp.status, statusText: resp.statusText }), resp.status)
 }
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
@@ -43,7 +44,7 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
     resp = await fetch(path, init)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new ApiError('Could not reach the app server. Is `uv run python main.py` running?', 0)
+    throw new ApiError(t('create.appUnreachable'), 0)
   }
   if (!resp.ok) throw await errorFrom(resp)
   return resp
@@ -203,7 +204,7 @@ export async function streamChat(
   signal?: AbortSignal,
 ): Promise<string> {
   const resp = await postJson('/api/chat', { messages }, signal)
-  if (!resp.body) throw new ApiError('The chat reply was empty', resp.status)
+  if (!resp.body) throw new ApiError(t('create.chatEmptyReply'), resp.status)
   const reader = resp.body.getReader()
   const decoder = new TextDecoder()
   let text = ''

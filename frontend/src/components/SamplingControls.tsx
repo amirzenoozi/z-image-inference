@@ -5,6 +5,7 @@ import { Checkbox } from './form/Checkbox'
 import { NumberInput } from './form/NumberInput'
 import { Slider } from './form/Slider'
 import { Dices } from 'lucide-react'
+import { t } from '../i18n'
 
 type SamplingPatch = Partial<Pick<GenerationSettings, 'steps' | 'guidance' | 'seed' | 'randomSeed'>>
 
@@ -20,7 +21,7 @@ export function SamplingControls({ settings, model, limits, lastSeed, onChange }
   return (
     <div className="space-y-4">
       <NumberSlider
-        label="Steps"
+        label={t('create.steps')}
         value={settings.steps}
         min={1}
         max={model.max_steps}
@@ -30,7 +31,7 @@ export function SamplingControls({ settings, model, limits, lastSeed, onChange }
       />
       {model.uses_guidance && (
         <NumberSlider
-          label="Guidance (CFG)"
+          label={t('create.guidance')}
           value={settings.guidance}
           min={0}
           max={20}
@@ -72,11 +73,11 @@ export function NumberSlider({ label, value, min, max, step, recommended, onChan
           onClick={() => onChange(recommended)}
           className="text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400"
         >
-          Recommended: {recommended}
+          {t('create.recommended', { value: recommended })}
         </button>
       </div>
       <div className="mt-1.5 flex items-center gap-3">
-        <Slider label={`${label} slider`} min={min} max={max} step={step} value={value} onChange={update} className="flex-1" />
+        <Slider label={t('create.sliderLabel', { label })} min={min} max={max} step={step} value={value} onChange={update} className="flex-1" />
         <NumberInput id={`${label}-number`} label={label} min={min} max={max} step={step} value={value} onChange={update} className="w-32" />
       </div>
     </div>
@@ -95,16 +96,16 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
   return (
     <div className="space-y-2">
       <div className={`flex items-center justify-between ${fieldLabelClass}`}>
-        <label htmlFor="seed-input">Seed</label>
+        <label htmlFor="seed-input">{t('create.seed')}</label>
         <label className="flex cursor-pointer items-center gap-2">
           <Checkbox checked={settings.randomSeed} onChange={(event) => onChange({ randomSeed: event.target.checked })} />
-          Random each time
+          {t('create.randomEachTime')}
         </label>
       </div>
       <div className="flex gap-2">
         <NumberInput
           id="seed-input"
-          label="Seed"
+          label={t('create.seed')}
           min={0}
           max={limits.max_seed}
           value={settings.seed}
@@ -112,17 +113,17 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
           onChange={(text) => onChange({ seed: clamp(Math.trunc(Number(text) || 0), 0, limits.max_seed) })}
           className="min-w-0 flex-1"
         />
-        <IconButton label="Pick a random seed" onClick={rollDice} className={fieldButtonClass}>
+        <IconButton label={t('create.pickRandomSeed')} onClick={rollDice} className={fieldButtonClass}>
           <Dices />
         </IconButton>
         <button
           type="button"
           onClick={() => lastSeed !== null && onChange({ seed: lastSeed, randomSeed: false })}
           disabled={lastSeed === null}
-          title={lastSeed === null ? 'Generate an image first' : `Use seed ${lastSeed}`}
+          title={lastSeed === null ? t('create.generateFirst') : t('create.useSeedNumber', { seed: lastSeed })}
           className={`${fieldButtonClass} whitespace-nowrap`}
         >
-          Use last
+          {t('create.useLast')}
         </button>
       </div>
     </div>

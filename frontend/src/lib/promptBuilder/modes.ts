@@ -1,3 +1,4 @@
+import { t, tOr } from '../../i18n'
 import type { BuilderModeData } from '../../types'
 import { CHOICE_OPTIONS, isChoiceField, type ChoiceField } from './choices'
 import { INHERIT_SCENE } from './constants'
@@ -92,30 +93,34 @@ function knownOption(field: ChoiceField, value: string): boolean {
 const isContentLevel = (value: string): value is ContentLevel => (CONTENT_LEVELS as readonly string[]).includes(value)
 
 function stepProblems(data: BuilderModeData): string[] {
-  const unknown = data.steps.filter((step) => !isStep(step)).map((step) => `unknown step "${step}"`)
-  const content = isContentLevel(data.content) ? [] : [`unknown content "${data.content}"`]
-  const safeIntimacy = data.content === 'safe' && data.steps.includes('intimacy') ? ['a safe mode cannot show the intimacy step'] : []
-  return [...(data.steps.length ? [] : ['it shows no steps']), ...unknown, ...content, ...safeIntimacy]
+  const unknown = data.steps.filter((step) => !isStep(step)).map((step) => t('builder.problemUnknownStep', { step }))
+  const content = isContentLevel(data.content) ? [] : [t('builder.problemUnknownContent', { content: data.content })]
+  const safeIntimacy = data.content === 'safe' && data.steps.includes('intimacy') ? [t('builder.problemSafeIntimacy')] : []
+  return [...(data.steps.length ? [] : [t('builder.problemNoSteps')]), ...unknown, ...content, ...safeIntimacy]
 }
 
 function optionProblems(data: BuilderModeData): string[] {
   const problems: string[] = []
   for (const [field, values] of Object.entries(data.options)) {
-    if (!isChoiceField(field)) problems.push(`unknown choice "${field}" in options`)
-    else problems.push(...values.filter((value) => !knownOption(field, value)).map((value) => `unknown ${field} option "${value}"`))
+    if (!isChoiceField(field)) problems.push(t('builder.problemUnknownChoiceOptions', { field }))
+    else problems.push(...values.filter((value) => !knownOption(field, value)).map((value) => t('builder.problemUnknownOption', { field, value })))
   }
   for (const [field, value] of Object.entries(data.defaults)) {
-    if (!isChoiceField(field)) problems.push(`unknown choice "${field}" in defaults`)
-    else if (!knownOption(field, value)) problems.push(`unknown ${field} default "${value}"`)
-    else if (data.options[field] && !data.options[field].includes(value)) problems.push(`the ${field} default "${value}" is not in its own options`)
+    if (!isChoiceField(field)) problems.push(t('builder.problemUnknownChoiceDefaults', { field }))
+    else if (!knownOption(field, value)) problems.push(t('builder.problemUnknownDefault', { field, value }))
+    else if (data.options[field] && !data.options[field].includes(value)) problems.push(t('builder.problemDefaultNotInOptions', { field, value }))
   }
   return problems
 }
 
 function writingProblems(data: BuilderModeData): string[] {
-  const blocks = data.emphasis.filter((block) => !isBlock(block)).map((block) => `unknown emphasis "${block}"`)
+  const blocks = data.emphasis.filter((block) => !isBlock(block)).map((block) => t('builder.problemUnknownEmphasis', { block }))
   const weights = Object.entries(data.weights).flatMap(([group, weight]) =>
-    !isWeightGroup(group) ? [`unknown weight group "${group}"`] : weight < MIN_WEIGHT || weight > MAX_WEIGHT ? [`the ${group} weight must be between ${MIN_WEIGHT} and ${MAX_WEIGHT}`] : [],
+    !isWeightGroup(group)
+      ? [t('builder.problemUnknownWeightGroup', { group })]
+      : weight < MIN_WEIGHT || weight > MAX_WEIGHT
+        ? [t('builder.problemWeightRange', { group, min: MIN_WEIGHT, max: MAX_WEIGHT })]
+        : [],
   )
   return [...blocks, ...weights]
 }
@@ -126,8 +131,17 @@ export function parseModes(raw: readonly BuilderModeData[]): { modes: BuilderMod
   const problems: string[] = []
   for (const data of raw) {
     const found = [...stepProblems(data), ...optionProblems(data), ...writingProblems(data)]
-    if (found.length) problems.push(`Mode "${data.id}" was left out: ${found.join('; ')}.`)
+    if (found.length) problems.push(t('builder.problemModeLeftOut', { id: data.id, problems: found.join('; ') }))
     else modes.push({ ...data, focus: { ...NO_FOCUS, ...data.focus } } as BuilderMode)
   }
   return modes.length ? { modes, problems } : { modes: [FALLBACK_MODE], problems }
+}
+
+/** A purpose's name in the app's language; the file's own label for one without a translation. */
+export function modeLabel(mode: BuilderMode): string {
+  return tOr(`builder.modeLabel_${mode.id}`, mode.label)
+}
+
+export function modeDescription(mode: BuilderMode): string {
+  return tOr(`builder.modeDescription_${mode.id}`, mode.description)
 }

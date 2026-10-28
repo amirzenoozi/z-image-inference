@@ -143,7 +143,7 @@ it.each<[string, Loadable<ModelStatusReport>]>([
   ['the status request failed', { status: 'failed', error: 'Could not reach the app server' }],
 ])('explains how to start the model server when %s, without locking any model', async (_, status) => {
   renderPicker(status)
-  expect(screen.getByRole('status')).toHaveTextContent('uv run python model_server.py')
+  expect(screen.getByRole('status')).toHaveTextContent('uv run python backend/model_server.py')
   await openDialog()
   expect(within(dialog()).getByRole('radio', { name: /WAI-Illustrious/ })).toBeEnabled()
 })

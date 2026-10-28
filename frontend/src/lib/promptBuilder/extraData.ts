@@ -1,4 +1,5 @@
 // Options added on top of the upstream builder. Wording is written to read naturally inside a prompt.
+import type { MessageKey } from '../../i18n'
 
 export type Who = 'woman' | 'man' | 'couple' | 'two women' | 'two men'
 
@@ -65,11 +66,12 @@ export const INTIMACY_CUES: readonly string[] = [
 
 export type Nudity = 'clothed' | 'implied' | 'topless' | 'nude'
 
-export const NUDITY_LEVELS: readonly { value: Nudity; label: string }[] = [
-  { value: 'clothed', label: 'Clothed' },
-  { value: 'implied', label: 'Implied nudity' },
-  { value: 'topless', label: 'Topless' },
-  { value: 'nude', label: 'Fully nude' },
+/** Each level and the key of its label, looked up when shown. */
+export const NUDITY_LEVELS: readonly { value: Nudity; label: MessageKey }[] = [
+  { value: 'clothed', label: 'builder.nudityClothed' },
+  { value: 'implied', label: 'builder.nudityImplied' },
+  { value: 'topless', label: 'builder.nudityTopless' },
+  { value: 'nude', label: 'builder.nudityNude' },
 ]
 
 export const TIMES_OF_DAY: readonly string[] = [

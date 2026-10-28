@@ -38,6 +38,7 @@ from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
+from i18n import t
 from prompt_weights import a1111_to_compel
 from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
@@ -141,7 +142,7 @@ def decode_start_image(data: str, width: int, height: int) -> Image.Image:
     try:
         image = Image.open(io.BytesIO(base64.b64decode(data, validate=True))).convert("RGB")
     except (ValueError, OSError):
-        raise HTTPException(422, "The start image could not be read")
+        raise HTTPException(422, t("startImageUnreadable"))
     return ImageOps.fit(image, (width, height), Image.Resampling.LANCZOS)
 
 
@@ -150,7 +151,7 @@ def decode_face_image(data: str) -> Image.Image:
     try:
         return Image.open(io.BytesIO(base64.b64decode(data, validate=True))).convert("RGB")
     except (ValueError, OSError):
-        raise HTTPException(422, "The face image could not be read")
+        raise HTTPException(422, t("faceImageUnreadable"))
 
 
 def to_job(req: GenerateRequest) -> Job:
@@ -672,18 +673,18 @@ def face_lock_problem() -> str | None:
     download = downloads.get(FACE_LOCK)
     if download is None or download.done():
         if free_bytes() < FACE_LOCK_BYTES:
-            return f"The face lock needs {FACE_LOCK_BYTES / 1e9:.1f} GB of free disk space for its one-time download."
+            return t("faceLockNoSpace", gb=f"{FACE_LOCK_BYTES / 1e9:.1f}")
         downloads[FACE_LOCK] = download_thread.submit(download_face_lock)
     # Files arrive in the folder itself (partial ones under .cache), so its size is the progress
     done = folder_bytes([FACE_LOCK_PATH]) / 1e9
-    return f"Downloading the face lock files once ({min(done, FACE_LOCK_BYTES / 1e9):.1f} of {FACE_LOCK_BYTES / 1e9:.1f} GB). Try again when it finishes."
+    return t("faceLockDownloading", done=f"{min(done, FACE_LOCK_BYTES / 1e9):.1f}", total=f"{FACE_LOCK_BYTES / 1e9:.1f}")
 
 
 def not_ready_message(model_id: str) -> str:
     label = MODELS[model_id].label
     if model_status(model_id) in ("queued", "downloading"):
-        return f"{label} is still downloading. Try again when the model list shows it is ready."
-    return f"{label} is not downloaded. Download it from the model list first."
+        return t("modelDownloading", label=label)
+    return t("modelNotDownloaded", label=label)
 
 
 def folder_bytes(paths: list[Path]) -> int:
@@ -778,7 +779,7 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
     try:
         rendered = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job, progress)
     except JobCancelled:
-        raise HTTPException(409, "Cancelled")
+        raise HTTPException(409, t("cancelled"))
     finally:
         jobs.pop(job_id, None)
     return GenerateResponse(
@@ -799,7 +800,7 @@ class ModelsReport(BaseModel):
 
 def known_model(model_id: str) -> str:
     if model_id not in MODELS:
-        raise HTTPException(404, f"Unknown model: {model_id}")
+        raise HTTPException(404, t("unknownModel", model=model_id))
     return model_id
 
 
@@ -818,7 +819,7 @@ def download_model(model_id: str) -> ModelState:
     if model_status(model_id) in ("missing", "failed"):
         shortfall = space_needed_bytes(model_id) - free_bytes()
         if shortfall > 0:
-            raise HTTPException(507, f"Not enough disk space: free about {shortfall / GB:.1f} GB more, then try again.")
+            raise HTTPException(507, t("notEnoughSpace", gb=f"{shortfall / GB:.1f}"))
         start_download(model_id)
     return ModelState(status=model_status(model_id), size_bytes=folder_bytes(MODEL_FOLDERS[model_id]))
 
@@ -827,7 +828,7 @@ def download_model(model_id: str) -> ModelState:
 async def remove_model(model_id: str) -> Response:
     known_model(model_id)
     if model_status(model_id) in ("queued", "downloading"):
-        raise HTTPException(409, f"{MODELS[model_id].label} is downloading; remove it when the download has finished.")
+        raise HTTPException(409, t("removeWhileDownloading", label=MODELS[model_id].label))
     await asyncio.get_running_loop().run_in_executor(model_thread, unload_and_remove, model_id)
     return Response(status_code=204)
 
@@ -841,7 +842,7 @@ class JobState(BaseModel):
 def running_job(job_id: str) -> JobProgress:
     progress = jobs.get(job_id)
     if progress is None:
-        raise HTTPException(404, "No such job; it may have finished")
+        raise HTTPException(404, t("noSuchJob"))
     return progress
 
 

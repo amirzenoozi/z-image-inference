@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState } from 'react'
 import { setSensitive } from '../api'
 import { errorMessage } from '../lib/hooks'
@@ -27,7 +28,7 @@ export function SensitiveButton({ item, onChanged, onFailed, className }: Props)
   }
   return (
     <IconButton
-      label={item.sensitive ? 'Not sensitive: show it unblurred in lists' : 'Mark as sensitive: blur it in lists'}
+      label={item.sensitive ? t('history.markNotSensitive') : t('history.markSensitive')}
       aria-pressed={item.sensitive}
       onClick={() => void toggle()}
       disabled={saving}
