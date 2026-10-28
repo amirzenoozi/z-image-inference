@@ -12,3 +12,11 @@ export function chipClass(selected: boolean): string {
     ? 'border-violet-500 bg-violet-50 text-violet-900 ring-2 ring-violet-500/30 dark:bg-violet-950/60 dark:text-violet-100'
     : 'border-zinc-300 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
 }
+
+/** Segmented tabs: readable at rest, on hover and when selected, in light and dark mode. */
+export function tabClass(selected: boolean): string {
+  return selected
+    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-100'
+    : 'text-zinc-500 enabled:hover:bg-white/70 enabled:hover:text-zinc-900 ' +
+        'dark:text-zinc-400 dark:enabled:hover:bg-zinc-700/70 dark:enabled:hover:text-zinc-100'
+}

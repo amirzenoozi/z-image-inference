@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../../lib/promptBuilder/build'
-import { chipClass, fieldClass } from '../../lib/styles'
+import { chipClass, fieldClass, tabClass } from '../../lib/styles'
 
 const labelClass = 'text-[11px] font-medium text-zinc-600 dark:text-zinc-300'
 
@@ -107,7 +107,7 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
             type="button"
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
-            className={`rounded-lg py-1.5 text-xs font-medium transition ${value === option.value ? 'bg-white shadow-sm dark:bg-zinc-950' : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400'}`}
+            className={`rounded-lg py-1.5 text-xs font-medium transition ${tabClass(value === option.value)}`}
           >
             {option.label}
           </button>

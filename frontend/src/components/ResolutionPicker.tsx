@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Category, Limits, ModelInfo, ResolutionInfo } from '../types'
 import { fitsModel, snapSide } from '../lib/settings'
-import { chipClass, fieldClass, secondaryButtonClass } from '../lib/styles'
+import { chipClass, fieldClass, secondaryButtonClass, tabClass } from '../lib/styles'
 
 type Tab = Category | 'custom'
 
@@ -50,11 +50,7 @@ export function ResolutionPicker({ width, height, model, resolutions, categories
             role="tab"
             aria-selected={tab === name}
             onClick={() => setTab(name)}
-            className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium transition ${
-              tab === name
-                ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-            }`}
+            className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium transition ${tabClass(tab === name)}`}
           >
             <AspectBox width={TAB_SHAPES[name][0]} height={TAB_SHAPES[name][1]} size={14} />
             {TAB_LABELS[name]}

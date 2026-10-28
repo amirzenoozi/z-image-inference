@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../types'
-import { chipClass } from '../lib/styles'
+import { chipClass, tabClass } from '../lib/styles'
 import { DownloadBadge, HuggingFaceLink } from './modelParts'
 
 const ALL = 'all'
@@ -32,7 +32,7 @@ export function ModelChooser({ models, categories, selectedId, status, serverDow
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tab === id ? 'bg-white shadow-sm dark:bg-zinc-950' : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400'}`}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tabClass(tab === id)}`}
           >
             {label} <span className="tabular-nums text-zinc-400">{count}</span>
           </button>
