@@ -81,7 +81,7 @@ def generate(client: TestClient, **overrides: object) -> requests.Response:
 
 def test_catalog_lists_models_resolutions_and_limits(client: TestClient) -> None:
     data = client.get("/api/catalog").json()
-    assert [model["id"] for model in data["models"]] == ["z-image-turbo", "wai-illustrious", "moss-image-nsfw", "anime-desire", "realvisxl"]
+    assert [model["id"] for model in data["models"]] == ["z-image-turbo", "wai-illustrious", "moss-image-nsfw", "anime-desire", "realvisxl", "flux-dev", "flux-create-nsfw", "flux-asian-nudity"]
     realvis = {model["id"]: model for model in data["models"]}["realvisxl"]
     assert (realvis["category"], realvis["prompt_style"], realvis["supports_face_lock"]) == ("photo", "prose", True)
     assert len(data["resolutions"]) == 28

@@ -301,3 +301,80 @@ def test_a_running_download_is_never_reported_ready(download: FakeDownload) -> N
     download.release.set()
     finish(WAI)
     assert model_server.model_status(WAI) == "ready"
+
+
+FLUX = "flux-dev"
+FLUX_LORA = "flux-create-nsfw"
+
+
+def mark_model_downloaded(model_id: str) -> None:
+    path = model_server.DOWNLOAD_PATHS[model_id]
+    path.mkdir(parents=True, exist_ok=True)
+    model_server.download_marker(path).touch()
+
+
+def test_a_lora_model_is_ready_only_with_its_base(download: FakeDownload) -> None:
+    mark_model_downloaded(FLUX_LORA)
+    assert model_server.model_status(FLUX_LORA) == "missing"
+
+    mark_model_downloaded(FLUX)
+
+    assert model_server.model_status(FLUX_LORA) == "ready"
+
+
+def test_a_lora_download_counts_the_base_until_it_is_there(download: FakeDownload) -> None:
+    lora, base = model_server.MODELS[FLUX_LORA], model_server.MODELS[FLUX]
+    with_base = int(lora.download_gb * model_server.GB) + int((base.download_gb + base.compressed_gb) * model_server.GB)
+    assert model_server.space_needed_bytes(FLUX_LORA) == with_base
+
+    mark_model_downloaded(FLUX)
+
+    assert model_server.space_needed_bytes(FLUX_LORA) == int(lora.download_gb * model_server.GB)
+
+
+def test_downloading_flux_without_a_token_explains_how_to_get_one(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_server, "get_token", lambda: None)
+    client = TestClient(model_server.app)
+
+    resp = client.post(f"/models/{FLUX_LORA}/download")
+
+    assert resp.status_code == 400
+    assert "HF_TOKEN" in resp.json()["detail"]
+    assert status_of(client, FLUX_LORA) == "missing"
+
+
+def test_with_the_base_downloaded_a_lora_needs_no_token(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_server, "get_token", lambda: None)
+    monkeypatch.setitem(model_server.DOWNLOADERS, FLUX_LORA, lambda: mark_model_downloaded(FLUX_LORA))
+    mark_model_downloaded(FLUX)
+    client = TestClient(model_server.app)
+
+    assert client.post(f"/models/{FLUX_LORA}/download").status_code == 200
+    finish(FLUX_LORA)
+    assert status_of(client, FLUX_LORA) == "ready"
+
+
+def test_removing_the_base_unloads_a_lora_model_and_keeps_its_lora(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    mark_model_downloaded(FLUX)
+    mark_model_downloaded(FLUX_LORA)
+    monkeypatch.setattr(model_server, "loaded_model_id", FLUX_LORA)
+    monkeypatch.setattr(model_server, "loaded_generator", lambda job: None)
+    monkeypatch.setattr(model_server, "release_memory", lambda: None)
+    client = TestClient(model_server.app)
+
+    assert client.delete(f"/models/{FLUX}").status_code == 204
+
+    assert model_server.loaded_model_id is None
+    assert model_server.DOWNLOAD_PATHS[FLUX_LORA].exists()
+    assert status_of(client, FLUX_LORA) == "missing"
+
+
+def test_removing_a_lora_model_keeps_the_base(download: FakeDownload) -> None:
+    mark_model_downloaded(FLUX)
+    mark_model_downloaded(FLUX_LORA)
+    client = TestClient(model_server.app)
+
+    assert client.delete(f"/models/{FLUX_LORA}").status_code == 204
+
+    assert status_of(client, FLUX) == "ready"
+    assert status_of(client, FLUX_LORA) == "missing"

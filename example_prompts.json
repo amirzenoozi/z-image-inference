@@ -28,5 +28,23 @@
     "An adult man in his 50s with a grey beard, wearing a wool coat on a foggy London street at dawn, cinematic photograph, moody blue tones.",
     "A candid street photograph of an adult woman laughing at a café table in Paris, golden hour light, film grain, Kodak Portra colours.",
     "A professional headshot of an adult man in his 40s in a navy suit, clean grey studio backdrop, softbox lighting, sharp focus on the eyes."
+  ],
+  "flux-dev": [
+    "A candid photograph of an adult woman in her late 20s laughing in a sunlit Lisbon café, warm afternoon light, natural skin texture, 50mm lens.",
+    "An adult man in his 40s with a short beard repairing a vintage motorbike in a cluttered garage, a single bare bulb overhead, gritty documentary photograph.",
+    "A wide landscape photograph of a misty Scottish glen at dawn, a lone stag on the ridge, soft golden light breaking through the clouds.",
+    "A studio portrait of an elderly adult woman in her 70s with silver hair and a knitted cardigan, Rembrandt lighting, sharp detail, dark backdrop."
+  ],
+  "flux-create-nsfw": [
+    "nsfw, a photograph of a nude adult woman in her late 20s lying on white linen sheets, soft morning window light, natural skin texture, 85mm lens.",
+    "nsfw, a nude adult woman in her early 30s standing on a quiet beach at sunset, long flowing hair, warm golden backlight, sensual pose.",
+    "nsfw, a topless adult woman in her mid 20s sitting on the edge of a bathtub in a marble bathroom, soft diffused light, glamour photograph.",
+    "nsfw, a nude adult couple in their 30s embracing in a candlelit bedroom, intimate and tasteful, shallow depth of field."
+  ],
+  "flux-asian-nudity": [
+    "4s14n, a photograph of a nude adult East Asian woman in her late 20s lying on a bed, soft window light, natural skin texture, 85mm lens.",
+    "4s14n, a topless adult East Asian woman in her mid 20s in a steamy onsen at dusk, wet hair, warm lantern light.",
+    "4s14n, a nude adult East Asian woman in her early 30s standing by a tall window in a modern apartment, city lights at night, glamour photograph.",
+    "4s14n, an adult East Asian woman in her late 20s in black lace lingerie sitting on a velvet sofa, moody low-key lighting."
   ]
 }

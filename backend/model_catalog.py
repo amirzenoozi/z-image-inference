@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 
@@ -36,6 +36,9 @@ class ModelSpec:
     supports_variations: bool = True
     # Whether it can keep a character's face from a reference image (IP-Adapter, SDXL only)
     supports_face_lock: bool = False
+    # A LoRA runs on another model's files: `repo_id` holds the LoRA, `base_model_id` the model it needs
+    base_model_id: str | None = None
+    lora_file: str = ""
 
 
 Z_IMAGE = ModelSpec(
@@ -143,6 +146,50 @@ REALVIS_XL = ModelSpec(
     supports_face_lock=True,
 )
 
+FLUX_DEV = ModelSpec(
+    id="flux-dev",
+    label="FLUX.1-dev (4-bit)",
+    repo_id="black-forest-labs/FLUX.1-dev",
+    description="Detailed photorealistic images; slow, and needs a Hugging Face token to download.",
+    speed_hint="a few minutes at 1024",
+    category="photo",
+    # The diffusers folders mflux reads; the 4-bit copy is built beside them once and always used
+    download_gb=33.8,
+    compressed_gb=9.6,
+    default_steps=25,
+    max_steps=50,
+    max_side=1536,
+    default_size=(1024, 1024),
+    uses_guidance=True,
+    default_guidance=3.5,
+)
+
+FLUX_CREATE_NSFW = replace(
+    FLUX_DEV,
+    id="flux-create-nsfw",
+    label="FLUX.1-dev · create-nsfw",
+    repo_id="Bigfawg6669/create-nsfw",
+    description="FLUX.1-dev with the create-nsfw LoRA, for nude photos.",
+    download_gb=0.69,
+    compressed_gb=0.69,
+    base_model_id=FLUX_DEV.id,
+    lora_file="lora.safetensors",
+)
+
+FLUX_ASIAN_NUDITY = replace(
+    FLUX_DEV,
+    id="flux-asian-nudity",
+    label="FLUX.1-dev · asian-nudity-2",
+    repo_id="inuptia/asian-nudity-2",
+    description="FLUX.1-dev with the asian-nudity-2 LoRA, for nude photos of East Asian women.",
+    download_gb=0.04,
+    compressed_gb=0.04,
+    trigger_word="4s14n",
+    base_model_id=FLUX_DEV.id,
+    lora_file="asian-nudity-2.safetensors",
+)
+
+
 def compression_enabled() -> bool:
     """MODEL_COMPRESSION=on keeps 4-bit, 8-bit and float16 copies instead of the original files (off by default)."""
     return os.environ.get("MODEL_COMPRESSION", "off").strip().lower() == "on"
@@ -163,11 +210,16 @@ def z_image_bits() -> int | None:
 
 
 def runs_compressed(spec: ModelSpec) -> bool:
+    if spec.id == FLUX_DEV.id:
+        return True
+    if spec.base_model_id is not None:
+        return False
     return z_image_bits() is not None if spec.id == Z_IMAGE.id else compression_enabled()
 
 
 def kept_gb(spec: ModelSpec) -> float:
-    if spec.id == Z_IMAGE.id:
+    # Z-Image and FLUX.1-dev keep their originals beside the quantised copy they run
+    if spec.id in (Z_IMAGE.id, FLUX_DEV.id):
         return spec.download_gb + (spec.compressed_gb if runs_compressed(spec) else 0)
     return spec.compressed_gb if runs_compressed(spec) else spec.download_gb
 
@@ -176,5 +228,7 @@ def speed_hint(spec: ModelSpec) -> str:
     return spec.speed_hint if runs_compressed(spec) or spec.original_speed_hint is None else spec.original_speed_hint
 
 
-MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE, REALVIS_XL)}
+MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (
+    Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE, REALVIS_XL, FLUX_DEV, FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY,
+)}
 DEFAULT_MODEL = Z_IMAGE
