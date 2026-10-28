@@ -4,6 +4,7 @@ import { formatDuration, useElapsedSeconds } from '../lib/hooks'
 import { useJobProgress } from '../lib/jobProgress'
 import type { GenerationState, HistoryItem, JobPhase, JobProgress, ModelInfo } from '../types'
 import { secondaryButtonClass } from '../lib/styles'
+import { ImageFacts } from './ImageFacts'
 import { ErrorNotice, Spinner } from './ui'
 
 interface Props {
@@ -140,20 +141,5 @@ function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: s
         </div>
       </figcaption>
     </figure>
-  )
-}
-
-export function ImageFacts({ item, label }: { item: HistoryItem; label: string }) {
-  const facts = [label, `${item.width}×${item.height}`, `${item.steps} steps`, `seed ${item.seed}`]
-  if (item.guidance !== null) facts.splice(3, 0, `CFG ${item.guidance}`)
-  if (item.duration_seconds !== null) facts.push(formatDuration(Math.round(item.duration_seconds)))
-  return (
-    <ul className="flex flex-wrap gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
-      {facts.map((fact) => (
-        <li key={fact} className="rounded-full bg-zinc-100 px-2.5 py-1 tabular-nums dark:bg-zinc-800">
-          {fact}
-        </li>
-      ))}
-    </ul>
   )
 }
