@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { deleteHistoryOlderThan, fetchHistorySummary } from '../../api'
 import { formatSize } from '../../lib/format'
 import { errorMessage, useLoadable } from '../../lib/hooks'
-import { chipClass, secondaryButtonClass } from '../../lib/styles'
+import { cardClass, secondaryButtonClass } from '../../lib/styles'
 import type { HistorySummary, Loadable } from '../../types'
 import { Modal } from '../../shared/ui/Modal'
 import { ErrorNotice, Spinner } from '../../shared/ui/ui'
@@ -112,7 +112,7 @@ function AgeChoices({ summary, days, onDaysChange }: { summary: HistorySummary; 
             role="radio"
             aria-checked={days === age.days}
             onClick={() => onDaysChange(age.days)}
-            className={`rounded-lg border px-3 py-3 text-sm ${chipClass(days === age.days)}`}
+            className={`rounded-lg border px-3 py-3 text-sm ${cardClass(days === age.days)}`}
           >
             {tn('history.days', age.days)}
             <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">{tn('history.imageCount', age.count)}</span>
