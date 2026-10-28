@@ -159,15 +159,24 @@ By default the app keeps and runs the **original model files** from Hugging Face
 MODEL_COMPRESSION=on
 ```
 
-The server then builds compressed copies from the originals once and deletes the originals; with it off again, models that need their originals show as not downloaded until you download them in the model dialog, which also removes the compressed copies.
+The server then builds compressed copies from the originals once and deletes the originals, except for Z-Image-Turbo, whose original is always kept so compression levels can be compared; with it off again, models that need their originals show as not downloaded until you download them in the model dialog, which also removes the compressed copies.
 
 | Model | Original | Compressed | What compression does |
 |-------|----------|------------|-----------------------|
-| Z-Image-Turbo | 32.9 GB | 5.9 GB | 4-bit copy (MLX). Small loss of fine detail |
+| Z-Image-Turbo | 32.9 GB | 5.9 GB, plus the kept original | 4-bit copy (MLX). Small loss of fine detail |
 | WAI-Illustrious | 13.9 GB | 7.1 GB | float32 files rewritten as float16, the precision it runs in anyway. Identical images |
 | MOSS-Image NSFW | 27.2 GB | 19.9 GB | Text encoder in 8-bit (optimum-quanto). Near-identical images |
 | Anime Desire | 6.9 GB | 6.9 GB | Already float16; nothing to compress |
 | **Total** | **80.9 GB** | **39.8 GB** | |
+
+#### Comparing Z-Image-Turbo compression levels
+
+`tools/z_image_levels.py` builds Z-Image-Turbo at a chosen level (8, 6, 5, 4 or 3 bits) into `models/zimage-q<bits>/`, keeping the original, and compares it with the original using the same prompts and seed: time per image, peak memory, pixel difference and a side-by-side image, saved in `comparisons/z-image/`. Stop the model server first, as the original needs about 20 GB of memory.
+
+```bash
+uv run python tools/z_image_levels.py build --bits 8
+uv run python tools/z_image_levels.py compare --bits 8
+```
 
 ## Performance
 
@@ -213,6 +222,7 @@ z-image-inference/
 ├── grok_client.py       # xAI Grok API client
 ├── frontend/            # React, TypeScript and Tailwind UI (Vite)
 ├── tests/               # Backend tests
+├── tools/               # Z-Image compression level comparison
 ├── pyproject.toml       # Project dependencies
 ├── models/              # Downloaded and quantised models (not in git)
 └── history.db           # Generated images database (not in git)
