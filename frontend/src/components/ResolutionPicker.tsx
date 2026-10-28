@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { Category, Limits, ModelInfo, ResolutionInfo } from '../types'
 import { fitsModel, snapSide } from '../lib/settings'
-import { chipClass, fieldClass, secondaryButtonClass, tabClass } from '../lib/styles'
+import { chipClass, fieldLabelClass, secondaryButtonClass, tabClass } from '../lib/styles'
+import { NumberInput } from './form/NumberInput'
 
 type Tab = Category | 'custom'
 
@@ -196,22 +197,26 @@ function SideInput({ label, value, limits, maxSide, onCommit }: SideInputProps) 
     if (draft !== null) onCommit(Number(draft))
     setDraft(null)
   }
+  const id = `side-${label.toLowerCase()}`
   return (
-    <label className="flex-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-      {label}
-      <input
-        type="number"
-        inputMode="numeric"
+    <div className="flex-1">
+      <label htmlFor={id} className={fieldLabelClass}>
+        {label}
+      </label>
+      <NumberInput
+        id={id}
+        label={label}
         min={limits.min_side}
         max={maxSide}
         step={limits.side_step}
         value={draft ?? value}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={setDraft}
+        onStep={onCommit}
         onBlur={commit}
         onKeyDown={(event) => event.key === 'Enter' && commit()}
-        className={`${fieldClass} mt-1 tabular-nums`}
+        className="mt-1"
       />
-    </label>
+    </div>
   )
 }
 

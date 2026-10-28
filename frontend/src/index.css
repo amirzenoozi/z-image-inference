@@ -10,3 +10,40 @@ body {
   @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
+/* Native parts the field components replace with their own */
+@layer components {
+  .no-native-spinner {
+    appearance: textfield;
+  }
+  .no-native-spinner::-webkit-inner-spin-button,
+  .no-native-spinner::-webkit-outer-spin-button,
+  input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
+  }
+
+  /* The slider's filled part is drawn from --fill, set by the Slider component */
+  .slider {
+    @apply h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent outline-none disabled:cursor-not-allowed disabled:opacity-50;
+    background: linear-gradient(to right, var(--color-violet-500) var(--fill), var(--color-zinc-200) var(--fill));
+  }
+  @media (prefers-color-scheme: dark) {
+    .slider {
+      background: linear-gradient(to right, var(--color-violet-500) var(--fill), var(--color-zinc-700) var(--fill));
+    }
+  }
+  .slider::-webkit-slider-thumb {
+    @apply size-4 appearance-none rounded-full border-2 border-violet-500 bg-white shadow transition;
+  }
+  .slider::-moz-range-thumb {
+    @apply size-4 rounded-full border-2 border-violet-500 bg-white shadow transition;
+  }
+  .slider:hover::-webkit-slider-thumb,
+  .slider:focus-visible::-webkit-slider-thumb {
+    @apply scale-125 ring-4 ring-violet-500/25;
+  }
+  .slider:hover::-moz-range-thumb,
+  .slider:focus-visible::-moz-range-thumb {
+    @apply scale-125 ring-4 ring-violet-500/25;
+  }
+}

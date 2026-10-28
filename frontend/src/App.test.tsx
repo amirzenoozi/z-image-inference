@@ -5,6 +5,7 @@ import * as api from './api'
 import App from './App'
 import { catalog, deferred, historyItem } from './test/fixtures'
 import type { HistoryItem } from './types'
+import { chooseOption } from './test/select'
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
@@ -121,7 +122,7 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
 
   await userEvent.click(await screen.findByRole('button', { name: /Prompt builder/ }))
   const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
-  await userEvent.selectOptions(within(dialog).getByLabelText('Who'), 'man')
+  await chooseOption(within(dialog).getByLabelText('Who'), 'man')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

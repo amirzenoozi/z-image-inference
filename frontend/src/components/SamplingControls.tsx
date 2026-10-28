@@ -1,5 +1,8 @@
 import type { GenerationSettings, Limits, ModelInfo } from '../types'
-import { fieldClass, secondaryButtonClass } from '../lib/styles'
+import { fieldButtonClass, fieldLabelClass } from '../lib/styles'
+import { Checkbox } from './form/Checkbox'
+import { NumberInput } from './form/NumberInput'
+import { Slider } from './form/Slider'
 
 type SamplingPatch = Partial<Pick<GenerationSettings, 'steps' | 'guidance' | 'seed' | 'randomSeed'>>
 
@@ -60,7 +63,7 @@ export function NumberSlider({ label, value, min, max, step, recommended, onChan
   }
   return (
     <div>
-      <div className="flex items-center justify-between text-xs font-medium text-zinc-600 dark:text-zinc-300">
+      <div className={`flex items-center justify-between ${fieldLabelClass}`}>
         <label htmlFor={`${label}-number`}>{label}</label>
         <button
           type="button"
@@ -71,26 +74,8 @@ export function NumberSlider({ label, value, min, max, step, recommended, onChan
         </button>
       </div>
       <div className="mt-1.5 flex items-center gap-3">
-        <input
-          type="range"
-          aria-label={`${label} slider`}
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => update(event.target.value)}
-          className="flex-1 accent-violet-600"
-        />
-        <input
-          id={`${label}-number`}
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => update(event.target.value)}
-          className={`${fieldClass} w-20 tabular-nums`}
-        />
+        <Slider label={`${label} slider`} min={min} max={max} step={step} value={value} onChange={update} className="flex-1" />
+        <NumberInput id={`${label}-number`} label={label} min={min} max={max} step={step} value={value} onChange={update} className="w-32" />
       </div>
     </div>
   )
@@ -107,30 +92,25 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
   const rollDice = () => onChange({ seed: Math.floor(Math.random() * limits.max_seed), randomSeed: false })
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs font-medium text-zinc-600 dark:text-zinc-300">
+      <div className={`flex items-center justify-between ${fieldLabelClass}`}>
         <label htmlFor="seed-input">Seed</label>
         <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={settings.randomSeed}
-            onChange={(event) => onChange({ randomSeed: event.target.checked })}
-            className="size-4 accent-violet-600"
-          />
+          <Checkbox checked={settings.randomSeed} onChange={(event) => onChange({ randomSeed: event.target.checked })} />
           Random each time
         </label>
       </div>
       <div className="flex gap-2">
-        <input
+        <NumberInput
           id="seed-input"
-          type="number"
+          label="Seed"
           min={0}
           max={limits.max_seed}
           value={settings.seed}
           disabled={settings.randomSeed}
-          onChange={(event) => onChange({ seed: clamp(Math.trunc(Number(event.target.value) || 0), 0, limits.max_seed) })}
-          className={`${fieldClass} tabular-nums`}
+          onChange={(text) => onChange({ seed: clamp(Math.trunc(Number(text) || 0), 0, limits.max_seed) })}
+          className="min-w-0 flex-1"
         />
-        <button type="button" onClick={rollDice} aria-label="Pick a random seed" title="Pick a random seed" className={secondaryButtonClass}>
+        <button type="button" onClick={rollDice} aria-label="Pick a random seed" title="Pick a random seed" className={fieldButtonClass}>
           🎲
         </button>
         <button
@@ -138,7 +118,7 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
           onClick={() => lastSeed !== null && onChange({ seed: lastSeed, randomSeed: false })}
           disabled={lastSeed === null}
           title={lastSeed === null ? 'Generate an image first' : `Use seed ${lastSeed}`}
-          className={`${secondaryButtonClass} whitespace-nowrap`}
+          className={`${fieldButtonClass} whitespace-nowrap`}
         >
           Use last
         </button>

@@ -1,3 +1,4 @@
+import { Switch } from '../form/Switch'
 import {
   ACCESSORIES,
   BOTTOMS,
@@ -77,7 +78,7 @@ function ExplicitSwitch({ explicit, onChange }: { explicit: boolean; onChange: (
         <span className="block font-semibold text-zinc-800 dark:text-zinc-100">Explicit content (18+)</span>
         <span className="text-zinc-500 dark:text-zinc-400">Adds explicit poses and actions, nudity levels and intimacy details. Needs “Who” and an age range.</span>
       </span>
-      <input type="checkbox" role="switch" checked={explicit} onChange={(event) => onChange(event.target.checked)} className="size-4 shrink-0 accent-violet-600" />
+      <Switch checked={explicit} onChange={(event) => onChange(event.target.checked)} />
     </label>
   )
 }
