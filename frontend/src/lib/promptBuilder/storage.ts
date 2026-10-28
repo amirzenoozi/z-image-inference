@@ -32,11 +32,18 @@ function fromOldState(stored: unknown): unknown {
   return { ...rest, mode: explicit === true ? 'explicit' : 'general' }
 }
 
+/** Choices saved before a field existed get that field's default, so adding a field never throws saved choices away. */
+function withNewFields(stored: unknown): unknown {
+  if (typeof stored !== 'object' || stored === null) return stored
+  return { ...emptyBuilderState(), ...stored }
+}
+
 export function loadBuilderState(): BuilderState {
   try {
     const current = localStorage.getItem(STORAGE_KEY)
     const stored: unknown = current === null ? fromOldState(JSON.parse(localStorage.getItem(OLD_STORAGE_KEY) ?? 'null')) : JSON.parse(current)
-    return isBuilderState(stored) ? stored : emptyBuilderState()
+    const filled = withNewFields(stored)
+    return isBuilderState(filled) ? filled : emptyBuilderState()
   } catch {
     return emptyBuilderState()
   }

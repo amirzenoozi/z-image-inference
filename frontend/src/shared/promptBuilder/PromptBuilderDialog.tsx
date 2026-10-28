@@ -6,9 +6,10 @@ import { secondaryButtonClass } from '../../lib/styles'
 import { withTraits } from '../../lib/promptBuilder/character'
 import type { BuilderModeData, Character, ModelInfo } from '../../types'
 import { CharacterSummary, SaveAsCharacter } from './CharacterParts'
+import { ClashWarnings } from './ClashWarnings'
 import { Modal } from '../ui/Modal'
 import { ModePicker } from './ModePicker'
-import { AppearanceStep, BodyStep, CameraStep, FinishStep, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
+import { AppearanceStep, BodyStep, CameraStep, FinishStep, ImageBodyChoices, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
 import { t, type MessageKey } from '../../i18n'
 import { Dices } from 'lucide-react'
 
@@ -125,7 +126,14 @@ interface StepContentProps extends StepProps {
 
 function StepContent({ step, character, onCharacterSaved, ...props }: StepContentProps) {
   if (step.id !== 'subject') return <step.Component {...props} />
-  if (character) return <CharacterSummary character={character} />
+  if (character) {
+    return (
+      <>
+        <CharacterSummary character={character} />
+        <ImageBodyChoices state={withTraits(props.state, character.traits)} mode={props.mode} set={props.set} />
+      </>
+    )
+  }
   return (
     <>
       <step.Component {...props} />
@@ -216,6 +224,7 @@ function PreviewBody({ result, maxPromptLength }: { result: BuildResult; maxProm
   const tooLong = result.prompt.length > maxPromptLength
   return (
     <div className="space-y-2">
+      <ClashWarnings clashes={result.clashes} />
       <p aria-label={t('builder.builtPrompt')} className="text-xs leading-relaxed text-zinc-800 dark:text-zinc-100">{result.prompt}</p>
       <p className={`text-right text-[11px] tabular-nums ${tooLong ? 'font-semibold text-red-600' : 'text-zinc-400'}`}>
         {result.prompt.length}/{maxPromptLength}

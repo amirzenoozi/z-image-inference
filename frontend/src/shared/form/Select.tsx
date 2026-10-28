@@ -2,6 +2,10 @@ import { Field, Label, Listbox, ListboxButton, ListboxOption, ListboxOptions } f
 import { controlHeight, fieldFrameClass, fieldLabelClass } from '../../lib/styles'
 import { Check, ChevronDown } from 'lucide-react'
 
+const buttonClass = `${fieldFrameClass} ${controlHeight} flex w-full items-center justify-between gap-2 px-3 text-left data-open:border-violet-500 data-open:ring-2 data-open:ring-violet-500/30`
+const optionsClass =
+  'z-[60] max-h-72 w-(--button-width) min-w-44 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-lg outline-none dark:border-zinc-700 dark:bg-zinc-900'
+
 export interface SelectOption {
   value: string
   label: string
@@ -29,13 +33,47 @@ export function Select({ label, value, groups, onChange, hideLabel = false, clas
     <Field className={className}>
       <Label className={hideLabel ? 'sr-only' : `${fieldLabelClass} mb-1 block`}>{label}</Label>
       <Listbox value={value} onChange={onChange}>
-        <ListboxButton className={`${fieldFrameClass} ${controlHeight} flex w-full items-center justify-between gap-2 px-3 text-left data-open:border-violet-500 data-open:ring-2 data-open:ring-violet-500/30`}>
+        <ListboxButton className={buttonClass}>
           <span className="truncate">{selected?.label ?? value}</span>
           <ChevronDown className="shrink-0 text-zinc-400" />
         </ListboxButton>
         <ListboxOptions
           anchor={{ to: 'bottom start', gap: 4 }}
-          className="z-[60] max-h-72 w-(--button-width) min-w-44 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-lg outline-none dark:border-zinc-700 dark:bg-zinc-900"
+          className={optionsClass}
+        >
+          {groups.map((group, index) => (
+            <OptionGroup key={group.label ?? `group-${index}`} group={group} />
+          ))}
+        </ListboxOptions>
+      </Listbox>
+    </Field>
+  )
+}
+
+interface MultiSelectProps {
+  label: string
+  values: string[]
+  groups: SelectGroup[]
+  /** Shown in the button while nothing is picked. */
+  placeholder: string
+  onChange: (values: string[]) => void
+}
+
+/** A select that keeps its list open for ticking several options; the button lists them in the order picked. */
+export function MultiSelect({ label, values, groups, placeholder, onChange }: MultiSelectProps) {
+  const labels = new Map(groups.flatMap((group) => group.options).map((option) => [option.value, option.label]))
+  const shown = values.map((value) => labels.get(value) ?? value).join(', ')
+  return (
+    <Field>
+      <Label className={`${fieldLabelClass} mb-1 block`}>{label}</Label>
+      <Listbox value={values} onChange={onChange} multiple>
+        <ListboxButton className={buttonClass}>
+          <span className="truncate">{shown || placeholder}</span>
+          <ChevronDown className="shrink-0 text-zinc-400" />
+        </ListboxButton>
+        <ListboxOptions
+          anchor={{ to: 'bottom start', gap: 4 }}
+          className={optionsClass}
         >
           {groups.map((group, index) => (
             <OptionGroup key={group.label ?? `group-${index}`} group={group} />

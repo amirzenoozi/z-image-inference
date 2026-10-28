@@ -1,4 +1,4 @@
-import type { Who } from './extraData'
+import { EXPLICIT_DETAILS, type Who } from './extraData'
 import type { Facts } from './facts'
 import type { BuilderMode, WeightGroup } from './modes'
 
@@ -32,21 +32,44 @@ function subjectTags(f: Facts): string[] {
   return f.who ? [...SUBJECT_TAGS[f.who], f.age, f.ethnicity, f.subjectExtra] : [f.subjectExtra]
 }
 
+const PENIS_TAGS: Readonly<Record<string, string>> = { 'average penis': 'penis', 'large penis': 'large penis', 'huge penis': 'huge penis', 'giant penis': 'gigantic penis' }
+const NIPPLE_TAGS: Readonly<Record<string, string>> = { 'puffy nipples': 'puffy nipples', 'large areolae': 'large areolae', 'small pink nipples': 'small nipples, pink nipples' }
+const PUBIC_TAGS: Readonly<Record<string, string>> = { shaved: 'no pubic hair', trimmed: 'trimmed pubic hair', natural: 'pubic hair', hairy: 'pubic hair, hairy' }
+
+const BUILD_TAGS: Readonly<Record<string, string>> = {
+  'huge bodybuilder': 'bodybuilder, huge muscles', 'very muscular': 'very muscular', 'defined abs': 'abs', 'six-pack': 'abs, six-pack',
+  'eight-pack': 'abs, eight-pack', smooth: 'smooth skin', hairy: 'hairy, body hair', 'natural body hair': 'body hair', 'full beard': 'beard',
+  moustache: 'mustache', 'light chest hair': 'chest hair', 'hairy chest': 'hairy chest, chest hair', 'broad pecs': 'pectorals, broad shoulders',
+  'visible bulge': 'bulge', 'large bulge': 'huge bulge',
+}
+
+/** Beard, build and the man's chest and bulge, as tags; most options are their own tag. */
+function buildTags(f: Facts): string[] {
+  const values = [...f.male.facialHair, f.physique.muscles, f.physique.abs, f.physique.bodyHair, f.male.chest, f.male.bulge].filter(Boolean)
+  return values.flatMap((value) => (BUILD_TAGS[value] ?? value).split(', '))
+}
+
+function anatomyTags(f: Facts): string[] {
+  const { penis, nipples, pubicHair } = f.anatomy
+  const tags = [PENIS_TAGS[penis], NIPPLE_TAGS[nipples], PUBIC_TAGS[pubicHair], ...f.explicitDetails.map((detail) => EXPLICIT_DETAILS[detail]?.tags)]
+  return tags.filter((tag): tag is string => Boolean(tag)).flatMap((tag) => tag.split(', '))
+}
+
 function adultTags(f: Facts, weights: Weights): string[] {
   const pose = weighed(weights, f.pose.explicit ? 'explicitPose' : 'pose')(f.pose.label)
-  return [...nudityTags(f).map(weighed(weights, 'nudity')), weighed(weights, 'action')(f.action.label), pose, ...f.intimacy]
+  return [...nudityTags(f).map(weighed(weights, 'nudity')), weighed(weights, 'action')(f.action.label), pose, ...anatomyTags(f), ...f.intimacy]
 }
 
 function personTags(f: Facts, weights: Weights): string[] {
-  const face = [f.eyes ? `${f.eyes} eyes` : '', f.expression, f.makeup, f.skinTone ? `${f.skinTone} skin` : '', ...f.skinDetails]
+  const face = [f.eyes ? `${f.eyes} eyes` : '', f.expression, ...f.makeup, f.skinTone ? `${f.skinTone} skin` : '', ...f.skinDetails]
   const hair = [f.hair.length ? `${f.hair.length} hair` : '', f.hair.color ? `${f.hair.color} hair` : '', f.hair.style]
-  const body = [f.body.type, f.body.height, f.body.bust, f.body.hips, ...f.body.marks]
+  const body = [f.body.type, f.body.height, f.body.bust, f.body.hips, ...buildTags(f), ...f.body.marks]
   return [...face.map(weighed(weights, 'face')), ...hair.map(weighed(weights, 'hair')), ...body.map(weighed(weights, 'body'))]
 }
 
 function settingTags(f: Facts, weights: Weights): string[] {
   const scene = [f.place ? f.sceneType || f.place : '', f.time, f.weather].map(weighed(weights, 'scene'))
-  return [...scene, weighed(weights, 'light')(f.lighting.label), f.lightingCustom, f.shot, f.angle, f.mood]
+  return [...scene, ...f.lighting.map((setup) => weighed(weights, 'light')(setup.label)), f.lightingCustom, f.shot, f.angle, f.mood]
 }
 
 /**

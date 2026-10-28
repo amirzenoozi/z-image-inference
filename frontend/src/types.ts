@@ -128,10 +128,17 @@ export interface CharacterTraits {
   hairColor: string
   hairstyle: string
   hairLength: string
+  facialHair: string
+  /** Further picks after `makeup` and `facialHair`, which take several. */
+  makeupMore: string[]
+  facialHairMore: string[]
   bodyType: string
   height: string
   bust: string
   hips: string
+  muscles: string
+  abs: string
+  chest: string
   tattoos: string[]
   piercings: string[]
   bodyExtra: string

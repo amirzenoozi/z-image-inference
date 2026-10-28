@@ -98,6 +98,12 @@ export function optionLabel(value: string): string {
   return current.options[value] ?? englishCatalogue.options[value] ?? value
 }
 
+/** An option's label as a menu or checkbox shows it, starting with a capital; in a sentence use `optionLabel`. */
+export function optionTitle(value: string): string {
+  const label = optionLabel(value)
+  return label.charAt(0).toLocaleUpperCase(currentLanguage) + label.slice(1)
+}
+
 /**
  * Text keyed by data rather than code, such as a purpose's label by its id ("builder.modeLabel.portrait"):
  * the translation when there is one, else `fallback`, the text the data itself gives.

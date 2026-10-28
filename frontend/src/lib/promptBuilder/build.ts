@@ -3,7 +3,7 @@
 // a flowing paragraph (prose.ts) or a weighted tag list (tags.ts), depending on the model, and shaped by the mode.
 import { t } from '../../i18n'
 import type { ModelInfo } from '../../types'
-import { CHOICE_OPTIONS, TEXT_CHOICES, type ChoiceField } from './choices'
+import { CHOICE_OPTIONS, TEXT_CHOICES, type TextChoice } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
 import { BOTTOMS, CLOTHING_COLORS, LIGHTING_EXPANSIONS, LINGERIE_BOTTOMS, LINGERIE_TOPS, SHOES, TOPS } from './data'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
@@ -12,7 +12,9 @@ import { negativePrompt } from './negatives'
 import { proseFrom } from './prose'
 import { pick, pickSome } from './random'
 import { resolveFacts } from './resolveFacts'
-import { choicesFor } from './rules'
+import { choicesFor, explicitDetailOptions } from './rules'
+import { clashesIn, fitsChoice, type Clash } from './conflicts'
+import { choicesInPrompt, pickFitting, settleChoices } from './settle'
 import { tagsFrom } from './tags'
 
 export { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
@@ -49,6 +51,8 @@ export interface BuilderState {
   eyeColor: string
   expression: string
   makeup: string
+  /** Further picks of a choice that takes several (multiChoice.ts), after the first. */
+  makeupMore: string[]
   skinTone: string
   skinDetails: string[]
   appearanceExtra: string
@@ -59,6 +63,18 @@ export interface BuilderState {
   height: string
   bust: string
   hips: string
+  /** Explicit purpose only: a man's size, a woman's nipples, and the pubic hair, when they would be seen. */
+  penis: string
+  /** Men: the beard, chest and bulge. Anyone: the muscles, abs and (18+) body hair. */
+  facialHair: string
+  facialHairMore: string[]
+  muscles: string
+  abs: string
+  chest: string
+  bodyHair: string
+  bulge: string
+  nipples: string
+  pubicHair: string
   tattoos: string[]
   piercings: string[]
   bodyExtra: string
@@ -67,6 +83,8 @@ export interface BuilderState {
   mode: string
   nudity: Nudity
   intimacy: string[]
+  /** Explicit purpose only: fluids, arousal and marks (EXPLICIT_DETAILS). */
+  explicitDetails: string[]
   pose: string
   explicitAction: string
   action: string
@@ -75,6 +93,7 @@ export interface BuilderState {
   timeOfDay: string
   weather: string
   lightingSetup: string
+  lightingMore: string[]
   lightingCustom: string
   photoStyle: string
   shotType: string
@@ -93,7 +112,7 @@ export interface BuilderState {
 export type BuildResult =
   | { status: 'incomplete'; reason: string }
   | { status: 'blocked'; reason: string }
-  | { status: 'ready'; prompt: string; negativePrompt: string; explicit: boolean }
+  | { status: 'ready'; prompt: string; negativePrompt: string; explicit: boolean; clashes: Clash[] }
 
 export function emptyOutfit(): OutfitState {
   return {
@@ -107,12 +126,13 @@ export function emptyOutfit(): OutfitState {
 export function emptyBuilderState(): BuilderState {
   return {
     who: NOT_SET, age: NOT_SET, ethnicity: NOT_SET, subject: '',
-    eyeColor: NOT_SET, expression: NOT_SET, makeup: NOT_SET, skinTone: NOT_SET, skinDetails: [], appearanceExtra: '',
+    eyeColor: NOT_SET, expression: NOT_SET, makeup: NOT_SET, makeupMore: [], skinTone: NOT_SET, skinDetails: [], appearanceExtra: '',
     hairColor: NOT_SET, hairstyle: NOT_SET, hairLength: NOT_SET,
-    bodyType: NOT_SET, height: NOT_SET, bust: NOT_SET, hips: NOT_SET, tattoos: [], piercings: [], bodyExtra: '',
-    outfit: emptyOutfit(), mode: 'general', nudity: 'clothed', intimacy: [],
+    bodyType: NOT_SET, height: NOT_SET, bust: NOT_SET, hips: NOT_SET, penis: NOT_SET, nipples: NOT_SET, pubicHair: NOT_SET,
+    facialHair: NOT_SET, facialHairMore: [], muscles: NOT_SET, abs: NOT_SET, chest: NOT_SET, bodyHair: NOT_SET, bulge: NOT_SET, tattoos: [], piercings: [], bodyExtra: '',
+    outfit: emptyOutfit(), mode: 'general', nudity: 'clothed', intimacy: [], explicitDetails: [],
     pose: NOT_SET, explicitAction: NOT_SET, action: '',
-    sceneType: NOT_SET, environment: '', timeOfDay: NOT_SET, weather: NOT_SET, lightingSetup: NOT_SET, lightingCustom: '',
+    sceneType: NOT_SET, environment: '', timeOfDay: NOT_SET, weather: NOT_SET, lightingSetup: NOT_SET, lightingMore: [], lightingCustom: '',
     photoStyle: NOT_SET, shotType: NOT_SET, cameraAngle: NOT_SET, lens: NOT_SET, depthOfField: NOT_SET,
     mood: '', colorGrading: NOT_SET, realism: [], extraDetails: '', negativePrompt: '', rollSeed: 1,
   }
@@ -165,18 +185,33 @@ export function hasRandomChoice(state: BuilderState): boolean {
   return [...TEXT_CHOICES.map((key) => state[key]), ...outfitValues].includes(RANDOM)
 }
 
-const SURPRISE_FIELDS = [
-  'eyeColor', 'expression', 'makeup', 'skinTone', 'hairColor', 'hairstyle', 'hairLength', 'bodyType', 'pose', 'sceneType',
-  'timeOfDay', 'lightingSetup', 'photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField', 'colorGrading',
-] as const satisfies readonly ChoiceField[]
+// In the order they are picked, so each fits the ones before it; the expression waits for the act
+const SURPRISE_BEFORE_ACTS = [
+  'hairLength', 'hairstyle', 'hairColor', 'eyeColor', 'makeup', 'skinTone', 'facialHair', 'bodyType', 'muscles', 'abs', 'sceneType', 'timeOfDay', 'lightingSetup',
+  'photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField', 'colorGrading', 'pose',
+] as const satisfies readonly TextChoice[]
 
-function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): Partial<BuilderState> {
+function pickInOrder(state: BuilderState, fields: readonly TextChoice[], mode: BuilderMode, seed: number): BuilderState {
+  return fields.reduce((next, field) => ({ ...next, [field]: pickFitting(field, next, mode, seed) }), state)
+}
+
+/** Up to `count` chips of a list, each fitting the pose, the act and the chips picked before it. */
+function pickChips(state: BuilderState, field: 'intimacy' | 'explicitDetails', options: readonly string[], count: number, seed: number): string[] {
+  return pickSome(options, options.length, seed, field).reduce<string[]>((chips, chip) => {
+    const fits = chips.length < count && fitsChoice({ ...state, [field]: chips }, { [field]: [...chips, chip] }, chip)
+    return fits ? [...chips, chip] : chips
+  }, [])
+}
+
+function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
   const p = (options: readonly string[], field: string) => pick(options, seed, field)
   const nudity = p(choicesFor('nudity', state, mode), 'nudity') as Nudity
+  const withAct = pickInOrder({ ...state, nudity }, ['explicitAction', 'penis', 'nipples', 'pubicHair', 'chest', 'bodyHair', 'bulge'], mode, seed)
+  const intimacy = pickChips(withAct, 'intimacy', INTIMACY_CUES, 2, seed)
   return {
-    nudity,
-    explicitAction: p(choicesFor('explicitAction', { ...state, nudity }, mode), 'explicitAction'),
-    intimacy: pickSome(INTIMACY_CUES, 2, seed, 'intimacy'),
+    ...withAct,
+    intimacy,
+    explicitDetails: pickChips({ ...withAct, intimacy }, 'explicitDetails', explicitDetailOptions(withAct, mode), 2, seed),
     bust: p(choicesFor('bust', state, mode), 'bust'),
     outfit: {
       ...state.outfit,
@@ -186,26 +221,27 @@ function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): Pa
   }
 }
 
-function surpriseClothed(state: BuilderState, seed: number): Partial<BuilderState> {
+function surpriseClothed(state: BuilderState, seed: number): BuilderState {
   const p = (options: readonly string[], field: string) => pick(options, seed, field)
   return {
+    ...state,
     outfit: { ...state.outfit, top: p(TOPS, 'top'), topColor: p(CLOTHING_COLORS, 'topColor'), bottom: p(BOTTOMS, 'bottom'), shoes: p(SHOES, 'shoes') },
   }
 }
 
-/** Fills the main choices with concrete random values the user can then adjust; free text is kept. */
+/** Fills the main choices with concrete random values the user can then adjust, none contradicting another; free text is kept. */
 export function surprise(state: BuilderState, seed: number, mode: BuilderMode): BuilderState {
   const needsPerson = showsStep(mode, 'subject')
   const who = state.who === NOT_SET && needsPerson ? pick(['woman', 'man'], seed, 'who') : state.who
-  const withWho = { ...state, who }
-  const picked = Object.fromEntries(SURPRISE_FIELDS.map((field) => [field, pick(choicesFor(field, withWho, mode), seed, field)]))
-  return {
-    ...withWho,
-    ...picked,
+  const start: BuilderState = {
+    ...state,
+    who,
     age: state.age === NOT_SET && needsPerson ? pick(CHOICE_OPTIONS.age, seed, 'age') : state.age,
     realism: pickSome(REALISM_DETAILS, 2, seed, 'realism'),
-    ...(isAdultMode(mode) ? surpriseAdult(withWho, mode, seed) : surpriseClothed(withWho, seed)),
   }
+  const looked = pickInOrder(start, SURPRISE_BEFORE_ACTS, mode, seed)
+  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed) : surpriseClothed(looked, seed)
+  return pickInOrder(acted, ['expression'], mode, seed)
 }
 
 // ── Modes ────────────────────────────────────────────────────────────────────
@@ -246,5 +282,7 @@ export function buildPrompt(state: BuilderState, mode: BuilderMode, style: Promp
   if (problem) return problem
   const facts = resolveFacts(state, mode)
   const prompt = style === 'tags' ? tagsFrom(facts, mode) : proseFrom(facts, mode)
-  return { status: 'ready', prompt, negativePrompt: negativePrompt(state, mode, facts), explicit: isAdultMode(mode) }
+  // Random picks never clash, so what is left comes from the user's own choices, shown as a warning
+  const clashes = clashesIn(choicesInPrompt(settleChoices(state, mode), mode))
+  return { status: 'ready', prompt, negativePrompt: negativePrompt(state, mode, facts), explicit: isAdultMode(mode), clashes }
 }

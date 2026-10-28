@@ -1,10 +1,12 @@
 import { ACCESSORIES, BOTTOMS, CLOTHING_COLORS, LINGERIE_BOTTOMS, LINGERIE_TOPS, OUTERWEAR, POSES, SHOES, TOPS } from '../../lib/promptBuilder/data'
 import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
+import { explicitDetailOptions } from '../../lib/promptBuilder/rules'
+import { picksOf, withPicks } from '../../lib/promptBuilder/multiChoice'
 import type { ChoiceField } from '../../lib/promptBuilder/choices'
 import { isAdultMode, isSafeMode, type BuilderMode } from '../../lib/promptBuilder/modes'
 import { t, type MessageKey } from '../../i18n'
-import { ChipGroup, ChoiceSelect, FieldGrid, Segmented, StepIntro, TextField } from './fields'
+import { CheckboxGroup, ChoiceSelect, FieldGrid, MultiChoiceSelect, Segmented, StepIntro, TextField } from './fields'
 
 export interface StepProps {
   state: BuilderState
@@ -39,12 +41,13 @@ export function AppearanceStep({ state, mode, set }: StepProps) {
     <FieldGrid>
       <ChoiceSelect label={t('builder.fieldEyeColour')} value={state.eyeColor} groups={options('eyeColor')} onChange={(eyeColor) => set({ eyeColor })} />
       <ChoiceSelect label={t('builder.fieldExpression')} value={state.expression} groups={options('expression')} onChange={(expression) => set({ expression })} />
-      <ChoiceSelect label={t('builder.fieldMakeup')} value={state.makeup} groups={options('makeup')} onChange={(makeup) => set({ makeup })} />
+      <MultiChoiceSelect label={t('builder.fieldMakeup')} values={picksOf(state, 'makeup')} groups={options('makeup')} onChange={(picks) => set(withPicks(state, 'makeup', picks))} />
       <ChoiceSelect label={t('builder.fieldSkinTone')} value={state.skinTone} groups={options('skinTone')} onChange={(skinTone) => set({ skinTone })} />
-      <ChipGroup label={t('builder.fieldSkinDetails')} options={SKIN_DETAILS} value={state.skinDetails} onChange={(skinDetails) => set({ skinDetails })} />
+      <CheckboxGroup label={t('builder.fieldSkinDetails')} options={SKIN_DETAILS} value={state.skinDetails} onChange={(skinDetails) => set({ skinDetails })} />
       <ChoiceSelect label={t('builder.fieldHairLength')} value={state.hairLength} groups={options('hairLength')} onChange={(hairLength) => set({ hairLength })} />
       <ChoiceSelect label={t('builder.fieldHairColour')} value={state.hairColor} groups={options('hairColor')} onChange={(hairColor) => set({ hairColor })} />
       <ChoiceSelect label={t('builder.fieldHairstyle')} value={state.hairstyle} groups={options('hairstyle')} onChange={(hairstyle) => set({ hairstyle })} />
+      <FacialHair state={state} mode={mode} set={set} />
       <TextField label={t('builder.fieldFaceExtra')} value={state.appearanceExtra} placeholder={t('builder.placeholderFace')} onChange={(appearanceExtra) => set({ appearanceExtra })} wide />
     </FieldGrid>
   )
@@ -59,8 +62,10 @@ export function BodyStep({ state, mode, set }: StepProps) {
       <ChoiceSelect label={t('builder.fieldHeight')} value={state.height} groups={options('height')} onChange={(height) => set({ height })} />
       {choicesFor('bust', state, mode).length > 0 && <ChoiceSelect label={t('builder.fieldBust')} value={state.bust} groups={options('bust')} onChange={(bust) => set({ bust })} />}
       <ChoiceSelect label={t('builder.fieldHips')} value={state.hips} groups={options('hips')} onChange={(hips) => set({ hips })} />
-      <ChipGroup label={t('builder.fieldTattoos')} options={TATTOOS} value={state.tattoos} onChange={(tattoos) => set({ tattoos })} />
-      <ChipGroup label={t('builder.fieldPiercings')} options={piercings} value={state.piercings} onChange={(value) => set({ piercings: value })} />
+      <ShownChoices fields={BUILD_FIELDS} state={state} mode={mode} set={set} />
+      <ShownChoices fields={ANATOMY_FIELDS} state={state} mode={mode} set={set} note={t('builder.anatomyNote')} />
+      <CheckboxGroup label={t('builder.fieldTattoos')} options={TATTOOS} value={state.tattoos} onChange={(tattoos) => set({ tattoos })} />
+      <CheckboxGroup label={t('builder.fieldPiercings')} options={piercings} value={state.piercings} onChange={(value) => set({ piercings: value })} />
       <TextField label={t('builder.fieldBodyExtra')} value={state.bodyExtra} placeholder={t('builder.placeholderBody')} onChange={(bodyExtra) => set({ bodyExtra })} wide />
     </FieldGrid>
   )
@@ -136,6 +141,69 @@ export function PoseStep({ state, mode, set }: StepProps) {
   )
 }
 
+type ShownField = 'muscles' | 'abs' | 'bodyHair' | 'chest' | 'bulge' | 'penis' | 'nipples' | 'pubicHair'
+
+/** A man's beard and moustache, several at once; shown only with a man in the scene. */
+function FacialHair({ state, mode, set }: Pick<StepProps, 'state' | 'mode' | 'set'>) {
+  const groups = optionsOf(state, mode)('facialHair')
+  if (groups.every((group) => group.options.length === 0)) return null
+  return <MultiChoiceSelect label={t('builder.fieldFacialHair')} values={picksOf(state, 'facialHair')} groups={groups} onChange={(picks) => set(withPicks(state, 'facialHair', picks))} />
+}
+
+const BUILD_FIELDS: readonly { field: ShownField; label: MessageKey }[] = [
+  { field: 'muscles', label: 'builder.fieldMuscles' },
+  { field: 'abs', label: 'builder.fieldAbs' },
+  { field: 'bodyHair', label: 'builder.fieldBodyHair' },
+]
+
+const ANATOMY_FIELDS: readonly { field: ShownField; label: MessageKey }[] = [
+  { field: 'chest', label: 'builder.fieldChest' },
+  { field: 'bulge', label: 'builder.fieldBulge' },
+  { field: 'penis', label: 'builder.fieldPenis' },
+  { field: 'nipples', label: 'builder.fieldNipples' },
+  { field: 'pubicHair', label: 'builder.fieldPubicHair' },
+]
+
+// Not part of a character's look, so set for each image even when a character is chosen
+const IMAGE_BODY_FIELDS: readonly { field: ShownField; label: MessageKey }[] = [
+  { field: 'bodyHair', label: 'builder.fieldBodyHair' },
+  { field: 'bulge', label: 'builder.fieldBulge' },
+  { field: 'penis', label: 'builder.fieldPenis' },
+  { field: 'nipples', label: 'builder.fieldNipples' },
+  { field: 'pubicHair', label: 'builder.fieldPubicHair' },
+]
+
+/** The body choices made for each image, shown under a chosen character, whose look leaves them out; `state` has the character's look applied. */
+export function ImageBodyChoices({ state, mode, set }: Pick<StepProps, 'state' | 'mode' | 'set'>) {
+  if (!IMAGE_BODY_FIELDS.some(({ field }) => choicesFor(field, state, mode).length > 0)) return null
+  return (
+    <section aria-label={t('builder.forThisImage')} className="mt-4 space-y-2">
+      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t('builder.forThisImage')}</h3>
+      <FieldGrid>
+        <ShownChoices fields={IMAGE_BODY_FIELDS} state={state} mode={mode} set={set} note={t('builder.anatomyNote')} />
+      </FieldGrid>
+    </section>
+  )
+}
+
+interface ShownChoicesProps extends Pick<StepProps, 'state' | 'mode' | 'set'> {
+  fields: readonly { field: ShownField; label: MessageKey }[]
+  note?: string
+}
+
+/** Choices shown only when they fit the subject, purpose and nudity, with an optional note under them. */
+function ShownChoices({ fields, state, mode, set, note }: ShownChoicesProps) {
+  const shown = fields.filter(({ field }) => choicesFor(field, state, mode).length > 0)
+  return (
+    <>
+      {shown.map(({ field, label }) => (
+        <ChoiceSelect key={field} label={t(label)} value={state[field]} groups={optionsOf(state, mode)(field)} onChange={(value) => set({ [field]: value })} />
+      ))}
+      {note && shown.length > 0 && <p className="text-[11px] text-zinc-500 sm:col-span-2 dark:text-zinc-400">{note}</p>}
+    </>
+  )
+}
+
 export function IntimacyStep({ state, mode, set }: StepProps) {
   const allowed = choicesFor('nudity', state, mode)
   const levels = NUDITY_LEVELS.filter((level) => allowed.includes(level.value)).map((level) => ({ value: level.value, label: t(level.label) }))
@@ -144,7 +212,8 @@ export function IntimacyStep({ state, mode, set }: StepProps) {
       <StepIntro>{t('builder.introIntimacy')}</StepIntro>
       <FieldGrid>
         <Segmented label={t('builder.fieldNudity')} value={state.nudity} options={levels} onChange={(nudity) => set({ nudity })} />
-        <ChipGroup label={t('builder.fieldIntimacy')} options={INTIMACY_CUES} value={state.intimacy} onChange={(intimacy) => set({ intimacy })} />
+        <CheckboxGroup label={t('builder.fieldIntimacy')} options={INTIMACY_CUES} value={state.intimacy} onChange={(intimacy) => set({ intimacy })} />
+        <ExplicitDetails state={state} mode={mode} set={set} />
       </FieldGrid>
     </>
   )
@@ -157,7 +226,7 @@ export function SceneStep({ state, mode, set }: StepProps) {
       <ChoiceSelect label={t('builder.fieldScene')} value={state.sceneType} groups={options('sceneType')} onChange={(sceneType) => set({ sceneType })} />
       <ChoiceSelect label={t('builder.fieldTimeOfDay')} value={state.timeOfDay} groups={options('timeOfDay')} onChange={(timeOfDay) => set({ timeOfDay })} />
       <ChoiceSelect label={t('builder.fieldWeather')} value={state.weather} groups={options('weather')} onChange={(weather) => set({ weather })} />
-      <ChoiceSelect label={t('builder.fieldLighting')} value={state.lightingSetup} groups={options('lightingSetup')} allowInherit onChange={(lightingSetup) => set({ lightingSetup })} />
+      <MultiChoiceSelect label={t('builder.fieldLighting')} values={picksOf(state, 'lightingSetup')} groups={options('lightingSetup')} allowInherit onChange={(picks) => set(withPicks(state, 'lightingSetup', picks))} />
       <TextField label={t('builder.fieldEnvironment')} value={state.environment} placeholder={t('builder.placeholderEnvironment')} onChange={(environment) => set({ environment })} wide />
       <TextField label={t('builder.fieldExtraLighting')} value={state.lightingCustom} placeholder={t('builder.placeholderLighting')} onChange={(lightingCustom) => set({ lightingCustom })} wide />
     </FieldGrid>
@@ -183,9 +252,16 @@ export function FinishStep({ state, mode, set }: StepProps) {
     <FieldGrid>
       <TextField label={t('builder.fieldMood')} value={state.mood} placeholder={t('builder.placeholderMood')} onChange={(mood) => set({ mood })} />
       <ChoiceSelect label={t('builder.fieldColourGrading')} value={state.colorGrading} groups={options('colorGrading')} onChange={(colorGrading) => set({ colorGrading })} />
-      <ChipGroup label={t('builder.fieldRealism')} options={REALISM_DETAILS} value={state.realism} onChange={(realism) => set({ realism })} />
+      <CheckboxGroup label={t('builder.fieldRealism')} options={REALISM_DETAILS} value={state.realism} onChange={(realism) => set({ realism })} />
       <TextField label={t('builder.fieldExtraDetails')} value={state.extraDetails} placeholder={t('builder.placeholderExtraDetails')} onChange={(extraDetails) => set({ extraDetails })} wide />
       <TextField label={t('builder.fieldExtraNegative')} value={state.negativePrompt} placeholder={t('builder.placeholderNegative')} onChange={(negativePrompt) => set({ negativePrompt })} wide />
     </FieldGrid>
   )
+}
+
+/** Fluids, arousal and marks, in the Explicit purpose; which ones show depends on who is in the scene and the nudity. */
+function ExplicitDetails({ state, mode, set }: Pick<StepProps, 'state' | 'mode' | 'set'>) {
+  const options = explicitDetailOptions(state, mode)
+  if (options.length === 0) return null
+  return <CheckboxGroup label={t('builder.fieldExplicitDetails')} options={options} value={state.explicitDetails.filter((detail) => options.includes(detail))} onChange={(explicitDetails) => set({ explicitDetails })} />
 }

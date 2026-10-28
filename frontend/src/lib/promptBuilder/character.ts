@@ -3,22 +3,27 @@ import type { Character, CharacterTraits } from '../../types'
 import { buildPrompt, emptyBuilderState, minorWordIn, type BuilderState, type PromptStyle } from './build'
 import { CHOICE_OPTIONS } from './choices'
 import { NOT_SET } from './constants'
-import { EXPLICIT_PIERCINGS, PIERCINGS, SKIN_DETAILS, TATTOOS } from './extraData'
+import { EXPLICIT_PIERCINGS, FACIAL_HAIR, MAKEUP, PIERCINGS, SKIN_DETAILS, TATTOOS } from './extraData'
 import { FALLBACK_MODE, type BuilderMode } from './modes'
 import { pick, pickSome } from './random'
 import { choicesFor, includesWoman } from './rules'
+import { pickFitting } from './settle'
 
 const CHOICE_TRAITS = [
-  'who', 'age', 'ethnicity', 'eyeColor', 'makeup', 'skinTone', 'hairColor', 'hairstyle', 'hairLength', 'bodyType', 'height', 'bust', 'hips',
+  'who', 'age', 'ethnicity', 'eyeColor', 'makeup', 'skinTone', 'hairColor', 'hairstyle', 'hairLength', 'facialHair', 'bodyType', 'height', 'bust', 'hips',
+  'muscles', 'abs', 'chest',
 ] as const satisfies readonly (keyof CharacterTraits & keyof typeof CHOICE_OPTIONS)[]
 const FREE_TEXT_TRAITS = ['subject', 'appearanceExtra', 'bodyExtra'] as const
-const LIST_TRAITS = { skinDetails: SKIN_DETAILS, tattoos: TATTOOS, piercings: [...PIERCINGS, ...EXPLICIT_PIERCINGS] } as const
+const LIST_TRAITS = {
+  skinDetails: SKIN_DETAILS, tattoos: TATTOOS, piercings: [...PIERCINGS, ...EXPLICIT_PIERCINGS], makeupMore: MAKEUP, facialHairMore: FACIAL_HAIR,
+} as const
 
 /** The identity choices of the builder: who the person is, their face, hair and body, but not what they wear or do. */
 export function traitsOf(state: BuilderState): CharacterTraits {
   const choices = Object.fromEntries(CHOICE_TRAITS.map((key) => [key, state[key]]))
   const texts = Object.fromEntries(FREE_TEXT_TRAITS.map((key) => [key, state[key].trim()]))
-  return { ...choices, ...texts, skinDetails: state.skinDetails, tattoos: state.tattoos, piercings: state.piercings } as CharacterTraits
+  const { skinDetails, tattoos, piercings, makeupMore, facialHairMore } = state
+  return { ...choices, ...texts, skinDetails, tattoos, piercings, makeupMore, facialHairMore } as CharacterTraits
 }
 
 const known = (options: readonly string[]) => (value: string) => options.includes(value)
@@ -70,7 +75,8 @@ export function characterLook(character: Character, style: PromptStyle): string 
   return result.status === 'ready' ? result.prompt : null
 }
 
-const SURPRISE_TRAITS = CHOICE_TRAITS.filter((trait) => trait !== 'who')
+// Hair length before hairstyle, so the style fits it
+const SURPRISE_TRAITS = ['hairLength', ...CHOICE_TRAITS.filter((trait) => trait !== 'who' && trait !== 'hairLength')] as const
 // One in three looks gets a detail of each kind, so most surprises stay plain
 const DETAIL_ODDS = ['0', '0', '1']
 
@@ -85,16 +91,18 @@ function sometimes(options: readonly string[], seed: number, field: string): str
 export function surpriseLook(state: BuilderState, seed: number): BuilderState {
   const who = state.who === NOT_SET ? pick(['woman', 'man'], seed, 'who') : state.who
   const withWho = { ...state, who }
-  const choices = Object.fromEntries(
-    SURPRISE_TRAITS.map((trait) => {
-      const options = choicesFor(trait, withWho, FALLBACK_MODE)
-      return [trait, options.length ? pick(options, seed, trait) : NOT_SET]
-    }),
-  )
+  // Settled in order, so the hairstyle fits the hair length picked before it
+  const settled = SURPRISE_TRAITS.reduce<BuilderState>((next, trait) => {
+    const value = choicesFor(trait, next, FALLBACK_MODE).length ? pickFitting(trait, next, FALLBACK_MODE, seed) : NOT_SET
+    return { ...next, [trait]: value }
+  }, withWho)
+  const choices = Object.fromEntries(SURPRISE_TRAITS.map((trait) => [trait, settled[trait]]))
   return {
     ...withWho,
     ...choices,
     makeup: includesWoman(who) ? choices.makeup : NOT_SET,
+    makeupMore: [],
+    facialHairMore: [],
     skinDetails: sometimes(SKIN_DETAILS, seed, 'skinDetails'),
     tattoos: sometimes(TATTOOS, seed, 'tattoos'),
     piercings: sometimes(PIERCINGS, seed, 'piercings'),
