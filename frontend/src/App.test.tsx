@@ -42,7 +42,8 @@ it('generates exactly once and shows the image only after it arrives', async () 
 it('keeps settings when switching model and offers that model’s defaults', async () => {
   render(<App />)
 
-  await userEvent.click(await screen.findByRole('radio', { name: /WAI-Illustrious/ }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
+  await userEvent.click(screen.getByRole('radio', { name: /WAI-Illustrious/ }))
   expect(screen.getByText(/Your settings were kept/)).toBeInTheDocument()
   expect(screen.getByLabelText('Steps')).toHaveValue(9)
 
