@@ -1,6 +1,6 @@
 # Using the app
 
-The app has two views, **Create** and **History**, switched in the header. The address shows which one you are on (`/` or `/history`), so a reload or a bookmark opens the same view.
+The app has three views, **Create**, **History** and **Characters**, switched in the header. The address shows which one you are on (`/`, `/history` or `/characters`), so a reload or a bookmark opens the same view.
 
 ## Create
 
@@ -149,3 +149,16 @@ Click the image to see it at 100% (drag to look around), and click again to fit 
 - **×** on the start image goes back to a normal render. **Reuse settings** on a variation brings its start image back.
 
 Z-Image-Turbo, WAI-Illustrious and Anime Desire can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
+
+## Characters
+
+A **character** is a named person you make many images of, such as "Ava". It keeps the prompt builder's **Subject**, **Face & hair** and **Body** choices (who, age, ethnicity, eyes, skin, hair, makeup, body, tattoos and piercings), but not the outfit, pose or scene, so the same person can go anywhere.
+
+- **Make one** with **New character** on the Characters page, or with **Save as character…** under the prompt builder's Subject step.
+- **Use it** by picking it in **Character** at the top of Create's prompt (or **Use** on its card). Every image you then generate is linked to it. In the prompt builder, its look replaces the Subject, Face & hair and Body steps, which become one **Character** step. A prompt you type yourself is left as you wrote it.
+- **Seed**: a character can have its own seed, used for every render of it, which keeps the face closer between images of similar prompts. Leave it empty for a new seed each time.
+- **Find its images** with **Show images** on its card, or the **Character** filter in History. The image viewer shows the character an image belongs to; **Set as cover** puts that image on the character's card (otherwise its newest image is used).
+- **Edit** changes its name, seed and look; images already made keep the look they had. **Delete** removes the character but keeps its images in History.
+- Characters are adults only: each needs "Who" and an adult age range, and a name or detail that suggests a minor is refused.
+
+The description only keeps a face similar, not identical; models draw a new face for each image that fits the words.

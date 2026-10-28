@@ -29,10 +29,10 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/catalog` | models, resolutions, limits and example prompts |
-| `POST /api/generate` | render an image (or a variation, with `source_image_id` and `change`) and add it to History |
+| `POST /api/generate` | render an image (or a variation, with `source_image_id` and `change`) and add it to History, linked to `character_id` if given |
 | `GET /api/jobs/{id}/progress`, `POST /api/jobs/{id}/cancel` | follow or cancel a running render |
 | `GET /api/models/status`, `POST /api/models/{id}/download`, `DELETE /api/models/{id}` | model downloads and removal |
-| `GET /api/history` | a page of History, with `model`, `q`, `ratio` and `favourites` filters |
+| `GET /api/history` | a page of History, with `model`, `q`, `ratio`, `character` and `favourites` filters |
 | `GET /api/history/export` | the filtered History as a zip |
 | `GET /api/history/summary`, `DELETE /api/history/older-than/{days}`, `DELETE /api/history` | storage use, Clean up and Delete all |
 | `GET /api/history/{id}/image` | an image (`?thumb=true` for a small WebP) |
@@ -40,13 +40,15 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | `PUT /api/history/{id}/favourite` | star or unstar |
 | `POST /api/history/{id}/edits` | save a rotated, flipped or cropped copy |
 | `DELETE /api/history/{id}` | delete one image |
+| `GET /api/characters`, `POST /api/characters` | list or create characters |
+| `PATCH /api/characters/{id}`, `DELETE /api/characters/{id}` | change a character (only the fields sent), or delete it and keep its images |
 | `POST /api/chat` | Chat with Grok, streamed |
 
 The model server's own endpoints (`/generate`, `/jobs/{id}`, `/models/...`, `/health`) are for the web app only.
 
 ## Storage
 
-- **History** is a SQLite database, `history.db`, with each image stored as PNG data alongside its settings, its render time, its colour palette, its favourite star and where it came from (an edit or a variation). New columns are added to older databases automatically.
+- **History** is a SQLite database, `history.db`, with each image stored as PNG data alongside its settings, its render time, its colour palette, its favourite star where it came from (an edit or a variation) and the character it was made for. Characters are in the same database, in their own table. New columns are added to older databases automatically.
 - **Models** are in `models/`, one folder each. Compressed copies are built into a `.building` folder and renamed when complete.
 - **Settings** you change in Create are kept in the browser (local storage).
 

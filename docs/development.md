@@ -32,6 +32,7 @@ z-image-inference/
 ├── generation_request.py   # Request checks shared by both servers
 ├── resolutions.py          # Resolution presets and their categories
 ├── history_store.py        # History database
+├── character_store.py      # Characters, kept in the History database
 ├── history_export.py       # History zip export
 ├── image_edits.py          # Rotate, flip and crop, applied with Pillow
 ├── palette.py              # Colour palette of an image
