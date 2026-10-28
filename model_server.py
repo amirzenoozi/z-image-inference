@@ -15,7 +15,7 @@ from typing import Literal
 import mlx.core as mx
 import torch
 import uvicorn
-from diffusers import AutoencoderKLFlux2, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
+from diffusers import AutoencoderKLFlux2, DPMSolverMultistepScheduler, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
 from fastapi import FastAPI, HTTPException
 from huggingface_hub import snapshot_download
 from mflux.models.z_image.variants.z_image import ZImage
@@ -27,7 +27,7 @@ from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
-from model_catalog import DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
+from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
 
@@ -40,6 +40,12 @@ WAI_ILLUSTRIOUS_PATH = MODELS_DIR / "waiNSFWIllustrious_v120"
 WAI_ILLUSTRIOUS_FILES = ["*.json", "*.txt", "*.fp16.safetensors"]
 # Stored as float32 upstream but run in float16; the VAE stays float32 because it decodes in float32
 WAI_FLOAT16_COMPONENTS = ["unet", "text_encoder", "text_encoder_2"]
+ANIME_DESIRE_PATH = MODELS_DIR / "anime-desire-illustrious"
+ANIME_DESIRE_FILE = "anime-2d-ill_v3.fp16.safetensors"
+# A single-file checkpoint needs the standard SDXL configs to load; kept in models/ like everything else
+SDXL_CONFIG_REPO = "stabilityai/stable-diffusion-xl-base-1.0"
+SDXL_CONFIG_PATH = MODELS_DIR / "sdxl-base-config"
+SDXL_CONFIG_FILES = ["model_index.json", "*/*.json", "*/*.txt"]
 MOSS_IMAGE_PATH = MODELS_DIR / "moss-image-nsfw"
 MOSS_IMAGE_MODEL_PATH = MOSS_IMAGE_PATH / "merged-model"
 # 8-bit copy of the 16 GB text encoder: 9.4 GB, 7 GB less memory and faster, with near-identical images
@@ -94,18 +100,18 @@ def download_marker(path: Path) -> Path:
     return path / ".download-complete"
 
 
-def ensure_downloaded(spec: ModelSpec, path: Path, allow_patterns: list[str] | None = None) -> None:
+def ensure_downloaded(repo_id: str, path: Path, allow_patterns: list[str] | None = None) -> None:
     marker = download_marker(path)
     if marker.exists():
         return
-    print(f"Downloading {spec.repo_id} to {path}...")
-    snapshot_download(spec.repo_id, local_dir=path, cache_dir=HF_CACHE_DIR, allow_patterns=allow_patterns)
+    print(f"Downloading {repo_id} to {path}...")
+    snapshot_download(repo_id, local_dir=path, cache_dir=HF_CACHE_DIR, allow_patterns=allow_patterns)
     marker.touch()
 
 
 def build_z_image_q4() -> None:
     """Quantise Z-Image to 4-bit once, then delete the 31 GB original, which nothing else uses."""
-    ensure_downloaded(Z_IMAGE, Z_IMAGE_PATH)
+    ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH)
     print(f"Creating {QUANTIZE_BITS}-bit model at {Z_IMAGE_Q4_PATH}...")
     # Built beside the final folder and renamed when complete, so an interrupted build is never used
     building = Z_IMAGE_Q4_PATH.with_name(f"{Z_IMAGE_Q4_PATH.name}.building")
@@ -150,7 +156,7 @@ def store_as_float16(path: Path, components: list[str]) -> None:
 
 
 def load_wai_illustrious() -> ImageGenerator:
-    ensure_downloaded(WAI_ILLUSTRIOUS, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES)
+    ensure_downloaded(WAI_ILLUSTRIOUS.repo_id, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES)
     store_as_float16(WAI_ILLUSTRIOUS_PATH, WAI_FLOAT16_COMPONENTS)
     pipe = StableDiffusionXLPipeline.from_pretrained(
         WAI_ILLUSTRIOUS_PATH,
@@ -159,6 +165,30 @@ def load_wai_illustrious() -> ImageGenerator:
         use_safetensors=True,
     )
     pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
+    return sdxl_generator(pipe)
+
+
+def download_anime_desire() -> None:
+    ensure_downloaded(SDXL_CONFIG_REPO, SDXL_CONFIG_PATH, SDXL_CONFIG_FILES)
+    ensure_downloaded(ANIME_DESIRE.repo_id, ANIME_DESIRE_PATH, [ANIME_DESIRE_FILE])
+
+
+def load_anime_desire() -> ImageGenerator:
+    download_anime_desire()
+    pipe = StableDiffusionXLPipeline.from_single_file(
+        ANIME_DESIRE_PATH / ANIME_DESIRE_FILE,
+        config=str(SDXL_CONFIG_PATH),
+        local_files_only=True,
+        torch_dtype=torch.float16,
+    )
+    # The model card's DPM++ 3M SDE Karras sampler
+    pipe.scheduler = DPMSolverMultistepScheduler.from_config(
+        pipe.scheduler.config, algorithm_type="sde-dpmsolver++", solver_order=3, use_karras_sigmas=True,
+    )
+    return sdxl_generator(pipe)
+
+
+def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
     pipe.to(torch.device("mps"))
     pipe.vae.to(dtype=torch.float32)
 
@@ -250,7 +280,7 @@ class MossImageGenerator:
     """
 
     def __init__(self) -> None:
-        ensure_downloaded(MOSS_IMAGE, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES)
+        ensure_downloaded(MOSS_IMAGE.repo_id, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES)
         self.pipe: MOSSImagePipeline | None = None
         self.prompts: tuple[str, str] | None = None
         self.embeddings: MossEmbeddings | None = None
@@ -283,17 +313,20 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     Z_IMAGE.id: load_z_image,
     WAI_ILLUSTRIOUS.id: load_wai_illustrious,
     MOSS_IMAGE.id: MossImageGenerator,
+    ANIME_DESIRE.id: load_anime_desire,
 }
 
 DOWNLOADERS: dict[str, Callable[[], None]] = {
-    Z_IMAGE.id: lambda: ensure_downloaded(Z_IMAGE, Z_IMAGE_PATH),
-    WAI_ILLUSTRIOUS.id: lambda: ensure_downloaded(WAI_ILLUSTRIOUS, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES),
-    MOSS_IMAGE.id: lambda: ensure_downloaded(MOSS_IMAGE, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES),
+    Z_IMAGE.id: lambda: ensure_downloaded(Z_IMAGE.repo_id, Z_IMAGE_PATH),
+    WAI_ILLUSTRIOUS.id: lambda: ensure_downloaded(WAI_ILLUSTRIOUS.repo_id, WAI_ILLUSTRIOUS_PATH, WAI_ILLUSTRIOUS_FILES),
+    MOSS_IMAGE.id: lambda: ensure_downloaded(MOSS_IMAGE.repo_id, MOSS_IMAGE_PATH, MOSS_IMAGE_FILES),
+    ANIME_DESIRE.id: download_anime_desire,
 }
 DOWNLOAD_PATHS: dict[str, Path] = {
     Z_IMAGE.id: Z_IMAGE_PATH,
     WAI_ILLUSTRIOUS.id: WAI_ILLUSTRIOUS_PATH,
     MOSS_IMAGE.id: MOSS_IMAGE_PATH,
+    ANIME_DESIRE.id: ANIME_DESIRE_PATH,
 }
 
 ModelStatus = Literal["ready", "downloading", "missing", "failed"]
