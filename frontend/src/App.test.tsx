@@ -165,3 +165,14 @@ it('opens Create for any other address', async () => {
   expect(await screen.findByRole('navigation', { name: 'Views' })).toBeInTheDocument()
   expect(currentView()).toHaveTextContent('Create')
 })
+
+it('starts History clean when coming back to it from Create', async () => {
+  window.history.replaceState(null, '', '/history?page=2&favourites=1')
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Create' }))
+  expect(window.location.pathname + window.location.search).toBe('/')
+
+  await userEvent.click(screen.getByRole('button', { name: 'History' }))
+
+  expect(window.location.pathname + window.location.search).toBe('/history')
+})
