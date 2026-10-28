@@ -83,7 +83,7 @@ Open http://127.0.0.1:7860 in your browser.
 ### Create
 
 1. The sidebar shows the selected **model**; press **Change** to choose another from the model dialog, where models are grouped into **Photorealistic** and **Anime & illustration** tabs
-2. Write a **prompt**, or choose one from **Examples**; models that use one also show a **negative prompt**
+2. Write a **prompt**, or click one of the **example** cards below the prompt box to fill it; models that use one also show a **negative prompt**. Each model's examples live in `example_prompts.json`: edit it and reload the page to change them
 3. Choose a **resolution**: pick a category tab, then a size; sizes the model cannot make are greyed out with the reason
 4. Adjust **steps**, **guidance** and **seed** if you like; **Reset to model defaults** undoes your changes
 5. Press **Generate** (or ⌘/Ctrl + Enter). A timer shows how long it has been running

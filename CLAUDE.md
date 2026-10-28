@@ -44,6 +44,7 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 
 - `generation_request.py`: request model and checks, shared by the web app and the model server.
 - `resolutions.py`: resolution presets with category (square, portrait, landscape, widescreen) and size tier.
+- `example_prompts.json`: each model's example prompts, keyed by model id and read on every catalog request. Keep every person in them clearly adult.
 - `history_store.py`: SQLite history; images are stored as PNG data in the database.
 - `frontend/src/`: React + TypeScript + Tailwind v4. `lib/` holds logic (settings, API client, prompt builder), `components/` the UI.
 - `frontend/src/lib/promptBuilder/`: the prompt builder, ported from ComfyUI Photoreal Prompt Builder (see `THIRD_PARTY_NOTICES.md`). `data.ts` is generated from upstream; `parity.json` holds upstream outputs that the tests compare against.
