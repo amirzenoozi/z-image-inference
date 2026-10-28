@@ -6,7 +6,7 @@ import { CHOICE_OPTIONS, TEXT_CHOICES, type ChoiceField } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
 import { BOTTOMS, CLOTHING_COLORS, LIGHTING_EXPANSIONS, LINGERIE_BOTTOMS, LINGERIE_TOPS, SHOES, TOPS } from './data'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
-import { isAdultMode, showsStep, type BuilderMode } from './modes'
+import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { negativePrompt } from './negatives'
 import { proseFrom } from './prose'
 import { pick, pickSome } from './random'
@@ -122,10 +122,10 @@ export function emptyBuilderState(): BuilderState {
 const MINOR_TERMS =
   /\b(?:child(?:ren)?|kids?|minors?|under-?age(?:d)?|teen(?:s|age|aged|ager|agers)?|pre-?teens?|tweens?|school ?(?:girl|boy)s?|lol(?:i|ita)|shota|toddlers?|infants?|bab(?:y|ies)(?![\s-]*(?:blue|pink|doll|oil|powder))|girls?|boys?|daughters?|sons?|nieces?|nephews?|juveniles?|adolescents?|(?:[1-9]|1[0-7])\s*(?:yo|y\/o|y\.o\.|-?\s*years?[\s-]*old|-year-old))\b/i
 
-/** Adult content: an adult mode, or lingerie in the outfit, whatever the mode. */
+/** Adult content: an adult mode, or lingerie in the outfit of any mode that is not safe (a safe mode leaves lingerie out). */
 export function usesAdultContent(state: BuilderState, mode: BuilderMode): boolean {
   const wearsLingerie = [state.outfit.lingerieTop, state.outfit.lingerieBottom].some((item) => item !== NOT_SET && item !== REMOVE)
-  return isAdultMode(mode) || wearsLingerie
+  return isAdultMode(mode) || (wearsLingerie && !isSafeMode(mode))
 }
 
 /** The first word that suggests a minor, when the prompt would include adult content. */
@@ -239,6 +239,6 @@ export function buildPrompt(state: BuilderState, mode: BuilderMode, style: Promp
   const problem = missingStart(state, mode) ?? adultContentProblem(state, mode)
   if (problem) return problem
   const facts = resolveFacts(state, mode)
-  const prompt = style === 'tags' ? tagsFrom(facts, mode.weights) : proseFrom(facts, mode.emphasis)
+  const prompt = style === 'tags' ? tagsFrom(facts, mode) : proseFrom(facts, mode)
   return { status: 'ready', prompt, negativePrompt: negativePrompt(state, mode, facts), explicit: isAdultMode(mode) }
 }

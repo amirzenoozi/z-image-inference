@@ -105,13 +105,22 @@ class ModelCategoryInfo(BaseModel):
     label: str
 
 
+class ModeFocus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    opening: str = ""
+    cues: str = ""
+    tags: list[str] = []
+
+
 class BuilderMode(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]*$")]
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
     description: str = ""
-    adult_only: bool = False
+    content: Literal["safe", "everyday", "suggestive", "explicit"] = "everyday"
+    focus: ModeFocus = ModeFocus()
     steps: list[str] = Field(min_length=1)
     defaults: dict[str, str] = {}
     options: dict[str, list[str]] = {}

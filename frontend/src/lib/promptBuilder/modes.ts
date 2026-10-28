@@ -15,12 +15,29 @@ export type WeightGroup = (typeof WEIGHT_GROUPS)[number]
 const MIN_WEIGHT = 0.5
 const MAX_WEIGHT = 2
 
+/**
+ * How far a mode's content may go. The rules of each level live in code (rules.ts, negatives.ts), not in the file:
+ * safe never shows nudity or lingerie, suggestive goes up to topless without explicit poses or acts.
+ */
+export const CONTENT_LEVELS = ['safe', 'everyday', 'suggestive', 'explicit'] as const
+export type ContentLevel = (typeof CONTENT_LEVELS)[number]
+
+/** What makes a prompt read as its purpose: the opening phrase, a sentence of style cues and a few style tags. */
+export interface ModeFocus {
+  opening: string
+  cues: string
+  tags: string[]
+}
+
+const NO_FOCUS: ModeFocus = { opening: '', cues: '', tags: [] }
+
 /** A purpose for the builder, read from prompt_modes.json: which steps it shows, where it starts and what it stresses. */
 export interface BuilderMode {
   id: string
   label: string
   description: string
-  adult_only: boolean
+  content: ContentLevel
+  focus: ModeFocus
   steps: StepId[]
   defaults: Partial<Record<ChoiceField, string>>
   options: Partial<Record<ChoiceField, string[]>>
@@ -33,7 +50,8 @@ export const FALLBACK_MODE: BuilderMode = {
   id: 'general',
   label: 'General',
   description: 'Any photo of a person, with every everyday option.',
-  adult_only: false,
+  content: 'everyday',
+  focus: NO_FOCUS,
   steps: ['subject', 'appearance', 'body', 'outfit', 'pose', 'scene', 'camera', 'finish'],
   defaults: {},
   options: {},
@@ -46,7 +64,17 @@ export const FALLBACK_MODE: BuilderMode = {
  * editing prompt_modes.json can add adult options but never switch those checks off.
  */
 export function isAdultMode(mode: BuilderMode): boolean {
-  return mode.adult_only || mode.steps.includes('intimacy')
+  return mode.content === 'suggestive' || mode.content === 'explicit' || mode.steps.includes('intimacy')
+}
+
+/** Explicit poses and acts: in an adult mode that is not held to suggestive. */
+export function allowsExplicitActs(mode: BuilderMode): boolean {
+  return isAdultMode(mode) && mode.content !== 'suggestive'
+}
+
+/** A safe mode leaves out lingerie and keeps nudity out through its negative prompt. */
+export function isSafeMode(mode: BuilderMode): boolean {
+  return mode.content === 'safe' && !isAdultMode(mode)
 }
 
 export function showsStep(mode: BuilderMode, step: StepId): boolean {
@@ -61,9 +89,13 @@ function knownOption(field: ChoiceField, value: string): boolean {
   return (CHOICE_OPTIONS[field] as readonly string[]).includes(value) || (field === 'lightingSetup' && value === INHERIT_SCENE)
 }
 
+const isContentLevel = (value: string): value is ContentLevel => (CONTENT_LEVELS as readonly string[]).includes(value)
+
 function stepProblems(data: BuilderModeData): string[] {
-  const unknown = data.steps.filter((step) => !isStep(step))
-  return [...(data.steps.length ? [] : ['it shows no steps']), ...unknown.map((step) => `unknown step "${step}"`)]
+  const unknown = data.steps.filter((step) => !isStep(step)).map((step) => `unknown step "${step}"`)
+  const content = isContentLevel(data.content) ? [] : [`unknown content "${data.content}"`]
+  const safeIntimacy = data.content === 'safe' && data.steps.includes('intimacy') ? ['a safe mode cannot show the intimacy step'] : []
+  return [...(data.steps.length ? [] : ['it shows no steps']), ...unknown, ...content, ...safeIntimacy]
 }
 
 function optionProblems(data: BuilderModeData): string[] {
@@ -95,7 +127,7 @@ export function parseModes(raw: readonly BuilderModeData[]): { modes: BuilderMod
   for (const data of raw) {
     const found = [...stepProblems(data), ...optionProblems(data), ...writingProblems(data)]
     if (found.length) problems.push(`Mode "${data.id}" was left out: ${found.join('; ')}.`)
-    else modes.push(data as BuilderMode)
+    else modes.push({ ...data, focus: { ...NO_FOCUS, ...data.focus } } as BuilderMode)
   }
   return modes.length ? { modes, problems } : { modes: [FALLBACK_MODE], problems }
 }

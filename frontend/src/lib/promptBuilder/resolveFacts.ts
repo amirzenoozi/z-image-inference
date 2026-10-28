@@ -17,7 +17,7 @@ import {
 } from './data'
 import { WHO_OPTIONS, type Nudity, type Who } from './extraData'
 import { pronounFor, withArticle, type Facts, type Labelled, type Pronoun } from './facts'
-import { isAdultMode, showsStep, type BuilderMode } from './modes'
+import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { resolve } from './random'
 import { choicesFor, includesMan, includesWoman } from './rules'
 
@@ -39,13 +39,14 @@ function knownWho(value: string): Who | null {
   return (WHO_OPTIONS as readonly string[]).includes(value) ? (value as Who) : null
 }
 
-function poseFacts(state: BuilderState, choose: Choose): Labelled & { explicit: boolean } {
-  const label = choose('pose', state.pose)
+function poseFacts(state: BuilderState, mode: BuilderMode, choose: Choose): Labelled & { explicit: boolean } {
+  const chosen = choose('pose', state.pose)
+  const label = choicesFor('pose', state, mode).includes(chosen) ? chosen : NOT_SET
   const text = EXPLICIT_POSES[label]
   return { label, text: text ?? label, explicit: text !== undefined }
 }
 
-/** A choice kept from an earlier "Who", nudity level or mode that no longer fits is left out rather than contradicting it. */
+/** A pose or act kept from an earlier "Who", nudity level or mode that no longer fits is left out rather than contradicting it. */
 function actionFacts(state: BuilderState, mode: BuilderMode, choose: Choose): Labelled {
   const label = choose('explicitAction', state.explicitAction)
   return choicesFor('explicitAction', state, mode).includes(label) ? { label, text: EXPLICIT_ACTIONS[label] } : NOTHING
@@ -77,10 +78,12 @@ const WORN_WITH: Record<Nudity, ReadonlySet<OutfitSlot>> = {
   nude: new Set(['shoes']),
 }
 
-function outfitFacts(outfit: OutfitState, nudity: Nudity | null, seed: number): { clothing: string[]; removed: string[] } {
+const LINGERIE_SLOTS: ReadonlySet<OutfitSlot> = new Set(['lingerieTop', 'lingerieBottom'])
+
+function outfitFacts(outfit: OutfitState, nudity: Nudity | null, seed: number, safe: boolean): { clothing: string[]; removed: string[] } {
   const clothing: string[] = []
   const removed: string[] = []
-  for (const slot of OUTFIT_SLOTS) {
+  for (const slot of OUTFIT_SLOTS.filter((candidate) => !safe || !LINGERIE_SLOTS.has(candidate.item))) {
     const item = resolve(outfit[slot.item], slot.options, seed, slot.item)
     const color = resolve(outfit[slot.color], CLOTHING_COLORS, seed, slot.color)
     const worn = nudity === null || WORN_WITH[nudity].has(slot.item)
@@ -199,13 +202,13 @@ export function resolveFacts(state: BuilderState, mode: BuilderMode): Facts {
     pronoun: pronounFor(subject.who),
     hasWoman: subject.who !== null && includesWoman(subject.who),
     hasMan: subject.who !== null && includesMan(subject.who),
-    pose: poseFacts(settled, choose),
+    pose: poseFacts(settled, mode, choose),
     action: actionFacts(settled, mode, choose),
     freeAction: state.action.trim(),
     nudity,
     intimacy: nudity === null ? [] : state.intimacy,
     ...personFacts(settled, choose),
-    ...outfitFacts(state.outfit, nudity, seed),
+    ...outfitFacts(state.outfit, nudity, seed, isSafeMode(mode)),
     outfitDetails: state.outfit.details.trim(),
     ...setting,
     // A scene without people names its place in the opening sentence, so the scene sentence leaves it out

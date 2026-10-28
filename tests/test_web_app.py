@@ -124,8 +124,8 @@ def test_a_broken_examples_file_is_refused(tmp_path: Path, monkeypatch: pytest.M
 def test_catalog_serves_the_prompt_builder_modes(client: TestClient) -> None:
     modes = client.get("/api/catalog").json()["builder_modes"]
 
-    assert [mode["id"] for mode in modes] == ["general", "portrait", "fashion", "glamour", "explicit", "scene"]
-    assert all(mode["adult_only"] == ("intimacy" in mode["steps"]) for mode in modes)
+    assert [mode["id"] for mode in modes] == ["general", "portrait", "fashion", "influencer", "glamour", "explicit", "scene"]
+    assert all((mode["content"] in {"suggestive", "explicit"}) == ("intimacy" in mode["steps"]) for mode in modes)
 
 
 GENERAL_MODE = {"id": "general", "label": "General", "steps": ["subject"]}
@@ -133,7 +133,7 @@ GENERAL_MODE = {"id": "general", "label": "General", "steps": ["subject"]}
 
 @pytest.mark.parametrize(
     "content",
-    [[], [GENERAL_MODE, GENERAL_MODE], [{**GENERAL_MODE, "steps": []}], [{**GENERAL_MODE, "colour": "red"}], [{**GENERAL_MODE, "weights": {"face": 5}}]],
+    [[], [GENERAL_MODE, GENERAL_MODE], [{**GENERAL_MODE, "steps": []}], [{**GENERAL_MODE, "colour": "red"}], [{**GENERAL_MODE, "weights": {"face": 5}}], [{**GENERAL_MODE, "content": "spicy"}]],
 )
 def test_a_broken_modes_file_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: list[dict[str, object]]) -> None:
     modes = tmp_path / "prompt_modes.json"
