@@ -431,6 +431,7 @@ function ViewerDetails({ item, label, favouriteError, deleteError, armed, action
           Created {new Date(`${item.created_at}Z`).toLocaleString()}
           {item.edited_from !== null && ` · Edited from image #${item.edited_from}`}
           {item.varied_from !== null && item.change !== null && ` · Variation of image #${item.varied_from}, ${Math.round(item.change * 100)}% change`}
+          {item.face_from !== null && ` · Face from image #${item.face_from}`}
         </p>
         {favouriteError && <ErrorNotice message={favouriteError} />}
         {deleteError && <ErrorNotice message={deleteError} />}
