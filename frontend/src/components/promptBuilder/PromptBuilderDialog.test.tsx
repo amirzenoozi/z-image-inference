@@ -187,3 +187,9 @@ it('saves the subject and look as a character, once it is an adult with a name',
   expect(api.createCharacter).toHaveBeenCalledExactlyOnceWith({ name: 'Ava', traits: expect.objectContaining({ who: 'woman', age: 'late 20s' }) })
   expect(onCharacterSaved).toHaveBeenCalledWith(character())
 })
+
+it('offers no 18+ purposes for a character whose face is an uploaded photo', () => {
+  render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={character({ face_uploaded: true })} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  const purposes = screen.getAllByRole('radio').map((radio) => radio.textContent)
+  expect(purposes).toEqual(['General', 'Portrait', 'Fashion', 'Influencer', 'Scene'])
+})

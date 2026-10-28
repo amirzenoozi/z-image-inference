@@ -42,6 +42,8 @@ ADDED_CHARACTER_COLUMNS: dict[str, str] = {
     # The History image whose face renders keep (IP-Adapter), and how strongly
     "face_id": "INTEGER",
     "face_strength": "REAL NOT NULL DEFAULT 0.6",
+    # An uploaded face photo (PNG) used instead of a History image; it keeps the character's images safe for work
+    "face_upload": "BLOB",
 }
 
 

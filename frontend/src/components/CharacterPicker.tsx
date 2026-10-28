@@ -30,15 +30,21 @@ export function CharacterPicker({ characterId, model, onChange }: Props) {
         onChange={pick}
       />
       {chosen && <FaceLockNote character={chosen} model={model} />}
+      {chosen?.face_uploaded && <SafeForWorkNote name={chosen.name} />}
     </div>
   )
 }
 
+function SafeForWorkNote({ name }: { name: string }) {
+  return <p className="text-xs text-amber-700 dark:text-amber-300">{name}'s face is an uploaded photo, so images of {name} are kept safe for work.</p>
+}
+
 /** Whether the character's face is kept in the next render, which only the SDXL models can do. */
 function FaceLockNote({ character, model }: { character: Character; model: ModelInfo }) {
-  if (character.face_id === null) return null
+  if (character.face_id === null && !character.face_uploaded) return null
+  const from = character.face_uploaded ? 'the uploaded photo' : `image #${character.face_id}`
   const text = model.supports_face_lock
-    ? `Face locked to image #${character.face_id} at ${Math.round(character.face_strength * 100)}%.`
+    ? `Face locked to ${from} at ${Math.round(character.face_strength * 100)}%.`
     : `${model.label} can't lock a face, so ${character.name}'s look comes from the description only. WAI-Illustrious and Anime Desire keep the face.`
   return <p className="text-xs text-zinc-500 dark:text-zinc-400">{text}</p>
 }

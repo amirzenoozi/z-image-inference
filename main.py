@@ -3,6 +3,7 @@ import base64
 import itertools
 import threading
 from collections.abc import Iterator
+from dataclasses import dataclass
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
@@ -24,7 +25,8 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 import character_store
 import history_export
 import nsfw_detector
-from character_store import Character, CharacterUpdate, DuplicateName, MissingImage, NewCharacter
+import safe_for_work
+from character_store import BadPhoto, Character, CharacterUpdate, DuplicateName, MissingImage, NewCharacter
 from image_edits import EditOutsideImage, EditRecipe, apply_edits
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
@@ -322,50 +324,82 @@ def start_image_fields(req: WebGenerateRequest) -> dict[str, str]:
     return {"init_image": base64.b64encode(png).decode()}
 
 
-def face_lock_of(req: WebGenerateRequest) -> tuple[int, float] | None:
-    """The face image and strength to lock, when the character has a face image and the model can use it."""
-    character = character_store.character(req.character_id) if req.character_id is not None else None
-    if character is None or character.face_id is None or not MODELS[req.model].supports_face_lock:
+@dataclass(frozen=True)
+class FaceToLock:
+    png: bytes
+    strength: float
+    # The History image it came from; None for an uploaded photo
+    image_id: int | None
+
+
+def face_to_lock(req: WebGenerateRequest, character: Character | None) -> FaceToLock | None:
+    """The character's face, when it has one and the model can lock it: an uploaded photo, or a History image."""
+    if character is None or not MODELS[req.model].supports_face_lock:
         return None
-    return character.face_id, character.face_strength
+    if character.face_uploaded:
+        photo = character_store.uploaded_face(character.id)
+        return FaceToLock(photo, character.face_strength, None) if photo else None
+    png = history_store.image_png(character.face_id) if character.face_id is not None else None
+    # A face image deleted since the character was read leaves the render without a face lock
+    return FaceToLock(png, character.face_strength, character.face_id) if png else None
 
 
-def face_lock_fields(face_lock: tuple[int, float] | None) -> dict[str, str | float]:
-    if face_lock is None:
-        return {}
-    face_id, strength = face_lock
-    png = history_store.image_png(face_id)
-    # The face image was checked a moment ago; deleted since, the render goes ahead without it
-    return {} if png is None else {"face_image": base64.b64encode(png).decode(), "face_strength": strength}
+def model_server_request(req: WebGenerateRequest, face: FaceToLock | None, keep_safe: bool) -> GenerateRequest:
+    """The request for the model server: the start image and the face loaded here, and safe-for-work negatives when needed."""
+    fields = req.model_dump(exclude={"source_image_id", "character_id"}) | start_image_fields(req)
+    if face:
+        fields |= {"face_image": base64.b64encode(face.png).decode(), "face_strength": face.strength}
+    if keep_safe:
+        fields["negative_prompt"] = safe_for_work.with_safe_negative(req.negative_prompt)
+    return GenerateRequest(**fields)
 
 
-def model_server_request(req: WebGenerateRequest, face_lock: tuple[int, float] | None) -> GenerateRequest:
-    """The request for the model server, with a variation's start image and the character's face loaded from History."""
-    fields = req.model_dump(exclude={"source_image_id", "character_id"})
-    return GenerateRequest(**fields | start_image_fields(req) | face_lock_fields(face_lock))
-
-
-def check_character(character_id: int | None) -> None:
-    if character_id is not None and character_store.character(character_id) is None:
+def character_of(character_id: int | None) -> Character | None:
+    if character_id is None:
+        return None
+    character = character_store.character(character_id)
+    if character is None:
         raise HTTPException(404, "That character no longer exists; pick another one and try again")
+    return character
+
+
+def check_safe_request(req: WebGenerateRequest, name: str) -> None:
+    """Before rendering, for a character with an uploaded face: nothing sensitive may go in, and the check must be ready."""
+    safe_for_work.check_prompt(req.prompt, name)
+    start = history_store.item(req.source_image_id) if req.source_image_id is not None else None
+    safe_for_work.check_start_image(start is not None and start.sensitive, name)
+    safe_for_work.check_image_check_ready(nsfw_detector.is_ready())
 
 
 @app.post("/api/generate")
 def generate(req: WebGenerateRequest) -> HistoryItem:
-    check_character(req.character_id)
-    face_lock = face_lock_of(req)
-    server_request = model_server_request(req, face_lock)
+    character = character_of(req.character_id)
+    try:
+        return render_and_save(req, character)
+    except safe_for_work.NotSafeForWork as error:
+        raise HTTPException(422, str(error))
+
+
+def render_and_save(req: WebGenerateRequest, character: Character | None) -> HistoryItem:
+    # A character with an uploaded photo as its face may show a real person, so its images are kept safe for work
+    keep_safe = character is not None and character.face_uploaded
+    if keep_safe:
+        check_safe_request(req, character.name)
+    face = face_to_lock(req, character)
+    server_request = model_server_request(req, face, keep_safe)
     rendered = request_image(server_request)
     spec = MODELS[req.model]
     png = base64.b64decode(rendered.image_base64)
     # The image itself is checked too, since a model can make nudity the prompt doesn't ask for
     nsfw = nsfw_detector.is_nsfw(png)
+    if keep_safe:
+        safe_for_work.check_result(nsfw, character.name)
     return history_store.add(NewImage(
-        png=png, prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
+        png=png, prompt=req.prompt, negative_prompt=server_request.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
-        face_from=face_lock[0] if face_lock and server_request.face_image else None,
+        face_from=face.image_id if face else None,
         sensitive=True if nsfw else None, image_checked=nsfw is not None,
     ))
 
@@ -568,7 +602,7 @@ def create_character(new: NewCharacter) -> Character:
         return character_store.create(new)
     except DuplicateName as error:
         raise HTTPException(409, str(error))
-    except MissingImage as error:
+    except (MissingImage, BadPhoto) as error:
         raise HTTPException(422, str(error))
 
 
@@ -578,11 +612,21 @@ def update_character(character_id: int, changes: CharacterUpdate) -> Character:
         updated = character_store.update(character_id, changes)
     except DuplicateName as error:
         raise HTTPException(409, str(error))
-    except MissingImage as error:
+    except (MissingImage, BadPhoto) as error:
         raise HTTPException(422, str(error))
     if updated is None:
         raise HTTPException(404, "Character not found")
     return updated
+
+
+@app.get("/api/characters/{character_id}/face-upload")
+def uploaded_face(character_id: int, thumb: bool = False) -> Response:
+    photo = character_store.uploaded_face(character_id)
+    if photo is None:
+        raise HTTPException(404, "This character has no uploaded face")
+    # A new upload replaces it at the same address, so it is never cached for long
+    headers = {"Cache-Control": "no-cache"}
+    return Response(thumbnail(photo), media_type="image/webp", headers=headers) if thumb else Response(photo, media_type="image/png", headers=headers)
 
 
 @app.delete("/api/characters/{character_id}", status_code=204)

@@ -151,6 +151,8 @@ export interface Character {
   /** Whether the cover and the face image are blurred in lists, as their History images are. */
   cover_sensitive: boolean
   face_sensitive: boolean
+  /** The face is an uploaded photo, so the server keeps this character's images safe for work. */
+  face_uploaded: boolean
 }
 
 export interface CharacterChanges {
@@ -160,6 +162,8 @@ export interface CharacterChanges {
   seed?: number | null
   face_id?: number | null
   face_strength?: number
+  /** A face photo as base64 (it replaces a History face), or null to remove the uploaded one. */
+  face_upload?: string | null
 }
 
 export interface PaletteColour {

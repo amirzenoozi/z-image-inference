@@ -140,7 +140,7 @@ function CharacterCard({ character, onUse, onShowImages, onEdit, onDelete }: Car
           <p className="mt-1 text-[11px] text-zinc-400 tabular-nums">
             {images}
             {character.seed !== null && ` · seed ${character.seed}`}
-            {character.face_id !== null && ' · face locked'}
+            {(character.face_id !== null || character.face_uploaded) && ' · face locked'}
           </p>
         </div>
         <div className="mt-auto flex items-center gap-1">
