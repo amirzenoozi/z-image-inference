@@ -131,3 +131,10 @@ def test_the_rules_apply_to_every_model_but_only_to_characters_with_an_uploaded_
 
     assert generate(client, character_id=me["id"], prompt="a nude man").status_code == 422
     assert generate(client, character_id=ava["id"], prompt="a nude woman").status_code == 200
+
+
+def test_safe_negative_terms_are_added_once() -> None:
+    from safe_for_work import with_safe_negative
+
+    assert with_safe_negative("") == "nsfw, nude, naked, nudity, topless, nipples, lingerie, underwear, see-through, cleavage"
+    assert with_safe_negative("lowres, NSFW, nude, blurry") == "lowres, NSFW, nude, blurry, naked, nudity, topless, nipples, lingerie, underwear, see-through, cleavage"
