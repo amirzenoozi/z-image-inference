@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchModelStatus } from '../api'
 import type { Loadable, ModelStatusReport } from '../types'
 import { errorMessage } from './hooks'
 
-export const STATUS_POLL_MS = 15_000
+export const STATUS_POLL_MS = 5_000
 
 /**
  * Model download status from the model server. Re-checks whenever `refreshKey` changes (for example after a
- * generation attempt, which may start a download) and every 15 seconds while a download is running or queued.
+ * generation attempt), when `refresh` is called (after a download or remove), and every 5 seconds while a
+ * download is running or queued, so its progress bar moves.
  */
-export function useModelStatus(refreshKey: unknown): Loadable<ModelStatusReport> {
+export function useModelStatus(refreshKey: unknown): [Loadable<ModelStatusReport>, () => void] {
   const [state, setState] = useState<Loadable<ModelStatusReport>>({ status: 'pending' })
   const [tick, setTick] = useState(0)
+  const refresh = useCallback(() => setTick((n) => n + 1), [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -22,13 +24,13 @@ export function useModelStatus(refreshKey: unknown): Loadable<ModelStatusReport>
     return () => controller.abort()
   }, [refreshKey, tick])
 
-  const statuses = state.status === 'settled' ? Object.values(state.value.models) : []
+  const statuses = state.status === 'settled' ? Object.values(state.value.models).map((model) => model.status) : []
   const downloading = statuses.includes('downloading') || statuses.includes('queued')
   useEffect(() => {
     if (!downloading) return
-    const timer = setTimeout(() => setTick((n) => n + 1), STATUS_POLL_MS)
+    const timer = setTimeout(refresh, STATUS_POLL_MS)
     return () => clearTimeout(timer)
-  }, [downloading, tick])
+  }, [downloading, tick, refresh])
 
-  return state
+  return [state, refresh]
 }

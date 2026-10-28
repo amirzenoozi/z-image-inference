@@ -15,7 +15,8 @@ vi.mock('./api', async (importOriginal) => ({
 
 beforeEach(() => {
   vi.mocked(api.fetchCatalog).mockResolvedValue(catalog)
-  vi.mocked(api.fetchModelStatus).mockResolvedValue({ server_running: true, models: { 'z-image-turbo': 'ready', 'wai-illustrious': 'ready' } })
+  const ready = { status: 'ready' as const, size_bytes: 1 }
+  vi.mocked(api.fetchModelStatus).mockResolvedValue({ server_running: true, models: { 'z-image-turbo': ready, 'wai-illustrious': ready }, free_bytes: 1e11 })
   vi.mocked(api.generateImage).mockReset()
 })
 

@@ -39,7 +39,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   const onSuccess = useCallback((item: HistoryItem) => setLastSeed(item.seed), [])
   const generation = useGeneration(onSuccess)
   // A generation attempt can start a model download, so status is re-checked whenever its state changes
-  const modelStatus = useModelStatus(generation.state.status)
+  const [modelStatus, refreshModelStatus] = useModelStatus(generation.state.status)
   useEffect(() => saveSettings(settings), [settings])
 
   const generating = generation.state.status === 'pending'
@@ -66,6 +66,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
             generating={generating}
             lastSeed={lastSeed}
             modelStatus={modelStatus}
+            onModelStatusChanged={refreshModelStatus}
             onGenerate={() => generateWith(settings.prompt)}
             onChatPrompt={(prompt) => {
               setSettings((current) => ({ ...current, prompt }))

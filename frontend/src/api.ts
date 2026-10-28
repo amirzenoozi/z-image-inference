@@ -1,4 +1,4 @@
-import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, ModelStatusReport } from './types'
+import type { Catalog, ChatMessage, GenerationSettings, HistoryItem, HistoryPage, ModelState, ModelStatusReport } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -64,6 +64,14 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<Catalog> {
 
 export async function fetchModelStatus(signal?: AbortSignal): Promise<ModelStatusReport> {
   return (await request('/api/models/status', { signal })).json() as Promise<ModelStatusReport>
+}
+
+export async function downloadModel(modelId: string): Promise<ModelState> {
+  return (await request(`/api/models/${encodeURIComponent(modelId)}/download`, { method: 'POST' })).json() as Promise<ModelState>
+}
+
+export async function removeModel(modelId: string): Promise<void> {
+  await request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' })
 }
 
 export async function generateImage(settings: GenerationSettings, signal?: AbortSignal): Promise<HistoryItem> {
