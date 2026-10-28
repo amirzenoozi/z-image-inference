@@ -215,7 +215,7 @@ def test_the_sample_characters_are_added_on_the_first_start_only(tmp_path: Path,
     monkeypatch.setattr(history_store, "DB_PATH", tmp_path / "history.db")
     start_app()
     names = [character.name for character in character_store.all_characters()]
-    assert names == ["Amara", "Elena", "Freya", "Kai", "Mei", "Ravi", "Sofia"]
+    assert names == ["Amara", "Elena", "Freya", "Ivy", "Jax", "Kai", "Mei", "Nova", "Ravi", "Ruby", "Sofia", "Tank", "Zara"]
 
     character_store.delete(character_store.all_characters()[0].id)
     start_app()

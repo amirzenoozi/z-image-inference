@@ -65,5 +65,64 @@
       "bodyType": "slim build", "height": "average height",
       "tattoos": ["full sleeve tattoo"], "piercings": ["septum ring"]
     }
+  },
+  {
+    "name": "Nova",
+    "traits": {
+      "who": "woman", "age": "early 20s", "ethnicity": "Southeast Asian",
+      "eyeColor": "brown", "makeup": "dewy glowing makeup", "skinTone": "light olive",
+      "hairColor": "pastel pink", "hairstyle": "space buns", "hairLength": "long",
+      "bodyType": "slim build", "height": "short", "bust": "small natural breasts", "hips": "narrow hips",
+      "piercings": ["ear piercings"]
+    }
+  },
+  {
+    "name": "Jax",
+    "traits": {
+      "who": "man", "age": "early 20s", "ethnicity": "White",
+      "eyeColor": "grey", "skinTone": "fair",
+      "hairColor": "jet black", "hairstyle": "shag", "hairLength": "chin-length",
+      "bodyType": "toned build", "height": "average height",
+      "tattoos": ["full sleeve tattoo", "back piece tattoo"], "piercings": ["septum ring", "ear piercings"]
+    }
+  },
+  {
+    "name": "Tank",
+    "traits": {
+      "who": "man", "age": "mid 20s", "ethnicity": "Black",
+      "eyeColor": "dark brown", "skinTone": "dark",
+      "hairColor": "black", "hairstyle": "buzz cut", "hairLength": "buzzed",
+      "bodyType": "muscular build", "height": "tall", "hips": "thick thighs",
+      "subject": "a huge bodybuilder with massive arms and a broad chest"
+    }
+  },
+  {
+    "name": "Ruby",
+    "traits": {
+      "who": "woman", "age": "early 20s", "ethnicity": "Middle Eastern",
+      "eyeColor": "hazel", "makeup": "glam makeup", "skinTone": "olive",
+      "hairColor": "red", "hairstyle": "hollywood waves", "hairLength": "long",
+      "bodyType": "hourglass figure", "height": "average height", "bust": "very large breasts", "hips": "wide hips"
+    }
+  },
+  {
+    "name": "Zara",
+    "traits": {
+      "who": "woman", "age": "mid 20s", "ethnicity": "South Asian",
+      "eyeColor": "amber", "makeup": "winged eyeliner", "skinTone": "golden brown",
+      "hairColor": "blue", "hairstyle": "pixie cut", "hairLength": "short",
+      "bodyType": "athletic build", "height": "tall", "bust": "medium natural breasts", "hips": "toned glutes",
+      "piercings": ["ear piercings", "nose stud", "septum ring", "tongue piercing", "navel piercing"]
+    }
+  },
+  {
+    "name": "Ivy",
+    "traits": {
+      "who": "woman", "age": "early 20s", "ethnicity": "mixed-race",
+      "eyeColor": "green", "makeup": "smoky eye makeup", "skinTone": "tan", "skinDetails": ["freckles"],
+      "hairColor": "lavender", "hairstyle": "loose curls", "hairLength": "very long",
+      "bodyType": "curvy figure", "height": "short", "bust": "full natural breasts", "hips": "thick thighs",
+      "tattoos": ["script tattoo on the ribs", "floral shoulder tattoo"]
+    }
   }
 ]
