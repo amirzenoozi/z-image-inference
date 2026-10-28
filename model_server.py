@@ -22,6 +22,7 @@ from typing import Literal
 import mlx.core as mx
 import torch
 import uvicorn
+from compel import CompelForSDXL
 from diffusers import AutoencoderKLFlux2, DPMSolverMultistepScheduler, EulerAncestralDiscreteScheduler, StableDiffusionXLPipeline
 from fastapi import FastAPI, HTTPException, Response
 from huggingface_hub import snapshot_download
@@ -34,6 +35,7 @@ from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
+from prompt_weights import a1111_to_compel
 from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, MODELS, MOSS_IMAGE, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 
@@ -280,9 +282,26 @@ def diffusers_step_callback(progress: JobProgress) -> Callable[[object, int, obj
     return on_step_end
 
 
+def sdxl_conditioning(compel: CompelForSDXL, prompt: str, negative_prompt: str) -> dict[str, torch.Tensor]:
+    """Prompt embeddings that honour "(tag:1.3)" weights and go past CLIP's 77 tokens instead of cutting the rest off."""
+    conditioning = compel(a1111_to_compel(prompt), negative_prompt=a1111_to_compel(negative_prompt))
+    embeds = {
+        "prompt_embeds": conditioning.embeds,
+        "pooled_prompt_embeds": conditioning.pooled_embeds,
+        "negative_prompt_embeds": conditioning.negative_embeds,
+        "negative_pooled_prompt_embeds": conditioning.negative_pooled_embeds,
+    }
+    if not negative_prompt.strip():
+        # SDXL uses zeros for an empty negative prompt (force_zeros_for_empty_prompt), not the encoding of ""
+        embeds["negative_prompt_embeds"] = torch.zeros_like(conditioning.embeds)
+        embeds["negative_pooled_prompt_embeds"] = torch.zeros_like(conditioning.pooled_embeds)
+    return embeds
+
+
 def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
     pipe.to(torch.device("mps"))
     pipe.vae.to(dtype=torch.float32)
+    compel = CompelForSDXL(pipe)
 
     def generate(job: Job, progress: JobProgress) -> Image.Image:
         progress.enter("generating")
@@ -290,8 +309,7 @@ def sdxl_generator(pipe: StableDiffusionXLPipeline) -> ImageGenerator:
         generator = torch.Generator("cpu").manual_seed(job.seed)
         with torch.inference_mode():
             latents = pipe(
-                prompt=job.prompt,
-                negative_prompt=job.negative_prompt or None,
+                **sdxl_conditioning(compel, job.prompt, job.negative_prompt),
                 width=job.width,
                 height=job.height,
                 num_inference_steps=job.steps,
