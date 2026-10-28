@@ -11,6 +11,15 @@ WIDESCREEN_RATIO = 1.7
 TIER_LIMITS: tuple[tuple[Tier, float], ...] = (("S", 0.4), ("M", 0.7), ("L", 1.3))
 
 
+# SQL conditions on width and height that match Resolution.category, so History can filter by it
+CATEGORY_CONDITIONS: dict[Category, str] = {
+    "square": "width = height",
+    "portrait": "width < height",
+    "landscape": f"width > height AND width < {WIDESCREEN_RATIO} * height",
+    "widescreen": f"width >= {WIDESCREEN_RATIO} * height",
+}
+
+
 @dataclass(frozen=True)
 class Resolution:
     width: int

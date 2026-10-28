@@ -13,6 +13,7 @@ from PIL import Image
 
 import history_store
 import main
+from resolutions import CATEGORIES, PRESETS
 
 
 def png_bytes(width: int = 64, height: int = 64) -> bytes:
@@ -203,6 +204,8 @@ def test_old_history_rows_gain_the_new_columns(tmp_path: Path, monkeypatch: pyte
 
     [item], total = history_store.page(0, 10)
     assert (item.model, item.negative_prompt, item.guidance, item.duration_seconds, item.favourite, total) == ("z-image-turbo", "", None, None, False, 1)
+    with sqlite3.connect(db) as conn:
+        assert "palette" in {row[1] for row in conn.execute("PRAGMA table_info(images)")}
 
 
 def test_chat_streams_the_rewritten_prompt(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -415,3 +418,61 @@ def test_cleaning_up_keeps_favourites(client: TestClient, model_server: FakeMode
     assert client.get("/api/history/summary").json()["older_than"][1] == {"days": 30, "count": 1}
     assert client.delete("/api/history/older-than/30").json() == {"deleted": 1}
     assert history_ids(client) == ([kept], 1)
+
+
+def test_history_filters_by_ratio_the_way_the_resolution_picker_groups_sizes(client: TestClient, model_server: FakeModelServer) -> None:
+    by_category: dict[str, list[int]] = {category: [] for category in CATEGORIES}
+    for preset in PRESETS:
+        item_id = generate(client, width=preset.width, height=preset.height).json()["id"]
+        by_category[preset.category].insert(0, item_id)
+    # A custom size just under the widescreen line is landscape
+    custom = generate(client, width=1008, height=608).json()["id"]
+    by_category["landscape"].insert(0, custom)
+
+    for category, ids in by_category.items():
+        data = client.get(f"/api/history?ratio={category}&limit=100").json()
+        assert ([item["id"] for item in data["items"]], data["total"]) == (ids, len(ids)), category
+
+
+def test_an_unknown_ratio_is_refused(client: TestClient) -> None:
+    assert client.get("/api/history?ratio=round").status_code == 422
+
+
+def blocks_png(blocks: list[tuple[str, int]]) -> bytes:
+    """A 640×640 image of vertical colour blocks; widths are multiples of 10 so the 64-pixel sample keeps them exact."""
+    image = Image.new("RGB", (640, 640))
+    left = 0
+    for colour, width in blocks:
+        image.paste(colour, (left, 0, left + width, 640))
+        left += width
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_the_palette_lists_the_main_colours_most_used_first(client: TestClient, model_server: FakeModelServer) -> None:
+    png = blocks_png([("#0000FF", 190), ("#FF0000", 380), ("#00FF00", 70)])
+    model_server.body = {"image_base64": base64.b64encode(png).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0}
+    item_id = generate(client).json()["id"]
+
+    resp = client.get(f"/api/history/{item_id}/palette")
+
+    assert resp.json() == [
+        {"hex": "#FF0000", "share": 0.594},
+        {"hex": "#0000FF", "share": 0.297},
+        {"hex": "#00FF00", "share": 0.109},
+    ]
+
+
+def test_the_palette_is_worked_out_once_then_saved(client: TestClient, model_server: FakeModelServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    item_id = generate(client).json()["id"]
+    first = client.get(f"/api/history/{item_id}/palette").json()
+    monkeypatch.setattr(history_store, "extract_palette", lambda png: pytest.fail("must use the saved palette"))
+
+    assert client.get(f"/api/history/{item_id}/palette").json() == first
+    with sqlite3.connect(history_store.DB_PATH) as conn:
+        assert conn.execute("SELECT palette FROM images WHERE id = ?", (item_id,)).fetchone()[0] is not None
+
+
+def test_the_palette_of_a_missing_image_is_not_found(client: TestClient) -> None:
+    assert client.get("/api/history/999/palette").status_code == 404
