@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearHistory, deleteHistoryItem, fetchHistory, imageUrl } from '../api'
+import { useHistoryAddress, type AddressChange } from '../lib/historyAddress'
 import { NO_FILTERS, isFiltered } from '../lib/historyFilters'
 import { errorMessage } from '../lib/hooks'
 import { secondaryButtonClass } from '../lib/styles'
@@ -19,9 +20,8 @@ export const PAGE_SIZE = 30
 
 type ActionState = { status: 'idle' } | { status: 'loading' } | { status: 'failed'; error: string }
 
-/** One page of History at a time; loading another page, or the same one again, shows the placeholder first. */
-function useHistoryPage(filters: HistoryFilters) {
-  const [pageNumber, setPageNumber] = useState(1)
+/** One page of History; loading it again shows the placeholder first. */
+function useHistoryPage(filters: HistoryFilters, pageNumber: number) {
   const [page, setPage] = useState<Loadable<HistoryPage>>({ status: 'pending' })
   const [attempt, setAttempt] = useState(0)
 
@@ -34,13 +34,12 @@ function useHistoryPage(filters: HistoryFilters) {
     return () => controller.abort()
   }, [filters, pageNumber, attempt])
 
-  const load = (number: number) => {
+  const reload = () => {
     setPage({ status: 'pending' })
-    setPageNumber(number)
     setAttempt((n) => n + 1)
   }
   const replace = useCallback((value: HistoryPage) => setPage({ status: 'settled', value }), [])
-  return { page, pageNumber, load, replace }
+  return { page, reload, replace }
 }
 
 /** Adds or removes an image from the compare selection, which holds at most two. */
@@ -55,7 +54,8 @@ interface Props {
 }
 
 export function HistoryPanel({ models, onReuse }: Props) {
-  const [filters, setFilters] = useState<HistoryFilters>(NO_FILTERS)
+  const [address, go, visits] = useHistoryAddress(models)
+  const { filters, page } = address
   // Remounts the filter bar when the filters are cleared, so its search box empties too
   const [filtersVersion, setFiltersVersion] = useState(0)
   // Kept across filter changes, so two images found by different searches can be compared
@@ -64,8 +64,17 @@ export function HistoryPanel({ models, onReuse }: Props) {
   const labelOf = (id: string) => models.find((model) => model.id === id)?.label ?? id
   const top = useRef<HTMLDivElement>(null)
 
+  // A filter change starts again from the first page; typing a search updates the current Back entry instead of adding one
+  const changeFilters = (next: HistoryFilters) => go({ filters: next, page: 1 }, next.search === filters.search ? 'push' : 'replace')
+  const changePage = useCallback(
+    (number: number, change: AddressChange = 'push') => {
+      go({ filters, page: number }, change)
+      top.current?.scrollIntoView({ block: 'start' })
+    },
+    [filters, go],
+  )
   const clearFilters = () => {
-    setFilters(NO_FILTERS)
+    go({ filters: NO_FILTERS, page: 1 })
     setFiltersVersion((n) => n + 1)
   }
   const compare = () => {
@@ -75,25 +84,26 @@ export function HistoryPanel({ models, onReuse }: Props) {
   return (
     <div ref={top} className="space-y-5 p-6">
       <HistoryFilterBar
-        key={filtersVersion}
+        key={`${filtersVersion}-${visits}`}
         models={models}
         filters={filters}
-        onChange={setFilters}
+        onChange={changeFilters}
         comparing={selection !== null}
         selectedCount={selection?.length ?? 0}
         onCompareToggle={() => setSelection((current) => (current === null ? [] : null))}
         onCompare={compare}
       />
-      {/* A new set of filters starts from a fresh first page; results of the old ones are dropped */}
+      {/* Each page and set of filters starts fresh, with its placeholder; results of the old ones are dropped */}
       <HistoryResults
-        key={JSON.stringify(filters)}
+        key={`${JSON.stringify(filters)}-${page}`}
         filters={filters}
+        pageNumber={page}
         labelOf={labelOf}
         onReuse={onReuse}
         onClearFilters={clearFilters}
         selectedIds={selection?.map((item) => item.id) ?? null}
         onSelect={(item) => setSelection((current) => toggleInSelection(current ?? [], item))}
-        onPageChanged={() => top.current?.scrollIntoView({ block: 'start' })}
+        onPageChange={changePage}
       />
       {comparing && <CompareDialog items={comparing} labelOf={labelOf} onClose={() => setComparing(null)} />}
     </div>
@@ -102,30 +112,34 @@ export function HistoryPanel({ models, onReuse }: Props) {
 
 interface ResultsProps {
   filters: HistoryFilters
+  pageNumber: number
   labelOf: (id: string) => string
   onReuse: (item: HistoryItem) => void
   onClearFilters: () => void
   selectedIds: number[] | null
   onSelect: (item: HistoryItem) => void
-  onPageChanged: () => void
+  onPageChange: (page: number, change?: AddressChange) => void
 }
 
-function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds, onSelect, onPageChanged }: ResultsProps) {
-  const { page, pageNumber, load, replace } = useHistoryPage(filters)
+function HistoryResults({ filters, pageNumber, labelOf, onReuse, onClearFilters, selectedIds, onSelect, onPageChange }: ResultsProps) {
+  const { page, reload, replace } = useHistoryPage(filters, pageNumber)
   const [opened, setOpened] = useState<HistoryItem | null>(null)
   const [favouriteError, setFavouriteError] = useState<string | null>(null)
+  const lastPage = page.status === 'settled' ? Math.max(1, Math.ceil(page.value.total / PAGE_SIZE)) : null
+
+  // A page past the end, from an old link or after deleting images, shows the last page instead
+  useEffect(() => {
+    if (lastPage !== null && pageNumber > lastPage) onPageChange(lastPage, 'replace')
+  }, [lastPage, pageNumber, onPageChange])
 
   if (page.status === 'pending') return <HistorySkeleton />
-  if (page.status === 'failed') return <ErrorNotice message={page.error} onRetry={() => load(pageNumber)} />
+  if (page.status === 'failed') return <ErrorNotice message={page.error} onRetry={reload} />
 
   const { items, total } = page.value
   const filtered = isFiltered(filters)
-  const goToPage = (number: number) => {
-    load(number)
-    onPageChanged()
-  }
+  const showPage = (number: number) => (number === pageNumber ? reload() : onPageChange(number))
   // The page refills from the next one; when its only image goes, the page before it is shown instead
-  const removeItem = () => load(items.length === 1 && pageNumber > 1 ? pageNumber - 1 : pageNumber)
+  const removeItem = () => showPage(items.length === 1 && pageNumber > 1 ? pageNumber - 1 : pageNumber)
   const updateItem = (item: HistoryItem) => {
     setFavouriteError(null)
     setOpened((current) => (current?.id === item.id ? item : current))
@@ -141,8 +155,8 @@ function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds
         firstShown={(pageNumber - 1) * PAGE_SIZE + 1}
         lastShown={(pageNumber - 1) * PAGE_SIZE + items.length}
         filtered={filtered}
-        onCleaned={() => load(1)}
-        onCleared={() => load(1)}
+        onCleaned={() => showPage(1)}
+        onCleared={() => showPage(1)}
       />
       {favouriteError && <ErrorNotice message={favouriteError} />}
       {total === 0 ? (
@@ -157,7 +171,7 @@ function HistoryResults({ filters, labelOf, onReuse, onClearFilters, selectedIds
           onFavouriteFailed={setFavouriteError}
         />
       )}
-      <Pagination page={pageNumber} pageCount={Math.ceil(total / PAGE_SIZE)} onChange={goToPage} />
+      <Pagination page={pageNumber} pageCount={Math.ceil(total / PAGE_SIZE)} onChange={onPageChange} />
       {opened && (
         <HistoryDetail
           item={opened}

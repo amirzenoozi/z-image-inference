@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
@@ -246,7 +246,10 @@ it('shows the counting state, then an error with a retry when the counts cannot 
   expect(await screen.findByRole('radio', { name: /30 days/ })).toBeInTheDocument()
 })
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  window.history.replaceState(null, '', '/')
+})
 
 function pageOf(items: HistoryItem[]): HistoryPage {
   return { items, total: items.length }
@@ -407,4 +410,75 @@ it('shows an error with a retry when the palette cannot be worked out', async ()
   await userEvent.click(within(section).getByRole('button', { name: 'Retry' }))
 
   expect(await within(section).findByRole('button', { name: 'Copy #123456' })).toBeInTheDocument()
+})
+
+it('opens the page and filters named in the address, and fills the controls', async () => {
+  window.history.replaceState(null, '', '/history?page=2&q=fox&model=wai-illustrious&ratio=portrait&favourites=1')
+  fetchHistory.mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE * 3))
+  renderHistory()
+
+  await screen.findByRole('button', { name: 'Page 2', current: 'page' })
+  expect(fetchHistory).toHaveBeenCalledOnce()
+  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE, { model: 'wai-illustrious', search: 'fox', favouritesOnly: true, ratio: 'portrait' }, expect.any(AbortSignal))
+  expect(screen.getByLabelText('Search prompts')).toHaveValue('fox')
+  expect(screen.getByLabelText('Model')).toHaveTextContent('WAI-Illustrious')
+  expect(screen.getByLabelText('Ratio')).toHaveTextContent('Portrait')
+  expect(screen.getByRole('button', { name: '★ Favourites' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+it('writes changes to the address: a Back entry for pages and filters, the current entry for a search', async () => {
+  fetchHistory.mockResolvedValue(page(PAGE_SIZE, PAGE_SIZE * 3))
+  const push = vi.spyOn(window.history, 'pushState')
+  const replace = vi.spyOn(window.history, 'replaceState')
+  renderHistory()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }))
+  expect(window.location.search).toBe('?page=2')
+  await userEvent.click(await screen.findByRole('button', { name: '★ Favourites' }))
+  expect(window.location.search).toBe('?favourites=1')
+  expect(push).toHaveBeenCalledTimes(2)
+
+  await userEvent.type(screen.getByLabelText('Search prompts'), 'fox')
+  await waitFor(() => expect(window.location.search).toBe('?q=fox&favourites=1'))
+  expect(push).toHaveBeenCalledTimes(2)
+  expect(replace).toHaveBeenLastCalledWith(null, '', '/?q=fox&favourites=1')
+})
+
+it('follows Back and Forward, refilling the search box', async () => {
+  fetchHistory.mockResolvedValue(page(2))
+  renderHistory()
+  await screen.findByText('2 images')
+  await userEvent.click(screen.getByRole('button', { name: '★ Favourites' }))
+
+  await act(async () => window.history.back())
+
+  await waitFor(() => expect(screen.getByRole('button', { name: '★ Favourites' })).toHaveAttribute('aria-pressed', 'false'))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+
+  await act(async () => {
+    window.history.pushState(null, '', '/?q=dog')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  expect(screen.getByLabelText('Search prompts')).toHaveValue('dog')
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, search: 'dog' }, expect.any(AbortSignal))
+})
+
+it('tidies an address with values that make no sense', async () => {
+  window.history.replaceState(null, '', '/history?page=abc&model=nope&ratio=round&favourites=yes')
+  fetchHistory.mockResolvedValue(page(2))
+  renderHistory()
+
+  await screen.findByText('2 images')
+  expect(fetchHistory).toHaveBeenCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(window.location.search).toBe('')
+})
+
+it('shows the last page for a page past the end', async () => {
+  window.history.replaceState(null, '', '/history?page=9')
+  fetchHistory.mockImplementation((offset: number) => Promise.resolve(offset >= PAGE_SIZE * 2 ? page(0, PAGE_SIZE + 1) : page(1, PAGE_SIZE + 1, 99)))
+  renderHistory()
+
+  expect(await screen.findByRole('button', { name: 'Open: image 99' })).toBeInTheDocument()
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(window.location.search).toBe('?page=2')
 })
