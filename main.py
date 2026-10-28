@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_val
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
-from history_store import HistoryItem, NewImage
+from history_store import CLEANUP_AGES_DAYS, HistoryItem, HistorySummary, NewImage
 from model_catalog import MODEL_CATEGORIES, MODELS, ModelSpec, kept_gb, speed_hint
 from resolutions import CATEGORIES, PRESETS
 
@@ -186,7 +186,15 @@ def model_server_detail(resp: requests.Response) -> str:
         return resp.text or "Invalid request"
 
 
-def request_image(req: GenerateRequest) -> tuple[bytes, int]:
+class RenderedImage(BaseModel):
+    """The model server's answer to /generate."""
+
+    image_base64: str
+    seed: int
+    seconds: float
+
+
+def request_image(req: GenerateRequest) -> RenderedImage:
     try:
         resp = requests.post(f"{MODEL_SERVER_URL}/generate", json=req.model_dump(), timeout=REQUEST_TIMEOUT)
     except requests.ConnectionError:
@@ -198,8 +206,7 @@ def request_image(req: GenerateRequest) -> tuple[bytes, int]:
         raise HTTPException(resp.status_code, model_server_detail(resp))
     if not resp.ok:
         raise HTTPException(502, f"The model server failed ({resp.status_code}). Check its terminal for details.")
-    data = resp.json()
-    return base64.b64decode(data["image_base64"]), int(data["seed"])
+    return RenderedImage.model_validate(resp.json())
 
 
 def guidance_used(req: GenerateRequest, spec: ModelSpec) -> float | None:
@@ -210,12 +217,12 @@ def guidance_used(req: GenerateRequest, spec: ModelSpec) -> float | None:
 
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> HistoryItem:
-    png, seed = request_image(req)
+    rendered = request_image(req)
     spec = MODELS[req.model]
     return history_store.add(NewImage(
-        png=png, prompt=req.prompt, negative_prompt=req.negative_prompt, seed=seed,
+        png=base64.b64decode(rendered.image_base64), prompt=req.prompt, negative_prompt=req.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
-        guidance=guidance_used(req, spec), model=req.model,
+        guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
     ))
 
 
@@ -308,6 +315,22 @@ def delete_history_item(item_id: int) -> None:
 @app.delete("/api/history", status_code=204)
 def clear_history() -> None:
     history_store.clear()
+
+
+@app.get("/api/history/summary")
+def history_summary() -> HistorySummary:
+    return history_store.summary()
+
+
+class Deleted(BaseModel):
+    deleted: int
+
+
+@app.delete("/api/history/older-than/{days}")
+def delete_old_history(days: int) -> Deleted:
+    if days not in CLEANUP_AGES_DAYS:
+        raise HTTPException(422, f"days must be one of {', '.join(map(str, CLEANUP_AGES_DAYS))}")
+    return Deleted(deleted=history_store.delete_older_than(days))
 
 
 @app.post("/api/chat")

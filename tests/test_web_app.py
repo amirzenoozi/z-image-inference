@@ -37,7 +37,7 @@ class FakeModelServer:
         resp = requests.Response()
         resp.status_code = self.status
         body = self.body if self.body is not None else {
-            "image_base64": base64.b64encode(png_bytes()).decode(), "seed": 1234, "model": json["model"],
+            "image_base64": base64.b64encode(png_bytes()).decode(), "seed": 1234, "model": json["model"], "seconds": 52.3,
         }
         resp._content = dumps(body).encode()
         return resp
@@ -133,6 +133,7 @@ def test_generate_saves_to_history_and_serves_the_image(client: TestClient, mode
 
     assert item["seed"] == 1234
     assert item["guidance"] is None
+    assert item["duration_seconds"] == 52.3
     assert client.get("/api/history").json()["items"] == [item]
     full = client.get(f"/api/history/{item['id']}/image")
     assert full.headers["content-type"] == "image/png"
@@ -201,7 +202,7 @@ def test_old_history_rows_gain_the_new_columns(tmp_path: Path, monkeypatch: pyte
     history_store.init_db()
 
     [item], total = history_store.page(0, 10)
-    assert (item.model, item.negative_prompt, item.guidance, total) == ("z-image-turbo", "", None, 1)
+    assert (item.model, item.negative_prompt, item.guidance, item.duration_seconds, total) == ("z-image-turbo", "", None, None, 1)
 
 
 def test_chat_streams_the_rewritten_prompt(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -323,3 +324,39 @@ def test_a_cancelled_generation_is_reported_as_cancelled(client: TestClient, mod
     assert (resp.status_code, resp.json()["detail"]) == (409, "Cancelled")
     assert model_server.calls[-1]["job_id"] == JOB
     assert client.get("/api/history").json()["total"] == 0
+
+
+def backdate(item_id: int, days: int) -> None:
+    with sqlite3.connect(history_store.DB_PATH) as conn:
+        conn.execute("UPDATE images SET created_at = datetime('now', ?) WHERE id = ?", (f"-{days} days", item_id))
+
+
+def test_history_summary_counts_images_by_age(client: TestClient, model_server: FakeModelServer) -> None:
+    ids = [generate(client).json()["id"] for _ in range(3)]
+    backdate(ids[0], 40)
+    backdate(ids[1], 100)
+
+    data = client.get("/api/history/summary").json()
+
+    assert data["total"] == 3
+    assert data["bytes"] == history_store.DB_PATH.stat().st_size
+    assert data["older_than"] == [{"days": 7, "count": 2}, {"days": 30, "count": 2}, {"days": 90, "count": 1}]
+
+
+def test_cleaning_up_deletes_only_older_images_and_shrinks_the_file(client: TestClient, model_server: FakeModelServer) -> None:
+    model_server.body = {"image_base64": base64.b64encode(png_bytes(512, 512)).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0}
+    ids = [generate(client).json()["id"] for _ in range(20)]
+    for item_id in ids[:19]:
+        backdate(item_id, 40)
+    size_before = history_store.DB_PATH.stat().st_size
+
+    resp = client.delete("/api/history/older-than/30")
+
+    assert resp.json() == {"deleted": 19}
+    assert [item["id"] for item in client.get("/api/history").json()["items"]] == [ids[-1]]
+    assert history_store.DB_PATH.stat().st_size < size_before
+
+
+def test_cleaning_up_accepts_only_the_offered_ages(client: TestClient) -> None:
+    assert client.delete("/api/history/older-than/0").status_code == 422
+    assert client.delete("/api/history/older-than/45").status_code == 422

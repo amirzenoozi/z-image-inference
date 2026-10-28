@@ -10,6 +10,7 @@ import shutil
 import asyncio
 import base64
 import random
+import time
 import uuid
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -131,6 +132,14 @@ class GenerateResponse(BaseModel):
     image_base64: str
     seed: int
     model: str
+    # Rendering only: waiting for the model thread and loading the model are not counted
+    seconds: float
+
+
+@dataclass(frozen=True)
+class RenderedImage:
+    png: bytes
+    seconds: float
 
 
 def with_trigger_word(prompt: str, spec: ModelSpec) -> str:
@@ -570,12 +579,15 @@ def unload_and_remove(model_id: str) -> None:
     downloads.pop(model_id, None)
 
 
-def generate_png(model_id: str, job: Job, progress: JobProgress) -> bytes:
+def generate_png(model_id: str, job: Job, progress: JobProgress) -> RenderedImage:
     progress.enter("loading" if model_id != loaded_model_id else "generating")
-    image = use_model(model_id)(job, progress)
+    generator = use_model(model_id)
+    started = time.perf_counter()
+    image = generator(job, progress)
+    seconds = time.perf_counter() - started
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
-    return buffer.getvalue()
+    return RenderedImage(png=buffer.getvalue(), seconds=seconds)
 
 
 @asynccontextmanager
@@ -598,12 +610,14 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
     job_id = req.job_id or str(uuid.uuid4())
     progress = jobs[job_id] = JobProgress(total=job.steps)
     try:
-        png = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job, progress)
+        rendered = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job, progress)
     except JobCancelled:
         raise HTTPException(409, "Cancelled")
     finally:
         jobs.pop(job_id, None)
-    return GenerateResponse(image_base64=base64.b64encode(png).decode("utf-8"), seed=job.seed, model=req.model)
+    return GenerateResponse(
+        image_base64=base64.b64encode(rendered.png).decode("utf-8"), seed=job.seed, model=req.model, seconds=round(rendered.seconds, 1),
+    )
 
 
 class ModelState(BaseModel):
