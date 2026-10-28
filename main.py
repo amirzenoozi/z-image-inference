@@ -13,7 +13,7 @@ import openai
 import requests
 import uvicorn
 from fastapi import FastAPI, HTTPException, Path as PathParam, Query, Response
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_validator
@@ -379,6 +379,12 @@ def chat(req: ChatRequest) -> StreamingResponse:
 
 
 if FRONTEND_DIST.exists():
+    @app.get("/history", include_in_schema=False)
+    @app.get("/history/", include_in_schema=False)
+    def history_view() -> FileResponse:
+        """The UI's History view: the same page, which reads the view from the address."""
+        return FileResponse(FRONTEND_DIST / "index.html")
+
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
 else:
     @app.get("/")

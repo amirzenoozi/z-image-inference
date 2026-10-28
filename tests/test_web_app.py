@@ -476,3 +476,13 @@ def test_the_palette_is_worked_out_once_then_saved(client: TestClient, model_ser
 
 def test_the_palette_of_a_missing_image_is_not_found(client: TestClient) -> None:
     assert client.get("/api/history/999/palette").status_code == 404
+
+
+@pytest.mark.skipif(not main.FRONTEND_DIST.exists(), reason="the UI is not built")
+def test_reloading_the_history_view_serves_the_app_page(client: TestClient) -> None:
+    resp = client.get("/history")
+
+    assert resp.status_code == 200
+    assert resp.text == (main.FRONTEND_DIST / "index.html").read_text()
+    assert client.get("/history/").text == resp.text
+    assert client.get("/api/history").headers["content-type"] == "application/json"
