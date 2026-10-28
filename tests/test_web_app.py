@@ -526,3 +526,30 @@ def test_exporting_nothing_gives_an_empty_but_valid_zip(client: TestClient) -> N
     archive = exported(client)
     assert archive.namelist() == ["history.json"]
     assert json.loads(archive.read("history.json")) == []
+
+
+def test_saving_an_edit_adds_a_new_image_and_keeps_the_original(client: TestClient, model_server: FakeModelServer) -> None:
+    original = generate(client, prompt="a red fox", negative_prompt="blurry").json()
+    original_png = client.get(f"/api/history/{original['id']}/image").content
+
+    resp = client.post(f"/api/history/{original['id']}/edits", json={"quarter_turns": 1, "crop": {"x": 0, "y": 0, "width": 64, "height": 32}})
+
+    assert resp.status_code == 201
+    edited = resp.json()
+    assert edited["edited_from"] == original["id"]
+    assert (edited["width"], edited["height"]) == (64, 32)
+    assert {key: edited[key] for key in ("prompt", "negative_prompt", "seed", "model")} == {
+        "prompt": "a red fox", "negative_prompt": "blurry", "seed": 1234, "model": "z-image-turbo",
+    }
+    assert edited["duration_seconds"] is None
+    assert Image.open(io.BytesIO(client.get(f"/api/history/{edited['id']}/image").content)).size == (64, 32)
+    assert client.get(f"/api/history/{original['id']}/image").content == original_png
+    assert [item["id"] for item in client.get("/api/history").json()["items"]] == [edited["id"], original["id"]]
+
+
+def test_bad_edits_are_refused(client: TestClient, model_server: FakeModelServer) -> None:
+    item_id = generate(client).json()["id"]
+    assert client.post(f"/api/history/{item_id}/edits", json={}).status_code == 422
+    assert client.post(f"/api/history/{item_id}/edits", json={"crop": {"x": 60, "y": 0, "width": 16, "height": 16}}).status_code == 422
+    assert client.post("/api/history/999/edits", json={"quarter_turns": 1}).status_code == 404
+    assert client.get("/api/history").json()["total"] == 1
