@@ -21,6 +21,7 @@ from PIL import Image
 from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, model_validator
 
 import history_export
+from image_edits import EditOutsideImage, EditRecipe, apply_edits
 import history_store
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 from grok_client import GrokClient
@@ -330,6 +331,24 @@ def history_palette(item_id: int) -> list[PaletteColour]:
     if colours is None:
         raise HTTPException(404, "Image not found")
     return colours
+
+
+@app.post("/api/history/{item_id}/edits", status_code=201)
+def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
+    """Saves the turned, flipped or cropped image as a new image; the original is never changed."""
+    source = history_store.item(item_id)
+    png = history_store.image_png(item_id)
+    if source is None or png is None:
+        raise HTTPException(404, "Image not found")
+    try:
+        edited, width, height = apply_edits(png, recipe)
+    except EditOutsideImage as error:
+        raise HTTPException(422, str(error))
+    return history_store.add(NewImage(
+        png=edited, prompt=source.prompt, negative_prompt=source.negative_prompt, seed=source.seed,
+        width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
+        duration_seconds=None, edited_from=source.id,
+    ))
 
 
 @app.put("/api/history/{item_id}/favourite")
