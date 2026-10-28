@@ -11,6 +11,8 @@ vi.mock('./api', async (importOriginal) => ({
   fetchCatalog: vi.fn(),
   fetchModelStatus: vi.fn(),
   generateImage: vi.fn(),
+  fetchJobProgress: vi.fn(),
+  cancelJob: vi.fn(),
 }))
 
 beforeEach(() => {
@@ -18,6 +20,8 @@ beforeEach(() => {
   const ready = { status: 'ready' as const, size_bytes: 1 }
   vi.mocked(api.fetchModelStatus).mockResolvedValue({ server_running: true, models: { 'z-image-turbo': ready, 'wai-illustrious': ready }, free_bytes: 1e11 })
   vi.mocked(api.generateImage).mockReset()
+  vi.mocked(api.fetchJobProgress).mockReturnValue(new Promise(() => {}))
+  vi.mocked(api.cancelJob).mockReset().mockResolvedValue()
 })
 
 it('generates exactly once and shows the image only after it arrives', async () => {
@@ -75,6 +79,31 @@ it('shows no example cards for a model without examples', async () => {
 
   await screen.findByLabelText('Prompt')
   expect(screen.queryByRole('button', { name: /^Example #/ })).not.toBeInTheDocument()
+})
+
+it('cancels the running generation once and goes back to the previous result without an error', async () => {
+  const first = historyItem({ id: 3, prompt: 'a red fox' })
+  vi.mocked(api.generateImage).mockResolvedValueOnce(first)
+  render(<App />)
+  await userEvent.type(await screen.findByLabelText('Prompt'), 'a red fox')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  expect(await screen.findByRole('img', { name: 'a red fox' })).toBeInTheDocument()
+
+  const second = deferred<HistoryItem>()
+  vi.mocked(api.generateImage).mockReturnValueOnce(second.promise)
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  const jobId = vi.mocked(api.generateImage).mock.calls[1][1]
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Cancelling…' }))
+
+  expect(api.cancelJob).toHaveBeenCalledOnce()
+  expect(api.cancelJob).toHaveBeenCalledWith(jobId)
+
+  second.reject(new api.ApiError('Cancelled', api.CANCELLED_STATUS))
+
+  expect(await screen.findByRole('img', { name: 'a red fox' })).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Generate' })).toBeEnabled()
 })
 
 it('shows a retryable error when the catalog cannot load', async () => {

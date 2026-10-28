@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { imageUrl } from '../api'
 import { formatDuration, useElapsedSeconds } from '../lib/hooks'
-import type { GenerationSettings, GenerationState, HistoryItem, ModelInfo } from '../types'
+import { useJobProgress } from '../lib/jobProgress'
+import type { GenerationState, HistoryItem, JobPhase, JobProgress, ModelInfo } from '../types'
 import { secondaryButtonClass } from '../lib/styles'
 import { ErrorNotice, Spinner } from './ui'
 
@@ -9,18 +10,21 @@ interface Props {
   state: GenerationState
   models: ModelInfo[]
   onRetry: () => void
+  onCancel: () => void
   onUseSeed: (seed: number) => void
 }
+
+type PendingState = Extract<GenerationState, { status: 'pending' }>
 
 function modelLabel(models: ModelInfo[], id: string): string {
   return models.find((model) => model.id === id)?.label ?? id
 }
 
-export function ResultPanel({ state, models, onRetry, onUseSeed }: Props) {
+export function ResultPanel({ state, models, onRetry, onCancel, onUseSeed }: Props) {
   return (
     <div className="flex h-full min-h-[24rem] items-center justify-center p-6">
       {state.status === 'idle' && <EmptyResult />}
-      {state.status === 'pending' && <PendingResult request={state.request} startedAt={state.startedAt} models={models} />}
+      {state.status === 'pending' && <PendingResult key={state.jobId} state={state} models={models} onCancel={onCancel} />}
       {state.status === 'failed' && (
         <div className="w-full max-w-md">
           <ErrorNotice message={state.error} onRetry={onRetry} />
@@ -41,8 +45,10 @@ function EmptyResult() {
   )
 }
 
-function PendingResult({ request, startedAt, models }: { request: GenerationSettings; startedAt: number; models: ModelInfo[] }) {
-  const elapsed = useElapsedSeconds(startedAt)
+function PendingResult({ state, models, onCancel }: { state: PendingState; models: ModelInfo[]; onCancel: () => void }) {
+  const { request } = state
+  const elapsed = useElapsedSeconds(state.startedAt)
+  const progress = useJobProgress(state.jobId)
   const model = models.find((candidate) => candidate.id === request.modelId)
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-4" aria-busy="true">
@@ -57,6 +63,44 @@ function PendingResult({ request, startedAt, models }: { request: GenerationSett
         <span className="font-semibold tabular-nums">{formatDuration(elapsed)}</span>
         {model && <span className="block text-xs text-zinc-400">Usually {model.speed_hint}</span>}
       </p>
+      <RenderProgress progress={progress} />
+      <button type="button" onClick={onCancel} disabled={state.cancelling} className={secondaryButtonClass}>
+        {state.cancelling ? 'Cancelling…' : 'Cancel'}
+      </button>
+    </div>
+  )
+}
+
+const PHASE_LABELS: Record<Exclude<JobPhase, 'generating'>, string> = {
+  waiting: 'Waiting for the previous image',
+  loading: 'Loading the model',
+  encoding: 'Reading the prompt',
+  finishing: 'Finishing',
+}
+
+function RenderProgress({ progress }: { progress: JobProgress | null }) {
+  if (progress === null) return null
+  const label = progress.phase === 'generating' ? `Step ${progress.step} of ${progress.total}` : PHASE_LABELS[progress.phase]
+  const showsSteps = progress.phase === 'generating' || progress.phase === 'finishing'
+  return (
+    <div className="w-full max-w-sm space-y-1.5">
+      <p className="text-center text-xs font-medium text-zinc-600 tabular-nums dark:text-zinc-300">{label}</p>
+      {showsSteps && <StepBar step={progress.step} total={progress.total} />}
+    </div>
+  )
+}
+
+function StepBar({ step, total }: { step: number; total: number }) {
+  return (
+    <div
+      role="progressbar"
+      aria-label="Steps done"
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={step}
+      className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+    >
+      <div className="h-full rounded-full bg-violet-500 transition-[width]" style={{ width: `${(100 * step) / Math.max(total, 1)}%` }} />
     </div>
   )
 }

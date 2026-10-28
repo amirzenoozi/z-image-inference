@@ -107,8 +107,16 @@ export type Loadable<T> =
   | { status: 'failed'; error: string }
   | { status: 'settled'; value: T }
 
+export type JobPhase = 'waiting' | 'loading' | 'encoding' | 'generating' | 'finishing'
+
+export interface JobProgress {
+  phase: JobPhase
+  step: number
+  total: number
+}
+
 export type GenerationState =
   | { status: 'idle' }
-  | { status: 'pending'; startedAt: number; request: GenerationSettings }
+  | { status: 'pending'; startedAt: number; request: GenerationSettings; jobId: string; cancelling: boolean }
   | { status: 'failed'; error: string; request: GenerationSettings }
   | { status: 'settled'; item: HistoryItem }

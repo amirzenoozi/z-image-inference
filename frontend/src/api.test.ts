@@ -30,14 +30,15 @@ describe('generateImage', () => {
     )
     const settings = { ...initialSettings(catalog), prompt: 'a cat', seed: 5, randomSeed: true }
 
-    await expect(generateImage(settings)).rejects.toEqual(new ApiError('The model server is not running', 503))
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { seed: number | null }
+    await expect(generateImage(settings, 'job-1')).rejects.toEqual(new ApiError('The model server is not running', 503))
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { seed: number | null; job_id: string }
     expect(body.seed).toBeNull()
+    expect(body.job_id).toBe('job-1')
   })
 
   it('explains when the app server cannot be reached', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
-    await expect(generateImage({ ...initialSettings(catalog), prompt: 'a cat' })).rejects.toThrow(/Could not reach/)
+    await expect(generateImage({ ...initialSettings(catalog), prompt: 'a cat' }, 'job-1')).rejects.toThrow(/Could not reach/)
   })
 })
 
