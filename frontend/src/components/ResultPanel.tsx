@@ -146,6 +146,7 @@ function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: s
 export function ImageFacts({ item, label }: { item: HistoryItem; label: string }) {
   const facts = [label, `${item.width}×${item.height}`, `${item.steps} steps`, `seed ${item.seed}`]
   if (item.guidance !== null) facts.splice(3, 0, `CFG ${item.guidance}`)
+  if (item.duration_seconds !== null) facts.push(formatDuration(Math.round(item.duration_seconds)))
   return (
     <ul className="flex flex-wrap gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
       {facts.map((fact) => (

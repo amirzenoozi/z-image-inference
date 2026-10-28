@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { clearHistory, deleteHistoryItem, fetchHistory, imageUrl } from '../api'
 import { errorMessage } from '../lib/hooks'
 import type { HistoryItem, HistoryPage, Loadable, ModelInfo } from '../types'
+import { HistoryCleanUp } from './HistoryCleanUp'
 import { Modal } from './Modal'
 import { ImageFacts } from './ResultPanel'
 import { secondaryButtonClass } from '../lib/styles'
@@ -66,9 +67,12 @@ export function HistoryPanel({ models, onReuse }: Props) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{total === 1 ? '1 image' : `${total} images`}</p>
         {total > 0 && (
-          <button type="button" onClick={() => setConfirmClear(true)} className="text-sm font-medium text-red-600 hover:text-red-500">
-            Delete all
-          </button>
+          <div className="flex items-center gap-4">
+            <HistoryCleanUp onCleaned={reload} />
+            <button type="button" onClick={() => setConfirmClear(true)} className="text-sm font-medium text-red-600 hover:text-red-500">
+              Delete all
+            </button>
+          </div>
         )}
       </div>
       {total === 0 ? <EmptyHistory /> : <HistoryGrid items={items} labelOf={labelOf} onOpen={setSelected} />}

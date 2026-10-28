@@ -77,6 +77,16 @@ export interface HistoryItem {
   guidance: number | null
   model: string
   created_at: string
+  /** How long rendering took; null for images made before render times were recorded. */
+  duration_seconds: number | null
+}
+
+export interface HistorySummary {
+  total: number
+  /** Size of the history database file. */
+  bytes: number
+  /** How many images are older than each age "Clean up" offers. */
+  older_than: { days: number; count: number }[]
 }
 
 export interface HistoryPage {
