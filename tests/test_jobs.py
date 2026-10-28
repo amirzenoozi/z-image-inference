@@ -73,7 +73,9 @@ def test_progress_follows_each_step_then_the_job_is_gone(generator: SteppingGene
         assert wait_for_step(client, JOB, 1) == {"phase": "generating", "step": 1, "total": 3}
 
         generator.allowed.release(2)
-        assert result.result(timeout=5).status_code == 200
+        resp = result.result(timeout=5)
+        assert resp.status_code == 200
+        assert isinstance(resp.json()["seconds"], float)
 
     assert client.get(f"/jobs/{JOB}").status_code == 404
 

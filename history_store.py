@@ -7,13 +7,15 @@ from pathlib import Path
 from model_catalog import DEFAULT_MODEL
 
 DB_PATH = Path(__file__).parent / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
     "model": f"TEXT NOT NULL DEFAULT '{DEFAULT_MODEL.id}'",
     "negative_prompt": "TEXT NOT NULL DEFAULT ''",
     "guidance": "REAL",
+    # Rows saved before render times were recorded have none
+    "duration_seconds": "REAL",
 }
 
 
@@ -29,9 +31,27 @@ class HistoryItem:
     guidance: float | None
     model: str
     created_at: str
+    duration_seconds: float | None
 
     def to_dict(self) -> dict[str, str | int | float | None]:
         return asdict(self)
+
+
+# The ages "Clean up" offers: images older than this many days can be deleted together
+CLEANUP_AGES_DAYS = (7, 30, 90)
+
+
+@dataclass(frozen=True)
+class AgeCount:
+    days: int
+    count: int
+
+
+@dataclass(frozen=True)
+class HistorySummary:
+    total: int
+    bytes: int
+    older_than: list[AgeCount]
 
 
 @dataclass(frozen=True)
@@ -45,6 +65,7 @@ class NewImage:
     steps: int
     guidance: float | None
     model: str
+    duration_seconds: float
 
 
 @contextmanager
@@ -81,18 +102,18 @@ def add_missing_columns(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE images ADD COLUMN {name} {definition}")
 
 
-def to_item(row: tuple[int, str | None, str, int, int, int, int, float | None, str, str]) -> HistoryItem:
-    id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at = row
-    return HistoryItem(id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at)
+def to_item(row: tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None]) -> HistoryItem:
+    id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds = row
+    return HistoryItem(id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds)
 
 
 def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
-            """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (image.png, image.prompt, image.negative_prompt, image.seed, image.width, image.height,
-             image.steps, image.guidance, image.model),
+             image.steps, image.guidance, image.model, image.duration_seconds),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)
@@ -122,3 +143,35 @@ def delete(item_id: int) -> bool:
 def clear() -> None:
     with connection() as conn:
         conn.execute("DELETE FROM images")
+    compact()
+
+
+def older_than(days: int) -> tuple[str, str]:
+    return "created_at < datetime('now', ?)", f"-{days} days"
+
+
+def summary() -> HistorySummary:
+    with connection() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+        counts = []
+        for days in CLEANUP_AGES_DAYS:
+            condition, age = older_than(days)
+            counts.append(AgeCount(days, conn.execute(f"SELECT COUNT(*) FROM images WHERE {condition}", (age,)).fetchone()[0]))
+    return HistorySummary(total, DB_PATH.stat().st_size, counts)
+
+
+def delete_older_than(days: int) -> int:
+    condition, age = older_than(days)
+    with connection() as conn:
+        deleted = conn.execute(f"DELETE FROM images WHERE {condition}", (age,)).rowcount
+    compact()
+    return deleted
+
+
+def compact() -> None:
+    """SQLite keeps the space of deleted images in the file until it is rebuilt."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("VACUUM")
+    finally:
+        conn.close()
