@@ -7,7 +7,8 @@ function isCancelled(error: unknown): boolean {
   return error instanceof ApiError && error.status === CANCELLED_STATUS
 }
 
-export function useGeneration(onSuccess: (item: HistoryItem) => void) {
+/** `onFailure` runs when the server answers with an error, not when the user cancels. */
+export function useGeneration(onSuccess: (item: HistoryItem) => void, onFailure: () => void = () => {}) {
   const [state, setState] = useState<GenerationState>({ status: 'idle' })
   // What the result area showed before the current generation, restored when it is cancelled
   const lastOutcome = useRef<GenerationState>({ status: 'idle' })
@@ -26,11 +27,12 @@ export function useGeneration(onSuccess: (item: HistoryItem) => void) {
         settle({ status: 'settled', item })
         onSuccess(item)
       } catch (error) {
-        if (isCancelled(error)) setState(lastOutcome.current)
-        else settle({ status: 'failed', error: errorMessage(error), request })
+        if (isCancelled(error)) return setState(lastOutcome.current)
+        settle({ status: 'failed', error: errorMessage(error), request })
+        onFailure()
       }
     },
-    [onSuccess, settle],
+    [onSuccess, onFailure, settle],
   )
 
   const retry = () => {

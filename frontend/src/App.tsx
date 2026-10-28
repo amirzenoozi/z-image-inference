@@ -12,6 +12,7 @@ import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
 import { characterSettings, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
 import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
+import { useUnseenResult } from './lib/unseenResult'
 import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
 import { Sparkles } from 'lucide-react'
@@ -54,8 +55,15 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   const [view, setView] = useView()
   const [mode, setMode] = useState<PromptMode>('direct')
   const [lastSeed, setLastSeed] = useState<number | null>(null)
-  const onSuccess = useCallback((item: HistoryItem) => setLastSeed(item.seed), [])
-  const generation = useGeneration(onSuccess)
+  const { unseen, finished } = useUnseenResult(view)
+  const onSuccess = useCallback(
+    (item: HistoryItem) => {
+      setLastSeed(item.seed)
+      finished()
+    },
+    [finished],
+  )
+  const generation = useGeneration(onSuccess, finished)
   useRenderAlerts(generation.state, catalog.models)
   // A generation attempt can start a model download, so status is re-checked whenever its state changes
   const [modelStatus, refreshModelStatus] = useModelStatus(generation.state.status)
@@ -77,7 +85,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header view={view} onViewChange={setView} />
+      <Header view={view} onViewChange={setView} unseenResult={unseen} />
       <main className={`grid min-h-0 flex-1 lg:grid-cols-[440px_minmax(0,1fr)] ${view === 'create' ? '' : 'hidden'}`}>
         <aside className="min-h-0 border-zinc-200 bg-white lg:border-r dark:border-zinc-800 dark:bg-zinc-950">
           <SettingsPanel
@@ -125,7 +133,14 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   )
 }
 
-function Header({ view, onViewChange }: { view: View; onViewChange: (view: View) => void }) {
+interface HeaderProps {
+  view: View
+  onViewChange: (view: View) => void
+  /** A render finished while another view was open: Create shows a red dot until it is opened. */
+  unseenResult: boolean
+}
+
+function Header({ view, onViewChange, unseenResult }: HeaderProps) {
   const views: { id: View; label: string }[] = [
     { id: 'create', label: 'Create' },
     { id: 'history', label: 'History' },
@@ -144,14 +159,24 @@ function Header({ view, onViewChange }: { view: View; onViewChange: (view: View)
             type="button"
             aria-current={view === id ? 'page' : undefined}
             onClick={() => onViewChange(id)}
-            className={`rounded-lg px-4 py-1.5 font-medium transition ${
+            className={`relative rounded-lg px-4 py-1.5 font-medium transition ${
               tabClass(view === id)
             }`}
           >
             {label}
+            {id === 'create' && unseenResult && <NewResultDot />}
           </button>
         ))}
       </nav>
     </header>
+  )
+}
+
+function NewResultDot() {
+  return (
+    <>
+      <span aria-hidden="true" className="absolute top-1 right-1.5 size-2 rounded-full bg-red-500 ring-2 ring-zinc-100 dark:ring-zinc-800" />
+      <span className="sr-only"> (new result)</span>
+    </>
   )
 }
