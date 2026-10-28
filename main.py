@@ -449,13 +449,25 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
     return history_store.add(NewImage(
         png=edited, prompt=source.prompt, negative_prompt=source.negative_prompt, seed=source.seed,
         width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
-        duration_seconds=None, edited_from=source.id, character_id=source.character_id,
+        duration_seconds=None, edited_from=source.id, character_id=source.character_id, sensitive=source.sensitive,
     ))
 
 
 @app.put("/api/history/{item_id}/favourite")
 def set_favourite(item_id: int, update: FavouriteUpdate) -> HistoryItem:
     item = history_store.set_favourite(item_id, update.favourite)
+    if item is None:
+        raise HTTPException(404, "Image not found")
+    return item
+
+
+class SensitiveUpdate(BaseModel):
+    sensitive: bool
+
+
+@app.put("/api/history/{item_id}/sensitive")
+def set_sensitive(item_id: int, update: SensitiveUpdate) -> HistoryItem:
+    item = history_store.set_sensitive(item_id, update.sensitive)
     if item is None:
         raise HTTPException(404, "Image not found")
     return item

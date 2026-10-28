@@ -9,6 +9,7 @@ import type { Character } from '../types'
 import { CharacterEditor } from './CharacterEditor'
 import { IconButton } from './IconButton'
 import { Modal } from './Modal'
+import { SensitiveImage } from './SensitiveImage'
 import { ErrorNotice } from './ui'
 import { Images, Pencil, Plus, Trash2, UserRound } from 'lucide-react'
 
@@ -172,7 +173,7 @@ function CharacterCover({ character }: { character: Character }) {
       </div>
     )
   }
-  return <img src={imageUrl(character.cover_id, true)} alt="" className="aspect-[3/4] w-full bg-zinc-100 object-cover dark:bg-zinc-800" />
+  return <SensitiveImage src={imageUrl(character.cover_id, true)} sensitive={character.cover_sensitive} className="aspect-[3/4] w-full" />
 }
 
 function CharactersSkeleton() {

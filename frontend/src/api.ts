@@ -146,6 +146,11 @@ export async function setFavourite(id: number, favourite: boolean): Promise<Hist
   return (await postJson(`/api/history/${id}/favourite`, { favourite }, undefined, 'PUT')).json() as Promise<HistoryItem>
 }
 
+/** Marks an image as sensitive, so lists blur it, or as not sensitive. */
+export async function setSensitive(id: number, sensitive: boolean): Promise<HistoryItem> {
+  return (await postJson(`/api/history/${id}/sensitive`, { sensitive }, undefined, 'PUT')).json() as Promise<HistoryItem>
+}
+
 export async function deleteHistoryItem(id: number): Promise<void> {
   await request(`/api/history/${id}`, { method: 'DELETE' })
 }

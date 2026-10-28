@@ -93,6 +93,7 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     change: null,
     character_id: null,
     face_from: null,
+    sensitive: false,
     ...overrides,
   }
 }
@@ -111,6 +112,8 @@ export function character(overrides: Partial<Character> = {}): Character {
     image_count: 0,
     face_id: null,
     face_strength: 0.6,
+    cover_sensitive: false,
+    face_sensitive: false,
     ...overrides,
   }
 }

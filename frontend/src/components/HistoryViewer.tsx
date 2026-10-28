@@ -8,6 +8,7 @@ import { ColourPalette } from './ColourPalette'
 import { EditSession } from './EditSession'
 import { FavouriteButton } from './FavouriteButton'
 import { ImageCharacter } from './ImageCharacter'
+import { SensitiveButton } from './SensitiveButton'
 import { ImageFacts } from './ImageFacts'
 import { Modal } from './Modal'
 import { ErrorNotice, PromptBlock, Spinner } from './ui'
@@ -149,7 +150,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
   const deleteButton = useRef<HTMLButtonElement>(null)
   const fullScreen = useFullScreen(area)
   const [zoomed, setZoomed] = useState(false)
-  const [favouriteError, setFavouriteError] = useState<string | null>(null)
+  const [markError, setMarkError] = useState<string | null>(null)
   const [deleteState, setDeleteState] = useState<DeleteState>({ status: 'idle' })
   const [armed, pressDelete] = useArmedDelete(() => deleteButton.current?.click())
   const [editing, setEditing] = useState(false)
@@ -179,7 +180,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
     moveTo(Math.min(index, total - 1))
   }
   const changed = (next: HistoryItem) => {
-    setFavouriteError(null)
+    setMarkError(null)
     onListChanged()
     // With the Favourites filter on, an unstarred image leaves the list, like a deleted one
     if (filters.favouritesOnly && !next.favourite) afterRemoval()
@@ -249,7 +250,8 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
                 <OverlayButton label={fullScreen.active ? 'Leave full screen' : 'Full screen'} shortcut="Z" onClick={fullScreen.toggle}>
                   {fullScreen.active ? <Minimize /> : <Maximize />}
                 </OverlayButton>
-                {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setFavouriteError} />}
+                {item && <SensitiveButton item={item} onChanged={changed} onFailed={setMarkError} className={overlayClass} />}
+                {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setMarkError} />}
               </div>
               <SideButton side="previous" disabled={index === 0} onClick={() => moveTo(index - 1)} />
               <SideButton side="next" disabled={index >= image.total - 1} onClick={() => moveTo(index + 1)} />
@@ -258,7 +260,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
               <ViewerDetails
                 item={item}
                 label={labelOf(item.model)}
-                favouriteError={favouriteError}
+                markError={markError}
                 deleteError={deleteState.status === 'failed' ? deleteState.error : null}
                 armed={armed}
                 actions={
@@ -411,14 +413,14 @@ function SideButton({ side, disabled, onClick }: { side: 'previous' | 'next'; di
 interface DetailsProps {
   item: HistoryItem
   label: string
-  favouriteError: string | null
+  markError: string | null
   deleteError: string | null
   armed: boolean
   actions: ReactNode
 }
 
 /** The metadata column beside the image; its actions sit at the bottom of the column, under a divider. */
-function ViewerDetails({ item, label, favouriteError, deleteError, armed, actions }: DetailsProps) {
+function ViewerDetails({ item, label, markError, deleteError, armed, actions }: DetailsProps) {
   return (
     <div className="flex min-h-0 flex-col gap-4 text-sm lg:h-full">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
@@ -433,7 +435,7 @@ function ViewerDetails({ item, label, favouriteError, deleteError, armed, action
           {item.varied_from !== null && item.change !== null && ` · Variation of image #${item.varied_from}, ${Math.round(item.change * 100)}% change`}
           {item.face_from !== null && ` · Face from image #${item.face_from}`}
         </p>
-        {favouriteError && <ErrorNotice message={favouriteError} />}
+        {markError && <ErrorNotice message={markError} />}
         {deleteError && <ErrorNotice message={deleteError} />}
         {armed && (
           <p role="status" className="text-xs font-medium text-red-600 dark:text-red-400">

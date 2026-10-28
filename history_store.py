@@ -8,9 +8,10 @@ from pathlib import Path
 from model_catalog import DEFAULT_MODEL
 from palette import PaletteColour, extract_palette
 from resolutions import CATEGORY_CONDITIONS, Category
+from sensitive import is_sensitive
 
 DB_PATH = Path(__file__).parent / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -31,6 +32,8 @@ ADDED_COLUMNS: dict[str, str] = {
     "character_id": "INTEGER",
     # The image whose face it was locked to, for SDXL renders of a character with a face image
     "face_from": "INTEGER",
+    # Blurred in the list: worked out from the prompt (rows from before it existed are checked at start), changeable per image
+    "sensitive": "INTEGER",
 }
 # Character columns added after characters were first released
 ADDED_CHARACTER_COLUMNS: dict[str, str] = {
@@ -59,6 +62,7 @@ class HistoryItem:
     change: float | None
     character_id: int | None
     face_from: int | None
+    sensitive: bool
 
     def to_dict(self) -> dict[str, str | int | float | None]:
         return asdict(self)
@@ -132,6 +136,8 @@ class NewImage:
     change: float | None = None
     character_id: int | None = None
     face_from: int | None = None
+    # None works it out from the prompt; an edited copy passes its original's, which may have been set by hand
+    sensitive: bool | None = None
 
 
 @contextmanager
@@ -159,6 +165,7 @@ def init_db() -> None:
             )
         """)
         add_missing_columns(conn, "images", ADDED_COLUMNS)
+        mark_unchecked_images(conn)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS characters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,6 +181,12 @@ def init_db() -> None:
         conn.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
 
 
+def mark_unchecked_images(conn: sqlite3.Connection) -> None:
+    """Images saved before the sensitive flag existed get it from their prompt, once."""
+    unchecked = conn.execute("SELECT id, prompt FROM images WHERE sensitive IS NULL").fetchall()
+    conn.executemany("UPDATE images SET sensitive = ? WHERE id = ?", [(int(is_sensitive(prompt or "")), id_) for id_, prompt in unchecked])
+
+
 def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
     existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     for name, definition in columns.items():
@@ -181,15 +194,15 @@ def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str,
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
 
-Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None]
+Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int]
 
 
 def to_item(row: Row) -> HistoryItem:
     id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
-    edited_from, varied_from, change, character_id, face_from = links
+    edited_from, varied_from, change, character_id, face_from, sensitive = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
-        edited_from, varied_from, change, character_id, face_from,
+        edited_from, varied_from, change, character_id, face_from, bool(sensitive),
     )
 
 
@@ -197,11 +210,11 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id, face_from)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from, sensitive)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (image.png, image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
-             image.character_id, image.face_from),
+             image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive)),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)
@@ -252,6 +265,13 @@ def item(item_id: int) -> HistoryItem | None:
 def set_favourite(item_id: int, favourite: bool) -> HistoryItem | None:
     with connection() as conn:
         conn.execute("UPDATE images SET favourite = ? WHERE id = ?", (int(favourite), item_id))
+        row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (item_id,)).fetchone()
+    return to_item(row) if row else None
+
+
+def set_sensitive(item_id: int, sensitive: bool) -> HistoryItem | None:
+    with connection() as conn:
+        conn.execute("UPDATE images SET sensitive = ? WHERE id = ?", (int(sensitive), item_id))
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (item_id,)).fetchone()
     return to_item(row) if row else None
 

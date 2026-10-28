@@ -77,6 +77,9 @@ class Character(BaseModel):
     # The History image whose face SDXL renders keep (IP-Adapter); null for none, or once that image is deleted
     face_id: int | None
     face_strength: float
+    # Whether the cover and the face image are blurred in lists, as their History images are
+    cover_sensitive: bool
+    face_sensitive: bool
 
 
 class SampleCharacter(BaseModel):
@@ -100,26 +103,26 @@ class MissingImage(ValueError):
     pass
 
 
-SELECT = """
-    SELECT c.id, c.name, c.traits,
-           COALESCE((SELECT id FROM images WHERE id = c.cover_id),
-                    (SELECT MAX(id) FROM images WHERE character_id = c.id)),
-           c.seed,
+COVER = "COALESCE((SELECT id FROM images WHERE id = c.cover_id), (SELECT MAX(id) FROM images WHERE character_id = c.id))"
+SELECT = f"""
+    SELECT c.id, c.name, c.traits, {COVER}, c.seed,
            (SELECT COUNT(*) FROM images WHERE character_id = c.id),
            (SELECT id FROM images WHERE id = c.face_id),
-           c.face_strength
+           c.face_strength,
+           COALESCE((SELECT sensitive FROM images WHERE id = {COVER}), 0),
+           COALESCE((SELECT sensitive FROM images WHERE id = c.face_id), 0)
     FROM characters c
 """
 
 
-CharacterRow = tuple[int, str, str, int | None, int | None, int, int | None, float]
+CharacterRow = tuple[int, str, str, int | None, int | None, int, int | None, float, int, int]
 
 
 def to_character(row: CharacterRow) -> Character:
-    id_, name, traits, cover_id, seed, image_count, face_id, face_strength = row
+    id_, name, traits, cover_id, seed, image_count, face_id, face_strength, cover_sensitive, face_sensitive = row
     return Character(
         id=id_, name=name, traits=CharacterTraits.model_validate_json(traits), cover_id=cover_id, seed=seed, image_count=image_count,
-        face_id=face_id, face_strength=face_strength,
+        face_id=face_id, face_strength=face_strength, cover_sensitive=bool(cover_sensitive), face_sensitive=bool(face_sensitive),
     )
 
 
