@@ -4,6 +4,7 @@ import { ResultPanel } from './components/ResultPanel'
 import { SettingsPanel, type PromptMode } from './components/SettingsPanel'
 import { ErrorNotice, Spinner } from './components/ui'
 import { useGeneration } from './lib/generation'
+import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
 import { loadSettings, saveSettings, settingsFromItem } from './lib/settings'
@@ -109,7 +110,7 @@ function Header({ view, onViewChange }: { view: View; onViewChange: (view: View)
             aria-current={view === id ? 'page' : undefined}
             onClick={() => onViewChange(id)}
             className={`rounded-lg px-4 py-1.5 font-medium transition ${
-              view === id ? 'bg-white shadow-sm dark:bg-zinc-950' : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400'
+              tabClass(view === id)
             }`}
           >
             {label}

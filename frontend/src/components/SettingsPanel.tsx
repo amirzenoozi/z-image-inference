@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../types'
 import { differsFromDefaults, findModel, modelDefaults, switchModel } from '../lib/settings'
+import { tabClass } from '../lib/styles'
 import { ChatPanel } from './ChatPanel'
 import { ModelPicker } from './ModelPicker'
 import { PromptEditor } from './PromptEditor'
@@ -113,7 +114,7 @@ function PromptSection(props: PromptSectionProps) {
             title={enabled ? undefined : 'Set XAI_API_KEY in .env to enable chat'}
             onClick={() => onModeChange(id)}
             className={`rounded-lg py-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
-              mode === id ? 'bg-white shadow-sm dark:bg-zinc-950' : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400'
+              tabClass(mode === id)
             }`}
           >
             {label}
