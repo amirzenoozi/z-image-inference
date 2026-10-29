@@ -18,7 +18,7 @@ echo "Checks for $branch:" >&2
 if "$hooks/check-branch-name" "$branch" >/dev/null 2>&1; then
   ok "branch name follows the convention"
 else
-  bad "branch name must be dev, main, feature/, bug/, docs/ or test/ (git branch -m <new-name>)"
+  bad "branch name must be main, feature/, bug/, docs/ or test/ (git branch -m <new-name>)"
 fi
 
 if command -v gitleaks >/dev/null; then

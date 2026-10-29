@@ -90,7 +90,7 @@ Restart both servers after changing them. See [Models](docs/models.md) for what 
 
 Once per clone: `git config core.hooksPath .githooks` and `brew install gitleaks`. The pre-commit and pre-push hooks then block any change that contains a value from your `.env` or looks like a key (`.githooks/check-secrets`). Without gitleaks only the `.env` check runs.
 
-The same hooks only allow the branch names `dev`, `main`, `feature/…`, `bug/…`, `docs/…` and `test/…`.
+The same hooks only allow the branch names `main`, `feature/…`, `bug/…`, `docs/…` and `test/…`.
 
 Switching branches prints a checklist of these checks for the new branch (`.githooks/post-checkout`); it only informs, the commit and push hooks do the blocking.
 
