@@ -58,6 +58,7 @@ it('shows the image with its settings and actions', async () => {
   const { onUseSeed } = renderResult({ status: 'settled', item: historyItem({ id: 7, seed: 42 }) })
   expect(screen.getByRole('img')).toHaveAttribute('src', '/api/history/7/image')
   expect(screen.getByRole('link', { name: 'Download' })).toHaveAttribute('download', 'z-image-7-42.png')
+  expect(screen.getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/api/history/7/download')
   expect(screen.getByText('seed 42')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Use this seed' }))
   expect(onUseSeed).toHaveBeenCalledWith(42)

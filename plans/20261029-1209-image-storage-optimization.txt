@@ -1,0 +1,166 @@
+PLAN: Smaller images in history.db
+Date: 2026-10-29 12:09
+Status: approved and built (steps 0-5); step 6 deferred
+
+GOAL
+Make history.db smaller by storing each new image as lossless WebP instead of PNG,
+with no change to what the images look like, and no schema change (no new columns).
+Existing PNG rows keep working as they are, and are converted once with the backfill tool
+(decided on review: every existing record as well as the new ones).
+
+WHY LOSSLESS ONLY
+Variations, the face lock, edits and the image check all start from the stored image,
+so it must stay pixel-identical to what the model made. Lossy WebP/AVIF and JPEG XL are
+out of scope (see OUT OF SCOPE).
+
+CURRENT STATE (checked in the code)
+- history_store.py: images.image_data BLOB holds the PNG; add() inserts NewImage.png.
+- history_store.image_png(id) feeds: the image check (main.py image_is_nsfw), variations
+  (main.py, source image), the face lock (main.py, character face), edits (save_edit),
+  the palette, the History export zip, and GET /api/history/{id}/image.
+- GET /api/history/{id}/image always answers media_type="image/png".
+- Download links in ResultPanel.tsx and HistoryViewer.tsx use that URL with a ".png"
+  file name.
+- The history export writes each image as "<name>.png" (history_export.py).
+- All readers except the route and the export decode with Pillow, which opens any format.
+- history_store.compact() runs VACUUM after deleting images. No WAL or auto_vacuum.
+
+DESIGN
+No column. A stored image is told apart by its first bytes: PNG starts with
+89 50 4E 47, WebP with "RIFF....WEBP". Rows written before this change are PNG and
+need no migration to keep working.
+
+New file backend/image_codec.py (small, pure, no database)
+- encode_for_storage(png: bytes) -> bytes
+  - Open with Pillow. Drop the alpha channel only when it is fully opaque; keep it
+    otherwise. Drop metadata chunks (prompt and settings already live in columns).
+  - Keep the PNG as it is when the image is deeper than 8 bits per channel (16-bit PNG):
+    WebP would lose precision, and the pixel check below would not notice after converting.
+  - Save as lossless WebP, method 4 (step 0).
+  - Safety net, always: decode the result and compare pixels with the source. If they
+    differ, or the WebP is not smaller than the PNG, return the original PNG bytes.
+    So a stored copy is never different from, or bigger than, what the model made.
+- to_png(stored: bytes) -> bytes: returns PNG bytes; a PNG goes through unchanged.
+- media_type(stored: bytes) -> str: "image/png" or "image/webp" by header.
+
+history_store.py
+- add(): store encode_for_storage(image.png). NewImage.png keeps its name (it is what
+  the caller hands over); only the stored bytes change.
+- image_png(id): keeps its name and meaning, now converts with to_png when the row is
+  WebP. Every existing consumer (image check, variations, face lock, edits, palette)
+  is untouched and always gets PNG.
+- New stored_image(id) -> bytes | None: the raw stored bytes, for the image route.
+- images(filters): keeps yielding PNG (converted), so the export zip is unchanged
+  and its files stay real PNGs.
+
+main.py
+- GET /api/history/{id}/image: sends stored_image() with media_type from the header, so
+  the browser gets WebP directly with no conversion. ?thumb=true stays as it is.
+- Downloads: add GET /api/history/{id}/download (PNG via image_png, Content-Disposition
+  attachment, name z-image-<id>-<seed>.png). Without it, a ".png" download of a
+  WebP body would be misnamed.
+
+frontend/src/
+- api.ts: downloadUrl(id). ResultPanel.tsx and HistoryViewer.tsx point their download
+  links at it instead of imageUrl(). Displaying images keeps using imageUrl().
+
+Optional backfill (separate step, run by hand, not at startup)
+- backend/tools/recompress_history.py, run with uv run python backend/tools/recompress_history.py
+  - --dry-run: reports how many PNG rows, current size, estimated saving, no writes.
+  - Copies history.db to history.db.bak first (SQLite backup API, safe while in use),
+    unless --no-backup is passed.
+  - Per row, in its own transaction: encode, verify pixels, replace image_data.
+    Rows already WebP are skipped, so it is safe to stop and run again. --limit N.
+  - Runs compact() at the end, since the file only shrinks after VACUUM.
+- Not automatic on purpose: rewriting a user's whole database should be something
+  they start, after a backup, not a side effect of updating.
+
+Database settings (separate small step, after the above has settled)
+- journal_mode=WAL (the background image check's writes do not block page reads; the model
+  server never opens history.db, only the web app does) and
+  auto_vacuum=INCREMENTAL (deleted images return space without a full VACUUM).
+- auto_vacuum only applies to a new database or after VACUUM, so it takes effect
+  for existing databases after the backfill's compact().
+
+MIXED VERSIONS
+An older build opening a database with WebP rows: Pillow-based code reads them fine;
+the old image route labels them image/png, which browsers still display (they sniff the
+content), but a ".png" download would hold WebP bytes. So: ship the new version
+everywhere before running the backfill, and do not run it if an older copy is in use.
+
+ROLLBACK
+- New saves: revert the change; WebP rows stay readable by the new reader code, so keep
+  the reader part even if the encoder is turned off.
+- Backfill: history.db.bak is the undo. Since the conversion is lossless, a row can
+  also be converted back to PNG exactly (to_png) until the backup is deleted.
+
+STEP 0 RESULTS (2026-10-29, all 87 images in history.db, read-only)
+- history.db 65.2 MB, of which images 65.0 MB; all 87 PNG, RGB, no alpha, no metadata.
+  0 edited, 1 variation, 0 face-locked; 14 characters, no uploaded face photos.
+- PNG as stored 65.0 MB; PNG optimize=True 62.2 MB (-4.3%); lossless WebP method 4
+  45.9 MB (-29.3%), method 6 45.3 MB (-30.3%). Every WebP pixel-identical, none bigger.
+- Encode time: method 4 average 0.19 s, worst 0.51 s; method 6 average 0.43 s, worst 0.65 s
+  (largest image 1280x1280). Go: method 4, on the request thread.
+- Lossy for comparison (not used): JPEG q95 14.0 MB, JPEG q85 7.4 MB, WebP lossy q90 6.1 MB.
+
+STEP 0: MEASURE BEFORE BUILDING (decides the defaults)
+Take about 20 real images (all models, mixed sizes, a couple of edited copies). Compare
+PNG as stored, PNG optimize=True, lossless WebP at methods 4 and 6, for size and
+encode time at the largest preset. Go ahead only if lossless WebP saves at least about
+15% and encoding stays under about 2 seconds at the largest size; pick the method
+from the numbers. If the saving is smaller, stop at PNG optimize=True (still no schema
+change) or do nothing.
+
+TESTS
+- Backend (uv run pytest), fake images, no models needed:
+  - image_codec: round trip is pixel-identical for RGB, RGBA with real transparency,
+    and a palette image; fully opaque RGBA becomes RGB; metadata is dropped; when the
+    WebP would be bigger the original PNG bytes come back; header detection for both
+    formats; to_png of a PNG is the same bytes.
+  - history_store: add() then image_png() returns an identical PNG; a row written as
+    plain PNG (old format) still reads; stored_image() returns the raw bytes.
+  - Routes: /image answers image/webp for a new image and image/png for an old row;
+    /download answers a real PNG with the right file name; the export zip holds PNGs
+    that open with Pillow.
+  - A variation, an edit and a face lock started from a WebP-stored image work.
+  - Backfill script: dry run writes nothing; a second run changes nothing; a row whose
+    verification fails is left as it was; the backup file is created.
+- Frontend (npm test, npx tsc -b, npx oxlint src): the download links use downloadUrl.
+- Whole set: make check.
+
+DOCS
+- CLAUDE.md "Code layout": history_store.py line (images are stored as PNG or lossless
+  WebP, told apart by their header); add image_codec.py and the backfill tool.
+- README.md or docs/usage.md: one note on the optional backfill and the backup it makes.
+- No new user-facing text, so no translation keys.
+
+DEFAULTS CHOSEN (change on review if wanted)
+1. Lossless WebP only; PNG is kept whenever WebP is not smaller or not identical.
+2. No schema change: the format is read from the bytes.
+3. Existing images are re-encoded by the backfill tool, run once by hand after a backup
+   (all existing records, decided on review); never automatically at startup.
+4. Downloads and the export zip stay PNG.
+5. Thumbnails are unchanged (still made on request).
+6. character_store's uploaded face photo stays PNG (small, rarely read).
+
+OUT OF SCOPE (candidates for later, each worth measuring first)
+- Lossy WebP/AVIF "archive" copies for old images, JPEG XL.
+- Storing thumbnails at save time in their own table, and moving image bytes into a
+  separate table so History queries never touch them.
+- Image files on disk instead of BLOBs (only if the database reaches tens of GB).
+- Compressing the BLOB again (PNG and WebP are already compressed; no gain).
+
+BUILD ORDER
+0. Benchmark script and the numbers; decide go / no-go and the WebP method.
+1. image_codec.py with its tests.
+2. history_store changes (add, image_png, stored_image, images) with tests.
+3. Routes (/image, /download) and the frontend download links, with tests.
+4. Docs.
+5. Backfill tool with tests (separate commit; can ship later).
+6. WAL and auto_vacuum (separate commit; can ship later).
+Each step runs on its own; steps 1-4 are the core, 5 and 6 can wait.
+
+OPEN QUESTIONS
+- Answered: lossless WebP method 4 takes 0.2-0.5 s here (step 0), so it runs on the request thread.
+- Does anything outside this repo read history.db directly (scripts, other tools)? They
+  would see WebP rows and need to cope; the answer decides whether step 5 is safe.

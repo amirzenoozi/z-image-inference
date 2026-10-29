@@ -1,9 +1,11 @@
 import json
 import sqlite3
+from pathlib import Path
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 
+from image_codec import encode_for_storage, is_webp, to_png
 from model_catalog import DEFAULT_MODEL
 from palette import PaletteColour, extract_palette
 from paths import PROJECT_DIR
@@ -218,7 +220,7 @@ def add(image: NewImage) -> HistoryItem:
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
                                   edited_from, varied_from, change, character_id, face_from, sensitive, image_checked)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (image.png, image.prompt, image.negative_prompt, image.seed, image.width, image.height,
+            (encode_for_storage(image.png), image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
              image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive),
              int(image.image_checked)),
@@ -243,7 +245,7 @@ def images(filters: HistoryFilter) -> Iterator[tuple[HistoryItem, bytes]]:
     where, params = filters.where()
     with connection() as conn:
         for row in conn.execute(f"SELECT {COLUMNS}, image_data FROM images{where} ORDER BY id DESC", params):
-            yield to_item(row[:-1]), row[-1]
+            yield to_item(row[:-1]), to_png(row[-1])
 
 
 def palette(item_id: int) -> list[PaletteColour] | None:
@@ -298,10 +300,45 @@ def record_image_check(item_id: int, nsfw: bool) -> None:
         )
 
 
-def image_png(item_id: int) -> bytes | None:
+def stored_image(item_id: int) -> bytes | None:
+    """The image as stored: lossless WebP, or PNG for rows saved before WebP (image_codec.py)."""
     with connection() as conn:
         row = conn.execute("SELECT image_data FROM images WHERE id = ?", (item_id,)).fetchone()
     return row[0] if row else None
+
+
+def image_png(item_id: int) -> bytes | None:
+    stored = stored_image(item_id)
+    return None if stored is None else to_png(stored)
+
+
+def png_image_ids() -> list[int]:
+    """Images still stored as PNG, saved before History stored WebP."""
+    with connection() as conn:
+        return [row[0] for row in conn.execute("SELECT id FROM images WHERE hex(substr(image_data, 1, 4)) = '89504E47' ORDER BY id")]
+
+
+def store_as_webp(item_id: int) -> int:
+    """Re-stores one PNG image as lossless WebP, pixel-checked; returns the bytes saved, 0 if it was left as it was."""
+    with connection() as conn:
+        row = conn.execute("SELECT image_data FROM images WHERE id = ?", (item_id,)).fetchone()
+        if row is None or is_webp(row[0]):
+            return 0
+        stored = encode_for_storage(row[0])
+        if stored == row[0]:
+            return 0
+        conn.execute("UPDATE images SET image_data = ? WHERE id = ?", (stored, item_id))
+    return len(row[0]) - len(stored)
+
+
+def backup(target: Path) -> None:
+    """A consistent copy of the whole database, safe to take while it is in use."""
+    source, copy = sqlite3.connect(DB_PATH), sqlite3.connect(target)
+    try:
+        source.backup(copy)
+    finally:
+        copy.close()
+        source.close()
 
 
 def delete(item_id: int) -> bool:
