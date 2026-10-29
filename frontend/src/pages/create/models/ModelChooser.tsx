@@ -5,9 +5,12 @@ import type { Loadable, ModelCategory, ModelInfo, ModelStatus, ModelStatusReport
 import { t } from '../../../i18n'
 import { DownloadBadge, SourceLink } from './modelParts'
 import { DownloadActions } from './DownloadActions'
+import { AddonCards } from './AddonCards'
 import { modelCategoryLabel, modelDescription } from '../../../lib/categories'
 
 const ALL = 'all'
+// The add-ons of the selected model, after the model categories
+const ADDONS = 'addons'
 
 interface Props {
   models: ModelInfo[]
@@ -23,7 +26,12 @@ interface Props {
 /** All models, filterable by category tab; "All" groups them under category headings. */
 export function ModelChooser({ models, categories, selectedId, status, serverDown, onSelect, onChanged }: Props) {
   const [tab, setTab] = useState(ALL)
-  const tabs = [{ id: ALL, label: t('create.tabAll'), count: models.length }, ...categories.map((category) => ({ ...category, label: modelCategoryLabel(category), count: models.filter((m) => m.category === category.id).length }))]
+  const selected = models.find((model) => model.id === selectedId) ?? models[0]
+  const tabs = [
+    { id: ALL, label: t('create.tabAll'), count: models.length },
+    ...categories.map((category) => ({ ...category, label: modelCategoryLabel(category), count: models.filter((m) => m.category === category.id).length })),
+    { id: ADDONS, label: t('create.addonsHeading'), count: selected.addons.length },
+  ]
   const groups = tab === ALL ? categories : categories.filter((category) => category.id === tab)
   const option = (model: ModelInfo) => (
     <ModelOption
@@ -46,14 +54,18 @@ export function ModelChooser({ models, categories, selectedId, status, serverDow
           </button>
         ))}
       </div>
-      <div role="radiogroup" aria-label={t('create.modelLabel')} className="space-y-5">
-        {groups.map((category) => (
-          <section key={category.id} aria-label={modelCategoryLabel(category)}>
-            {tab === ALL && <h3 className="mb-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">{modelCategoryLabel(category)}</h3>}
-            <div className="grid gap-3 sm:grid-cols-2">{models.filter((model) => model.category === category.id).map(option)}</div>
-          </section>
-        ))}
-      </div>
+      {tab === ADDONS ? (
+        <AddonCards model={selected} status={status} onChanged={onChanged} />
+      ) : (
+        <div role="radiogroup" aria-label={t('create.modelLabel')} className="space-y-5">
+          {groups.map((category) => (
+            <section key={category.id} aria-label={modelCategoryLabel(category)}>
+              {tab === ALL && <h3 className="mb-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">{modelCategoryLabel(category)}</h3>}
+              <div className="grid gap-3 sm:grid-cols-2">{models.filter((model) => model.category === category.id).map(option)}</div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
