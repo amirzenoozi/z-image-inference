@@ -24,6 +24,8 @@ htmlcov/
 # Local data: generated images, with SQLite's temporary journal files beside it
 history.db
 history.db-*
+# The copy recompress_history.py keeps before converting
+history.db.bak
 
 # Downloaded models and their compressed copies (only the top-level folder, not frontend/…/models/)
 /models/
