@@ -26,7 +26,8 @@ interface Props {
 
 export function HistoryFilterBar({ models, filters, onChange, ...compare }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    // On phones: search across the width, then the filters two by two
+    <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
       <SearchBox value={filters.search} onSearch={(search) => onChange({ ...filters, search })} />
       <Select
         label={t('history.model')}
@@ -34,7 +35,7 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
         value={filters.model ?? ''}
         groups={[{ options: [{ value: '', label: t('history.allModels') }, ...models.map((model) => ({ value: model.id, label: model.label }))] }]}
         onChange={(model) => onChange({ ...filters, model: model || null })}
-        className="w-60"
+        className="w-full sm:w-60"
       />
       <Select
         label={t('history.ratio')}
@@ -42,14 +43,14 @@ export function HistoryFilterBar({ models, filters, onChange, ...compare }: Prop
         value={filters.ratio ?? ''}
         groups={ratioGroups()}
         onChange={(ratio) => onChange({ ...filters, ratio: isCategory(ratio) ? ratio : null })}
-        className="w-44"
+        className="w-full sm:w-44"
       />
       <CharacterFilter value={filters.character} onChange={(character) => onChange({ ...filters, character })} />
       <button
         type="button"
         aria-pressed={filters.favouritesOnly}
         onClick={() => onChange({ ...filters, favouritesOnly: !filters.favouritesOnly })}
-        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
+        className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 text-sm ${controlHeight} ${chipClass(filters.favouritesOnly)}`}
       >
         <Star className={filters.favouritesOnly ? 'fill-current text-amber-500' : ''} /> {t('history.favourites')}
       </button>
@@ -73,7 +74,7 @@ function CharacterFilter({ value, onChange }: { value: number | null; onChange: 
       value={value === null ? '' : String(value)}
       groups={[{ options: [{ value: '', label: t('history.allCharacters') }, ...options, ...unknown] }]}
       onChange={(next) => onChange(next ? Number(next) : null)}
-      className="w-48"
+      className="w-full sm:w-48"
     />
   )
 }
@@ -86,7 +87,7 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (search: stri
     const timer = setTimeout(() => onSearch(text.trim()), SEARCH_DELAY_MS)
     return () => clearTimeout(timer)
   }, [text, value, onSearch])
-  return <SearchInput label={t('history.searchPrompts')} placeholder={t('history.searchPlaceholder')} value={text} onChange={setText} className="w-64" />
+  return <SearchInput label={t('history.searchPrompts')} placeholder={t('history.searchPlaceholder')} value={text} onChange={setText} className="col-span-2 w-full sm:w-64" />
 }
 
 type CompareProps = Pick<Props, 'comparing' | 'selectedCount' | 'onCompareToggle' | 'onCompare'>

@@ -24,7 +24,7 @@ function modelLabel(models: ModelInfo[], id: string): string {
 
 export function ResultPanel({ state, models, onRetry, onCancel, onUseSeed }: Props) {
   return (
-    <div className="flex h-full min-h-[24rem] items-center justify-center p-6">
+    <div className="flex h-full min-h-[24rem] items-center justify-center p-4 sm:p-6">
       {state.status === 'idle' && <EmptyResult />}
       {state.status === 'pending' && <PendingResult key={state.jobId} state={state} models={models} onCancel={onCancel} />}
       {state.status === 'failed' && (

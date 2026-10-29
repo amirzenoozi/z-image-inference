@@ -6,7 +6,7 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'className'>
 /** The box only; wrap it in a label with its text. The real checkbox stays underneath for keyboards and screen readers. */
 export function Checkbox(input: Props) {
   return (
-    <span className="relative flex size-[18px] shrink-0 items-center justify-center">
+    <span className="relative flex size-[18px] shrink-0 items-center justify-center pointer-coarse:size-6">
       <input
         type="checkbox"
         {...input}

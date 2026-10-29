@@ -155,7 +155,7 @@ function UserMessage({ content, canEdit, onEdit }: { content: string; canEdit: b
   return (
     <div className="group ml-6 flex items-start justify-end gap-2">
       {canEdit && (
-        <button type="button" onClick={() => setEditing(content)} className="text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-violet-500 focus:opacity-100">
+        <button type="button" onClick={() => setEditing(content)} className="text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-violet-500 focus:opacity-100 pointer-coarse:opacity-100">
           {t('common.edit')}
         </button>
       )}

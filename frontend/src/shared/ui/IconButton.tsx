@@ -11,13 +11,17 @@ interface Props extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-labe
 }
 
 /** A button that shows only an icon, with a tooltip saying what it does. */
-export function IconButton({ label, shortcut, children, type = 'button', onMouseEnter, onMouseLeave, onFocus, onBlur, onPointerDown, ...button }: Props) {
+/** On touch screens an icon is hard to hit, so icon buttons and links are at least 44px there. */
+const TOUCH_TARGET = 'pointer-coarse:min-h-11 pointer-coarse:min-w-11'
+
+export function IconButton({ label, shortcut, children, type = 'button', className = '', onMouseEnter, onMouseLeave, onFocus, onBlur, onPointerDown, ...button }: Props) {
   const { trigger, tooltip } = useTooltip(label, shortcut)
   return (
     <>
       <button
         type={type}
         aria-label={label}
+        className={`${className} ${TOUCH_TARGET}`}
         {...button}
         onMouseEnter={(event) => {
           trigger.onMouseEnter(event)
@@ -53,11 +57,11 @@ interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'aria-
 }
 
 /** A link that shows only an icon, such as a download, with a tooltip saying what it does. */
-export function IconLink({ label, children, ...link }: LinkProps) {
+export function IconLink({ label, children, className = '', ...link }: LinkProps) {
   const { trigger, tooltip } = useTooltip(label)
   return (
     <>
-      <a aria-label={label} {...link} {...trigger}>
+      <a aria-label={label} className={`${className} ${TOUCH_TARGET}`} {...link} {...trigger}>
         {children}
       </a>
       {tooltip}

@@ -454,3 +454,42 @@ it('shows the same gender filter on returning to Characters', async () => {
   expect(screen.getAllByRole('listitem').map((card) => card.getAttribute('aria-label'))).toEqual(['Ravi'])
   expect(window.location.pathname + window.location.search).toBe('/characters?gender=men')
 })
+
+it('below desktop width, opens Result on Generate, and marks it when an image arrives while Settings is open', async () => {
+  const pending = deferred<HistoryItem>()
+  vi.mocked(api.generateImage).mockReturnValue(pending.promise)
+  render(<App />)
+  const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}`) })
+  await userEvent.type(await screen.findByLabelText('Prompt'), 'a fox')
+  expect(tab('Settings')).toHaveAttribute('aria-selected', 'true')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  expect(tab('Result')).toHaveAttribute('aria-selected', 'true')
+  await userEvent.click(tab('Settings'))
+  expect(tab('Result')).toHaveAccessibleName('Result')
+
+  pending.resolve(historyItem({ id: 7, prompt: 'a fox' }))
+  await waitFor(() => expect(tab('Result')).toHaveAccessibleName(/^Result ?\(new result\)$/))
+  expect(tab('Settings')).toHaveAttribute('aria-selected', 'true')
+  await userEvent.click(tab('Result'))
+  expect(tab('Result')).toHaveAccessibleName('Result')
+})
+
+it('shows the views in one menu, which phones show as a bar at the bottom', async () => {
+  render(<App />)
+  const views = await screen.findByRole('navigation', { name: 'Views' })
+  expect(within(views).getAllByRole('button').map((button) => button.textContent)).toEqual(['Create', 'History', 'Characters'])
+  expect(views).toHaveClass('fixed', 'bottom-0', 'sm:static')
+})
+
+it('writes out why Generate is blocked under the button, for touch screens that have no tooltip', async () => {
+  render(<App />)
+  const generate = await screen.findByRole('button', { name: 'Generate' })
+  expect(generate).toHaveAttribute('aria-disabled', 'true')
+  const reason = generate.parentElement?.querySelector('p')
+  expect(reason).toHaveTextContent(/prompt/i)
+  expect(reason).toHaveClass('hidden', 'pointer-coarse:block')
+
+  await userEvent.type(screen.getByLabelText('Prompt'), 'a fox')
+  expect(generate.parentElement?.querySelector('p')).toBeNull()
+})
