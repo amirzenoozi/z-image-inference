@@ -182,6 +182,8 @@ class AddonSpec:
     trigger_word: str
     # Whole words, in any case, that mean the prompt asks for it
     keywords: tuple[str, ...]
+    # How strongly the LoRA applies; some authors recommend less than full strength
+    scale: float = 1.0
 
     def matches(self, prompt: str) -> bool:
         pattern = r"\b(?:" + "|".join(map(re.escape, self.keywords)) + r")\b"
@@ -200,6 +202,27 @@ TATTOO_ADDON = AddonSpec(
     download_gb=0.17,
     trigger_word="tattoo",
     keywords=("tattoo", "tattoos", "tattooed"),
+)
+
+def civitai_addon(addon_id: str, label: str, description: str, model_id: int, version_id: int, file_id: int, size_gb: float, trigger: str, keywords: tuple[str, ...], scale: float = 1.0) -> AddonSpec:
+    """A Z-Image-Turbo LoRA from Civitai: its model page, and the download link of the version picked."""
+    return AddonSpec(
+        id=addon_id, label=label, description=description, base_model_id=Z_IMAGE.id, repo_id=str(model_id), source="civitai",
+        download_url=f"https://civitai.com/api/download/models/{version_id}?fileId={file_id}", lora_file=f"{addon_id}.safetensors",
+        download_gb=size_gb, trigger_word=trigger, keywords=keywords, scale=scale,
+    )
+
+
+Z_IMAGE_CIVITAI_ADDONS = (
+    civitai_addon("disney-style", "Definitive Disney Studios - STYLE", "Disney and Pixar 3D animation style.", 404277, 2494747, 2382803, 0.17, "DisneyIZT", ("disney", "pixar", "cartoon")),
+    civitai_addon("turbo-pussy", "Turbo Pussy Z", "More detailed, natural-looking vulvas.", 2178383, 2639284, 2527219, 0.17, "", ("pussy", "vagina", "vulva")),
+    civitai_addon("asian-mix", "[Z Image Turbo] Asian Mix Lora", "East Asian women's faces and looks.", 2185778, 3231694, 3114056, 0.34, "Asian woman", ("asian", "japanese", "korean", "chinese")),
+    civitai_addon("neon-noir", "Neon Noir Style", "A dark, neon-lit noir style.", 1152256, 2666905, 2553686, 0.17, "neon_horror_noir_style", ("neon", "noir")),
+    civitai_addon("cum-on-body", "Z-image cum on body", "Cum on the body.", 2178509, 2453150, 2343929, 0.17, "cum on body", ("cum", "semen")),
+    civitai_addon("amateur-nude-selfies", "Amateur Nude Selfies", "Amateur-looking nude phone selfies.", 2271699, 2556997, 2445412, 0.17, "amat_nude", ("selfie", "selfies")),
+    civitai_addon("hyper-futa", "Hyper Futa", "Women with penises, in more sizes.", 2196169, 2500617, 2388656, 0.17, "futa", ("futa", "futanari")),
+    # Its author recommends starting at 0.8
+    civitai_addon("squirt-queen", "PornMaster Squirt Queen Z-image", "Squirting.", 2186843, 2462300, 2350841, 0.17, "", ("squirt", "squirting", "squirts"), scale=0.8),
 )
 
 # The two FLUX.1-dev LoRAs were models of their own before add-ons; their ids, and so their folders, are kept
@@ -231,7 +254,7 @@ FLUX_ASIAN_NUDITY_ADDON = AddonSpec(
     keywords=("asian", "japanese", "korean", "chinese"),
 )
 
-ADDONS: dict[str, AddonSpec] = {addon.id: addon for addon in (TATTOO_ADDON, FLUX_CREATE_NSFW_ADDON, FLUX_ASIAN_NUDITY_ADDON)}
+ADDONS: dict[str, AddonSpec] = {addon.id: addon for addon in (TATTOO_ADDON, *Z_IMAGE_CIVITAI_ADDONS, FLUX_CREATE_NSFW_ADDON, FLUX_ASIAN_NUDITY_ADDON)}
 
 # Models that became add-ons of their base model: History's images made with them are moved over (history_store)
 MODELS_NOW_ADDONS: dict[str, str] = {FLUX_CREATE_NSFW_ADDON.id: FLUX_DEV.id, FLUX_ASIAN_NUDITY_ADDON.id: FLUX_DEV.id}

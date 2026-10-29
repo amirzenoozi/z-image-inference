@@ -110,7 +110,7 @@ def lora_arguments(addons: tuple[AddonSpec, ...]) -> dict[str, object]:
     paths = [lora_path(addon) / addon.lora_file for addon in addons]
     if not paths:
         return {}
-    return {"lora_paths": [str(path) for path in paths], "lora_scales": [1.0] * len(paths), "bake_lora": False}
+    return {"lora_paths": [str(path) for path in paths], "lora_scales": [addon.scale for addon in addons], "bake_lora": False}
 
 
 # The face lock for the SDXL models: IP-Adapter plus-face and the image encoder it reads faces with
