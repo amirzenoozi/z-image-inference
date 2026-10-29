@@ -41,12 +41,22 @@ An add-on is a LoRA that goes over a base model instead of being a model of its 
 | Add-on | Base model | Used when the prompt mentions | Trigger |
 |--------|-----------|------------------------------|---------|
 | [Tattoo](https://civitai.com/models/2178484) | Z-Image-Turbo | tattoo, tattoos, tattooed | `tattoo` |
+| [Definitive Disney Studios - STYLE](https://civitai.com/models/404277) | Z-Image-Turbo | disney, pixar, cartoon | `DisneyIZT` |
+| [Turbo Pussy Z](https://civitai.com/models/2178383) | Z-Image-Turbo | pussy, vagina, vulva | none |
+| [\[Z Image Turbo\] Asian Mix Lora](https://civitai.com/models/2185778) | Z-Image-Turbo | asian, japanese, korean, chinese | `Asian woman` |
+| [Neon Noir Style](https://civitai.com/models/1152256) | Z-Image-Turbo | neon, noir | `neon_horror_noir_style` |
+| [Z-image cum on body](https://civitai.com/models/2178509) | Z-Image-Turbo | cum, semen | `cum on body` |
+| [Amateur Nude Selfies](https://civitai.com/models/2271699) | Z-Image-Turbo | selfie, selfies | `amat_nude` |
+| [Hyper Futa](https://civitai.com/models/2196169) | Z-Image-Turbo | futa, futanari | `futa` |
+| [PornMaster Squirt Queen Z-image](https://civitai.com/models/2186843) | Z-Image-Turbo | squirt, squirting, squirts | none (applied at 0.8, as its author recommends) |
 | [create-nsfw](https://huggingface.co/Bigfawg6669/create-nsfw) | FLUX.1-dev | nsfw, nude, naked, topless | none |
 | [asian-nudity-2](https://huggingface.co/inuptia/asian-nudity-2) | FLUX.1-dev | asian, japanese, korean, chinese | `4s14n` |
 
 An add-on is applied while generating, not merged into the model, which would turn the quantised layers 8-bit and need more memory. Images made before create-nsfw and asian-nudity-2 became add-ons (when they were models of their own) show in History as FLUX.1-dev with that add-on.
 
-The tattoo add-on comes from Civitai, which needs a free API key for downloads: create one under Account settings → API Keys on civitai.com and put `CIVITAI_TOKEN=<key>` in `.env`. Without one, **Download** says so.
+Several ticked add-ons can be used by one prompt; they are then applied together, which can lower quality. UltraFlux VAE is not available: it is a VAE, not a LoRA, so it can't be an add-on.
+
+The Z-Image-Turbo add-ons come from Civitai, which needs a free API key for downloads: create one under Account settings → API Keys on civitai.com and put `CIVITAI_TOKEN=<key>` in `.env`. Without one, **Download** says so.
 
 ## Downloading and removing models
 
