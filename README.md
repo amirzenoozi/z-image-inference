@@ -92,6 +92,8 @@ Once per clone: `git config core.hooksPath .githooks` and `brew install gitleaks
 
 The same hooks only allow the branch names `dev`, `main`, `feature/…`, `bug/…`, `docs/…` and `test/…`.
 
+Switching branches prints a checklist of these checks for the new branch (`.githooks/post-checkout`); it only informs, the commit and push hooks do the blocking.
+
 ## Documentation
 
 - [Using the app](docs/usage.md): the language, creating images, the prompt builder, prompt weights, Grok chat, History, the viewer, the editor, variations, characters and the face lock
@@ -107,6 +109,7 @@ Some of these models are made for adult content and are labelled "not for all au
 
 ## Acknowledgements
 
+- [OrdinarySF/z-image-inference](https://github.com/OrdinarySF/z-image-inference), the original project this one started from
 - [Tongyi Lab](https://huggingface.co/Tongyi-MAI) for Z-Image-Turbo, [WAI](https://civitai.com/) for WAI-NSFW-Illustrious, [SG161222](https://huggingface.co/SG161222) for RealVisXL, and [OpenMOSS](https://huggingface.co/OpenMOSS-Team) for MOSS-Image, with axiomofmind's LoRA
 - [IP-Adapter](https://huggingface.co/h94/IP-Adapter) for the face lock, and [Falconsai](https://huggingface.co/Falconsai/nsfw_image_detection) for the sensitive-image check
 - [mflux](https://github.com/filipstrand/mflux) for MLX inference, [diffusers](https://huggingface.co/docs/diffusers) and [Compel](https://github.com/damian0815/compel)
