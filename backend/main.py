@@ -1,4 +1,5 @@
 import io
+import os
 import base64
 import itertools
 import threading
@@ -683,4 +684,5 @@ else:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=7860)
+    # 0.0.0.0 opens the app to other devices on the network, such as a phone; it has no login, so only on a trusted one
+    uvicorn.run(app, host=os.environ.get("APP_HOST", "127.0.0.1").strip(), port=7860)
