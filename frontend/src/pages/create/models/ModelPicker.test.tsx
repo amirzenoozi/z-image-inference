@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../../../api'
 import { ApiError } from '../../../api'
-import { catalog, deferred } from '../../../test/fixtures'
+import { catalog, deferred, fastModel } from '../../../test/fixtures'
 import type { Loadable, ModelState, ModelStatus, ModelStatusReport } from '../../../types'
 import { ModelPicker } from './ModelPicker'
 
@@ -158,7 +158,7 @@ it('groups models by category and filters with the category tabs', async () => {
   expect(within(dialog()).getAllByRole('radio').map((radio) => radio.textContent)).toEqual([expect.stringContaining('WAI-Illustrious')])
 })
 
-it('links models to their Hugging Face pages without selecting them', async () => {
+it('links models to their pages without selecting them', async () => {
   const { onSelect } = renderPicker()
   expect(within(sidebar()).getByRole('link', { name: 'Open Z-Image-Turbo on Hugging Face' })).toHaveAttribute('href', 'https://huggingface.co/Tongyi-MAI/Z-Image-Turbo')
   await openDialog()
@@ -166,4 +166,12 @@ it('links models to their Hugging Face pages without selecting them', async () =
   expect(link).toHaveAttribute('target', '_blank')
   await userEvent.click(link)
   expect(onSelect).not.toHaveBeenCalled()
+})
+
+it('links a model from Civitai to its Civitai page', () => {
+  const fromCivitai = { ...fastModel, id: 'civitai-model', label: 'A Civitai model', page_url: 'https://civitai.com/models/2178484', source_name: 'Civitai' }
+  render(<ModelPicker models={[fromCivitai]} categories={catalog.model_categories} selectedId="civitai-model" status={bothReady} onSelect={vi.fn()} onStatusChanged={vi.fn()} />)
+  const link = within(sidebar()).getByRole('link', { name: 'Open A Civitai model on Civitai' })
+  expect(link).toHaveAttribute('href', 'https://civitai.com/models/2178484')
+  expect(link).toHaveTextContent('Civitai')
 })

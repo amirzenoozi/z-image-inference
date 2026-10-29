@@ -4,21 +4,23 @@ import { Spinner } from '../../../shared/ui/ui'
 import { ExternalLink } from 'lucide-react'
 import { t } from '../../../i18n'
 
-export function HuggingFaceLink({ model }: { model: ModelInfo }) {
+/** The model's page on the site it comes from. */
+export function SourceLink({ model }: { model: Pick<ModelInfo, 'label' | 'page_url' | 'source_name'> }) {
   return (
     <a
-      href={`https://huggingface.co/${model.repo_id}`}
+      href={model.page_url}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={t('create.openOnHuggingFace', { model: model.label })}
+      aria-label={t('create.openOnSite', { model: model.label, site: model.source_name })}
       className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-200/70 hover:text-violet-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
     >
-      {t('create.huggingFace')} <ExternalLink className="size-3" />
+      {model.source_name} <ExternalLink className="size-3" />
     </a>
   )
 }
 
-export function DownloadBadge({ model, status }: { model: ModelInfo; status: Loadable<ModelStatusReport> }) {
+/** A model's or an add-on's download state, from the status report. */
+export function DownloadBadge({ model, status }: { model: Downloadable; status: Loadable<ModelStatusReport> }) {
   if (status.status === 'pending') return <span className="mt-1.5 block text-[11px] text-zinc-400">{t('create.checkingDownload')}</span>
   if (status.status !== 'settled') return null
   const state = status.value.models[model.id]
@@ -37,7 +39,9 @@ export function DownloadBadge({ model, status }: { model: ModelInfo; status: Loa
   }
 }
 
-function DownloadProgress({ model, receivedBytes }: { model: ModelInfo; receivedBytes: number }) {
+type Downloadable = Pick<ModelInfo, 'id' | 'label' | 'download_gb'>
+
+function DownloadProgress({ model, receivedBytes }: { model: Downloadable; receivedBytes: number }) {
   const total = gigabytes(model.download_gb)
   // Measured from the folder size, so it can briefly pass the estimate before the download completes
   const percent = Math.min(99, Math.round((receivedBytes / total) * 100))

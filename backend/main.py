@@ -36,7 +36,7 @@ from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_
 from grok_client import GrokClient
 from palette import PaletteColour
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
-from model_catalog import MODEL_CATEGORIES, MODELS, ModelSpec, kept_gb, speed_hint
+from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint
 from resolutions import CATEGORIES, PRESETS, Category
 
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
@@ -60,9 +60,36 @@ PROMPT_MODES_FILE = paths.PROJECT_DIR / "prompt_modes.json"
 grok_client = GrokClient()
 
 
+# Brand names, so not translated
+SOURCE_NAMES: dict[str, str] = {"huggingface": "Hugging Face", "civitai": "Civitai"}
+
+
+class AddonInfo(BaseModel):
+    """An add-on the user can switch on for a model; it is used only when the prompt mentions one of its keywords."""
+
+    id: str
+    label: str
+    description: str
+    keywords: list[str]
+    trigger_word: str
+    download_gb: float
+    page_url: str
+    source_name: str
+
+    @classmethod
+    def from_spec(cls, addon: AddonSpec) -> "AddonInfo":
+        return cls(
+            id=addon.id, label=addon.label, description=addon.description, keywords=list(addon.keywords), trigger_word=addon.trigger_word,
+            download_gb=addon.download_gb, page_url=page_url(addon.source, addon.repo_id), source_name=SOURCE_NAMES[addon.source],
+        )
+
+
 class ModelInfo(BaseModel):
     id: str
     repo_id: str
+    # The model's page, and the site it is on, for the link on its card
+    page_url: str
+    source_name: str
     label: str
     description: str
     speed_hint: str
@@ -82,17 +109,19 @@ class ModelInfo(BaseModel):
     supports_variations: bool
     supports_face_lock: bool
     examples: list[str]
+    addons: list[AddonInfo]
 
     @classmethod
     def from_spec(cls, spec: ModelSpec, examples: list[str]) -> "ModelInfo":
         width, height = spec.default_size
         return cls(
-            id=spec.id, repo_id=spec.repo_id, label=spec.label, description=spec.description, speed_hint=speed_hint(spec), category=spec.category, download_gb=spec.download_gb, kept_gb=kept_gb(spec),
+            id=spec.id, repo_id=spec.repo_id, page_url=page_url("huggingface", spec.repo_id), source_name=SOURCE_NAMES["huggingface"], label=spec.label, description=spec.description, speed_hint=speed_hint(spec), category=spec.category, download_gb=spec.download_gb, kept_gb=kept_gb(spec),
             default_steps=spec.default_steps, max_steps=spec.max_steps, max_side=spec.max_side,
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
             trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, supports_variations=spec.supports_variations,
             supports_face_lock=spec.supports_face_lock, examples=examples,
+            addons=[AddonInfo.from_spec(addon) for addon in addons_for(spec.id)],
         )
 
 
@@ -283,6 +312,7 @@ class RenderedImage(BaseModel):
     image_base64: str
     seed: int
     seconds: float
+    addons: list[str] = []
 
 
 def request_image(req: GenerateRequest) -> RenderedImage:
@@ -406,7 +436,7 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
         face_from=face.image_id if face else None,
-        sensitive=True if nsfw else None, image_checked=nsfw is not None,
+        sensitive=True if nsfw else None, image_checked=nsfw is not None, addons=tuple(rendered.addons),
     ))
 
 
@@ -421,8 +451,8 @@ def models_status() -> ModelStatusReport:
 
 
 def model_server_call(method: str, model_id: str, path: str = "") -> requests.Response:
-    """Forwards a model action, passing on the model server's status and message when it refuses."""
-    if model_id not in MODELS:
+    """Forwards a model or add-on action, passing on the model server's status and message when it refuses."""
+    if model_id not in MODELS and model_id not in ADDONS:
         raise HTTPException(404, i18n.t("unknownModel", model=model_id))
     try:
         resp = requests.request(method, f"{MODEL_SERVER_URL}/models/{model_id}{path}", timeout=REQUEST_TIMEOUT)
@@ -528,7 +558,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
         width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
         duration_seconds=None, edited_from=source.id, character_id=source.character_id,
         # A cropped or turned copy keeps its original's flag, which may have been set by hand
-        sensitive=source.sensitive, image_checked=True,
+        sensitive=source.sensitive, image_checked=True, addons=tuple(source.addons),
     ))
 
 

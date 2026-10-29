@@ -56,7 +56,7 @@ def test_the_first_face_lock_downloads_its_files_once_then_renders(face_lock_fil
 
     monkeypatch.setattr(model_server, "download_face_lock", fake_download)
     rendered: list[model_server.Job] = []
-    monkeypatch.setattr(model_server, "generate_png", lambda model_id, job, progress: rendered.append(job) or model_server.RenderedImage(b"png", 1.0))
+    monkeypatch.setattr(model_server, "generate_png", lambda model_id, addons, job, progress: rendered.append(job) or model_server.RenderedImage(b"png", 1.0))
     client = TestClient(model_server.app)
 
     first = client.post("/generate", json=FACE_REQUEST)

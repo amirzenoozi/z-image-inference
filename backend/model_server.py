@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Literal
 
 import mlx.core as mx
+import requests
 import torch
 import uvicorn
 from compel import CompelForSDXL
@@ -42,7 +43,7 @@ from transformers import AutoConfig, AutoModel, AutoTokenizer
 from generation_request import MAX_SEED, GenerateRequest
 from i18n import t
 from prompt_weights import a1111_to_compel
-from model_catalog import ANIME_DESIRE, DEFAULT_MODEL, FLUX_ASIAN_NUDITY, FLUX_CREATE_NSFW, FLUX_DEV, MODELS, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
+from model_catalog import ADDONS, ANIME_DESIRE, DEFAULT_MODEL, FLUX_DEV, MODELS, AddonSpec, Source, applied_addons, with_trigger_words, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 from paths import MODELS_DIR
 
@@ -86,8 +87,27 @@ FLUX_Q4_PATH = MODELS_DIR / "flux-dev-q4"
 FLUX_DEV_FILES = ["model_index.json", "scheduler/*", "text_encoder/*", "text_encoder_2/*", "tokenizer/*", "tokenizer_2/*", "transformer/*", "vae/*"]
 
 
-def lora_path(spec: ModelSpec) -> Path:
-    return MODELS_DIR / f"lora-{spec.id}"
+# Models that are a LoRA on another model's files (base_model_id in the catalogue)
+LORA_MODELS: tuple[ModelSpec, ...] = tuple(spec for spec in MODELS.values() if spec.base_model_id is not None)
+# Everything that can be downloaded and removed: models and the add-ons that go over them
+Downloadable = ModelSpec | AddonSpec
+ENTRIES: dict[str, Downloadable] = {**MODELS, **ADDONS}
+
+
+def lora_path(entry: Downloadable) -> Path:
+    return MODELS_DIR / f"lora-{entry.id}"
+
+
+def source_of(entry: Downloadable) -> Source:
+    return entry.source if isinstance(entry, AddonSpec) else "huggingface"
+
+
+def lora_arguments(spec: ModelSpec, addons: tuple[AddonSpec, ...] = ()) -> dict[str, object]:
+    """The model's own LoRA and its add-ons, applied while generating: merged in, they would turn quantised layers 8-bit."""
+    paths = [lora_path(entry) / entry.lora_file for entry in (spec, *addons) if entry.lora_file]
+    if not paths:
+        return {}
+    return {"lora_paths": [str(path) for path in paths], "lora_scales": [1.0] * len(paths), "bake_lora": False}
 
 
 # The face lock for the SDXL models: IP-Adapter plus-face and the image encoder it reads faces with
@@ -167,11 +187,11 @@ def decode_face_image(data: str) -> Image.Image:
         raise HTTPException(422, t("faceImageUnreadable"))
 
 
-def to_job(req: GenerateRequest) -> Job:
+def to_job(req: GenerateRequest, addons: tuple[AddonSpec, ...]) -> Job:
     spec = MODELS[req.model]
     start_image = decode_start_image(req.init_image, req.width, req.height) if req.init_image else None
     return Job(
-        prompt=with_trigger_word(req.prompt, spec),
+        prompt=with_trigger_words(with_trigger_word(req.prompt, spec), list(addons)),
         negative_prompt=req.negative_prompt,
         width=req.width,
         height=req.height,
@@ -191,6 +211,8 @@ class GenerateResponse(BaseModel):
     model: str
     # Rendering only: waiting for the model thread and loading the model are not counted
     seconds: float
+    # The add-ons used: those switched on whose keywords the prompt mentions
+    addons: list[str] = []
 
 
 @dataclass(frozen=True)
@@ -302,18 +324,14 @@ def mflux_generator(model: ZImage | Flux1, uses_guidance: bool) -> ImageGenerato
     return generate
 
 
-def load_z_image() -> ImageGenerator:
-    return mflux_generator(ZImage(model_path=str(z_image_model_path())), uses_guidance=False)
+def load_z_image(spec: ModelSpec = Z_IMAGE, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
+    return mflux_generator(ZImage(model_path=str(z_image_model_path()), **lora_arguments(spec, addons)), uses_guidance=False)
 
 
-def load_flux(spec: ModelSpec) -> ImageGenerator:
-    """The 4-bit copy, with the model's LoRA applied while generating: merged in, it would turn the 4-bit layers 8-bit."""
+def load_flux(spec: ModelSpec, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
+    """FLUX.1-dev always runs its 4-bit copy, with the model's LoRA if it has one."""
     build_flux_q4()
-    loras = [str(lora_path(spec) / spec.lora_file)] if spec.lora_file else None
-    model = Flux1(
-        model_path=str(FLUX_Q4_PATH), model_config=ModelConfig.dev(),
-        lora_paths=loras, lora_scales=[1.0] if loras else None, bake_lora=False,
-    )
+    model = Flux1(model_path=str(FLUX_Q4_PATH), model_config=ModelConfig.dev(), **lora_arguments(spec, addons))
     return mflux_generator(model, uses_guidance=True)
 
 
@@ -598,8 +616,12 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     MOSS_IMAGE.id: MossImageGenerator,
     ANIME_DESIRE.id: load_anime_desire,
     REALVIS_XL.id: load_realvis_xl,
-    **{spec.id: (lambda spec=spec: load_flux(spec)) for spec in (FLUX_DEV, FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
+    FLUX_DEV.id: lambda: load_flux(FLUX_DEV),
 }
+# A LoRA model loads like its base model, with the LoRA added; so does a base model with add-ons
+BASE_LOADERS: dict[str, Callable[[ModelSpec, tuple[AddonSpec, ...]], ImageGenerator]] = {Z_IMAGE.id: load_z_image, FLUX_DEV.id: load_flux}
+LOADERS |= {spec.id: (lambda spec=spec: BASE_LOADERS[spec.base_model_id](spec, ())) for spec in LORA_MODELS if spec.base_model_id}
+
 
 def download_z_image() -> None:
     # Compressed copies are kept beside the original, so levels can be compared
@@ -637,9 +659,31 @@ def download_flux_dev() -> None:
     ensure_downloaded(FLUX_DEV.repo_id, FLUX_DEV_PATH, FLUX_DEV_FILES)
 
 
-def download_flux_lora(spec: ModelSpec) -> None:
-    download_flux_dev()
-    ensure_downloaded(spec.repo_id, lora_path(spec), [spec.lora_file])
+def download_from_civitai(spec: Downloadable) -> None:
+    """Civitai serves a file from a download link that needs an API key; written to a .part file until complete."""
+    folder = lora_path(spec)
+    if download_marker(folder).exists():
+        return
+    folder.mkdir(parents=True, exist_ok=True)
+    part = folder / f"{spec.lora_file}.part"
+    headers = {"Authorization": f"Bearer {os.environ.get('CIVITAI_TOKEN', '').strip()}"}
+    with requests.get(spec.download_url, headers=headers, stream=True, timeout=60) as resp:
+        resp.raise_for_status()
+        with part.open("wb") as file:
+            for chunk in resp.iter_content(chunk_size=1 << 20):
+                file.write(chunk)
+    part.rename(folder / spec.lora_file)
+    download_marker(folder).touch()
+
+
+def download_lora(spec: Downloadable) -> None:
+    """The base model first, if it is missing, then the LoRA from wherever it is hosted."""
+    if spec.base_model_id is not None:
+        DOWNLOADERS[spec.base_model_id]()
+    if source_of(spec) == "civitai":
+        download_from_civitai(spec)
+    else:
+        ensure_downloaded(spec.repo_id, lora_path(spec), [spec.lora_file])
 
 
 DOWNLOADERS: dict[str, Callable[[], None]] = {
@@ -649,7 +693,7 @@ DOWNLOADERS: dict[str, Callable[[], None]] = {
     ANIME_DESIRE.id: download_anime_desire,
     REALVIS_XL.id: download_realvis_xl,
     FLUX_DEV.id: download_flux_dev,
-    **{spec.id: (lambda spec=spec: download_flux_lora(spec)) for spec in (FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
+    **{spec.id: (lambda spec=spec: download_lora(spec)) for spec in (*LORA_MODELS, *ADDONS.values())},
 }
 GB = 1_000_000_000
 
@@ -664,7 +708,7 @@ MODEL_FOLDERS: dict[str, list[Path]] = {
     REALVIS_XL.id: [REALVIS_XL_PATH],
     FLUX_DEV.id: [FLUX_DEV_PATH, FLUX_Q4_PATH, MODELS_DIR / f"{FLUX_Q4_PATH.name}.building"],
     # A LoRA model removes only its LoRA; the base stays for the others
-    **{spec.id: [lora_path(spec)] for spec in (FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
+    **{spec.id: [lora_path(spec)] for spec in (*LORA_MODELS, *ADDONS.values())},
 }
 
 DOWNLOAD_PATHS: dict[str, Path] = {
@@ -674,7 +718,7 @@ DOWNLOAD_PATHS: dict[str, Path] = {
     ANIME_DESIRE.id: ANIME_DESIRE_PATH,
     REALVIS_XL.id: REALVIS_XL_PATH,
     FLUX_DEV.id: FLUX_DEV_PATH,
-    **{spec.id: lora_path(spec) for spec in (FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY)},
+    **{spec.id: lora_path(spec) for spec in (*LORA_MODELS, *ADDONS.values())},
 }
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -690,7 +734,7 @@ def is_downloaded(model_id: str) -> bool:
     Z-Image's original is always kept, and its quantised copy is built from it when the model loads. A LoRA
     model also needs its base model.
     """
-    base = MODELS[model_id].base_model_id
+    base = ENTRIES[model_id].base_model_id
     if base is not None and not is_downloaded(base):
         return False
     if compression_enabled():
@@ -742,7 +786,7 @@ def face_lock_problem() -> str | None:
 
 
 def not_ready_message(model_id: str) -> str:
-    label = MODELS[model_id].label
+    label = ENTRIES[model_id].label
     if model_status(model_id) in ("queued", "downloading"):
         return t("modelDownloading", label=label)
     return t("modelNotDownloaded", label=label)
@@ -762,8 +806,8 @@ def free_bytes() -> int:
 
 def space_needed_bytes(model_id: str) -> int:
     # The download plus room for the one-time setup, which writes the compressed copy beside the originals
-    spec = MODELS[model_id]
-    setup_gb = spec.compressed_gb if runs_compressed(spec) else 0
+    spec = ENTRIES[model_id]
+    setup_gb = spec.compressed_gb if isinstance(spec, ModelSpec) and runs_compressed(spec) else 0
     own = int((spec.download_gb + setup_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
     if spec.base_model_id is None or is_downloaded(spec.base_model_id):
         return own
@@ -771,12 +815,19 @@ def space_needed_bytes(model_id: str) -> int:
 
 
 def download_problem(model_id: str) -> str | None:
-    """FLUX.1-dev is gated on Hugging Face, so fetching it needs a token from an account that accepted its licence."""
-    needs_flux = FLUX_DEV.id in (model_id, MODELS[model_id].base_model_id) and not is_downloaded(FLUX_DEV.id)
-    return t("needsHfToken", label=FLUX_DEV.label) if needs_flux and not get_token() else None
+    """A download that would be refused for want of a key: FLUX.1-dev is gated on Hugging Face, and Civitai needs an API key."""
+    spec = ENTRIES[model_id]
+    needs_flux = FLUX_DEV.id in (model_id, spec.base_model_id) and not is_downloaded(FLUX_DEV.id)
+    if needs_flux and not get_token():
+        return t("needsHfToken", label=FLUX_DEV.label)
+    if source_of(spec) == "civitai" and not os.environ.get("CIVITAI_TOKEN", "").strip():
+        return t("needsCivitaiToken", label=spec.label)
+    return None
 
 
 loaded_model_id: str | None = None
+# The add-ons the loaded model was loaded with; another set means loading it again
+loaded_addons: tuple[AddonSpec, ...] = ()
 loaded_generator: ImageGenerator | None = None
 # Generations that are running or waiting for the model thread, by job id
 jobs: dict[str, JobProgress] = {}
@@ -790,33 +841,37 @@ def release_memory() -> None:
     torch.mps.empty_cache()
 
 
-def use_model(model_id: str) -> ImageGenerator:
-    """Load the requested model, unloading the current one first: both do not fit in memory together."""
-    global loaded_model_id, loaded_generator
-    if model_id != loaded_model_id or loaded_generator is None:
-        loaded_model_id, loaded_generator = None, None
+def is_loaded(model_id: str, addons: tuple[AddonSpec, ...]) -> bool:
+    return loaded_generator is not None and (model_id, addons) == (loaded_model_id, loaded_addons)
+
+
+def use_model(model_id: str, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
+    """Load the requested model with its add-ons, unloading the current one first: both do not fit in memory together."""
+    global loaded_model_id, loaded_addons, loaded_generator
+    if not is_loaded(model_id, addons):
+        loaded_model_id, loaded_addons, loaded_generator = None, (), None
         release_memory()
-        print(f"Loading {MODELS[model_id].label}...")
-        loaded_generator = LOADERS[model_id]()
-        loaded_model_id = model_id
+        print(f"Loading {MODELS[model_id].label}{''.join(f' + {addon.label}' for addon in addons)}...")
+        loaded_generator = BASE_LOADERS[model_id](MODELS[model_id], addons) if addons else LOADERS[model_id]()
+        loaded_model_id, loaded_addons = model_id, addons
         print("Model loaded!")
     return loaded_generator
 
 
 def unload_and_remove(model_id: str) -> None:
     """Runs on the model thread, so it waits for any generation in progress to finish first."""
-    global loaded_model_id, loaded_generator
-    if loaded_model_id is not None and model_id in (loaded_model_id, MODELS[loaded_model_id].base_model_id):
-        loaded_model_id, loaded_generator = None, None
+    global loaded_model_id, loaded_addons, loaded_generator
+    if loaded_model_id is not None and model_id in (loaded_model_id, MODELS[loaded_model_id].base_model_id, *(a.id for a in loaded_addons)):
+        loaded_model_id, loaded_addons, loaded_generator = None, (), None
         release_memory()
     for path in MODEL_FOLDERS[model_id]:
         shutil.rmtree(path, ignore_errors=True)
     downloads.pop(model_id, None)
 
 
-def generate_png(model_id: str, job: Job, progress: JobProgress) -> RenderedImage:
-    progress.enter("loading" if model_id != loaded_model_id else "generating")
-    generator = use_model(model_id)
+def generate_png(model_id: str, addons: tuple[AddonSpec, ...], job: Job, progress: JobProgress) -> RenderedImage:
+    progress.enter("generating" if is_loaded(model_id, addons) else "loading")
+    generator = use_model(model_id, addons)
     started = time.perf_counter()
     image = generator(job, progress)
     seconds = time.perf_counter() - started
@@ -843,17 +898,22 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         raise HTTPException(503, not_ready_message(req.model))
     if req.face_image is not None and (problem := face_lock_problem()):
         raise HTTPException(503, problem)
-    job = to_job(req)
+    addons = tuple(applied_addons(req.addons, req.prompt))
+    for addon in addons:
+        if model_status(addon.id) != "ready":
+            raise HTTPException(503, not_ready_message(addon.id))
+    job = to_job(req, addons)
     job_id = req.job_id or str(uuid.uuid4())
     progress = jobs[job_id] = JobProgress(total=job.steps)
     try:
-        rendered = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, job, progress)
+        rendered = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, addons, job, progress)
     except JobCancelled:
         raise HTTPException(409, t("cancelled"))
     finally:
         jobs.pop(job_id, None)
     return GenerateResponse(
         image_base64=base64.b64encode(rendered.png).decode("utf-8"), seed=job.seed, model=req.model, seconds=round(rendered.seconds, 1),
+        addons=[addon.id for addon in addons],
     )
 
 
@@ -869,7 +929,8 @@ class ModelsReport(BaseModel):
 
 
 def known_model(model_id: str) -> str:
-    if model_id not in MODELS:
+    """A model or an add-on, which download and remove the same way."""
+    if model_id not in ENTRIES:
         raise HTTPException(404, t("unknownModel", model=model_id))
     return model_id
 
@@ -878,7 +939,7 @@ def known_model(model_id: str) -> str:
 def models_status() -> ModelsReport:
     states = {
         model_id: ModelState(status=model_status(model_id), size_bytes=folder_bytes(MODEL_FOLDERS[model_id]))
-        for model_id in MODELS
+        for model_id in ENTRIES
     }
     return ModelsReport(models=states, free_bytes=free_bytes())
 
@@ -901,7 +962,7 @@ def download_model(model_id: str) -> ModelState:
 async def remove_model(model_id: str) -> Response:
     known_model(model_id)
     if model_status(model_id) in ("queued", "downloading"):
-        raise HTTPException(409, t("removeWhileDownloading", label=MODELS[model_id].label))
+        raise HTTPException(409, t("removeWhileDownloading", label=ENTRIES[model_id].label))
     await asyncio.get_running_loop().run_in_executor(model_thread, unload_and_remove, model_id)
     return Response(status_code=204)
 
