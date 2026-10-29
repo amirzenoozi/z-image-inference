@@ -1,4 +1,4 @@
-import { imageUrl } from '../../api'
+import { downloadUrl, imageUrl } from '../../api'
 import { formatDuration, useCopyToClipboard, useElapsedSeconds } from '../../lib/hooks'
 import { useJobProgress } from '../../lib/jobProgress'
 import type { GenerationState, HistoryItem, JobPhase, JobProgress, ModelInfo } from '../../types'
@@ -122,7 +122,7 @@ function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: s
       <figcaption className="flex w-full flex-wrap items-center justify-between gap-3">
         <ImageFacts item={item} label={label} />
         <div className="flex gap-2">
-          <a href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
+          <a href={downloadUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={secondaryButtonClass}>
             {t('create.download')}
           </a>
           <button type="button" onClick={copySeed} className={secondaryButtonClass}>

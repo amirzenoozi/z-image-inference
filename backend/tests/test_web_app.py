@@ -1,4 +1,5 @@
 import io
+import os
 import json
 import zipfile
 from json import dumps
@@ -22,6 +23,17 @@ def png_bytes(width: int = 64, height: int = 64) -> bytes:
     buffer = io.BytesIO()
     Image.new("RGB", (width, height), "red").save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def noisy_png(width: int, height: int) -> bytes:
+    """An image that stays large however it is stored, unlike a single colour."""
+    buffer = io.BytesIO()
+    Image.frombytes("RGB", (width, height), os.urandom(width * height * 3)).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def same_pixels(a: bytes, b: bytes) -> bool:
+    return Image.open(io.BytesIO(a)).convert("RGB").tobytes() == Image.open(io.BytesIO(b)).convert("RGB").tobytes()
 
 
 @dataclass
@@ -164,8 +176,12 @@ def test_generate_saves_to_history_and_serves_the_image(client: TestClient, mode
     assert item["duration_seconds"] == 52.3
     assert client.get("/api/history").json()["items"] == [item]
     full = client.get(f"/api/history/{item['id']}/image")
-    assert full.headers["content-type"] == "image/png"
-    assert full.content == png_bytes()
+    assert full.headers["content-type"] == "image/webp"
+    assert same_pixels(full.content, png_bytes())
+    download = client.get(f"/api/history/{item['id']}/download")
+    assert download.headers["content-type"] == "image/png"
+    assert download.headers["content-disposition"] == f'attachment; filename="z-image-{item["id"]}-1234.png"'
+    assert download.content.startswith(b"\x89PNG") and same_pixels(download.content, png_bytes())
     thumb = client.get(f"/api/history/{item['id']}/image?thumb=true")
     assert thumb.headers["content-type"] == "image/webp"
 
@@ -374,7 +390,7 @@ def test_history_summary_counts_images_by_age(client: TestClient, model_server: 
 
 
 def test_cleaning_up_deletes_only_older_images_and_shrinks_the_file(client: TestClient, model_server: FakeModelServer) -> None:
-    model_server.body = {"image_base64": base64.b64encode(png_bytes(512, 512)).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0}
+    model_server.body = {"image_base64": base64.b64encode(noisy_png(256, 256)).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0}
     ids = [generate(client).json()["id"] for _ in range(20)]
     for item_id in ids[:19]:
         backdate(item_id, 40)
@@ -583,7 +599,7 @@ def test_bad_edits_are_refused(client: TestClient, model_server: FakeModelServer
 
 def test_a_variation_sends_its_start_image_and_change_and_is_linked_in_history(client: TestClient, model_server: FakeModelServer) -> None:
     source = generate(client).json()
-    source_png = client.get(f"/api/history/{source['id']}/image").content
+    source_png = client.get(f"/api/history/{source['id']}/download").content
 
     variation = generate(client, source_image_id=source["id"], change=0.6, prompt="the same at night").json()
 
