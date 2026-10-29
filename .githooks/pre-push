@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# git passes one line per ref: <local ref> <local sha> <remote ref> <remote sha>
+hooks="$(git rev-parse --show-toplevel)/.githooks"
+zero=0000000000000000000000000000000000000000
+while read -r _ local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  case $remote_ref in
+    refs/heads/*) "$hooks/check-branch-name" "${remote_ref#refs/heads/}" || exit 1 ;;
+  esac
+  if [ "$remote_sha" = "$zero" ]; then
+    range=("$local_sha" --not --remotes)
+  else
+    range=("$remote_sha..$local_sha")
+  fi
+  "$hooks/check-secrets" range "${range[@]}" || exit 1
+done
