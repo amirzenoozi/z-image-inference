@@ -40,5 +40,8 @@
   "notEnoughSpace": "Nicht genug Speicherplatz: Gib noch etwa {gb} GB frei und versuch es erneut.",
   "removeWhileDownloading": "{label} wird heruntergeladen; entferne es, wenn der Download abgeschlossen ist.",
   "noSuchJob": "Kein solcher Auftrag; er ist vielleicht schon fertig",
-  "needsHfToken": "{label} ist auf Hugging Face zugangsbeschränkt: Akzeptieren Sie die Lizenz auf der Modellseite, tragen Sie dann HF_TOKEN=<Ihr Token> in .env ein und starten Sie den Modellserver neu."
+  "needsHfToken": "{label} ist auf Hugging Face zugangsbeschränkt: Akzeptieren Sie die Lizenz auf der Modellseite, tragen Sie dann HF_TOKEN=<Ihr Token> in .env ein und starten Sie den Modellserver neu.",
+  "needsCivitaiToken": "{label} wird von Civitai geladen, das einen API-Schlüssel braucht: Legen Sie einen unter Account settings → API Keys auf civitai.com an, tragen Sie CIVITAI_TOKEN=<Ihr Schlüssel> in .env ein und starten Sie den Modellserver neu.",
+  "unknownAddon": "{label} hat kein Add-on namens {addon}.",
+  "addonTwice": "Jedes Add-on kann nur einmal eingeschaltet werden."
 }

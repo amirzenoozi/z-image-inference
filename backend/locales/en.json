@@ -40,5 +40,8 @@
   "notEnoughSpace": "Not enough disk space: free about {gb} GB more, then try again.",
   "removeWhileDownloading": "{label} is downloading; remove it when the download has finished.",
   "noSuchJob": "No such job; it may have finished",
-  "needsHfToken": "{label} is gated on Hugging Face: accept its licence on the model page, then add HF_TOKEN=<your token> to .env and restart the model server."
+  "needsHfToken": "{label} is gated on Hugging Face: accept its licence on the model page, then add HF_TOKEN=<your token> to .env and restart the model server.",
+  "needsCivitaiToken": "{label} is downloaded from Civitai, which needs an API key: create one under Account settings → API Keys on civitai.com, add CIVITAI_TOKEN=<your key> to .env and restart the model server.",
+  "unknownAddon": "{label} has no add-on called {addon}.",
+  "addonTwice": "Each add-on can be switched on only once."
 }
