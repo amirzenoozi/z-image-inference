@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Reports the checks for the branch you switched to. A checkout can't be
+# blocked, so this only informs; the commit and push hooks do the blocking.
+# Arguments: <previous HEAD> <new HEAD> <1 for a branch checkout, 0 for files>
+[ "${3:-0}" = 1 ] || exit 0
+
+root=$(git rev-parse --show-toplevel)
+hooks="$root/.githooks"
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+
+if [ -t 2 ]; then green=$'\e[32m' red=$'\e[31m' dim=$'\e[2m' off=$'\e[0m'; else green= red= dim= off=; fi
+ok() { echo "  ${green}✓${off} $1" >&2; }
+bad() { echo "  ${red}✗${off} $1" >&2; }
+skip() { echo "  ${dim}- $1${off}" >&2; }
+
+echo "Checks for $branch:" >&2
+
+if "$hooks/check-branch-name" "$branch" >/dev/null 2>&1; then
+  ok "branch name follows the convention"
+else
+  bad "branch name must be dev, main, feature/, bug/, docs/ or test/ (git branch -m <new-name>)"
+fi
+
+if command -v gitleaks >/dev/null; then
+  ok "gitleaks installed"
+else
+  bad "gitleaks not installed (brew install gitleaks)"
+fi
+
+if [ -f "$root/.env" ]; then
+  ok ".env found, its values are checked"
+else
+  skip ".env not found, its values can't be checked"
+fi
+
+if out=$("$hooks/check-secrets" range HEAD --not --remotes 2>&1); then
+  ok "no secrets in commits not pushed yet"
+else
+  bad "secrets found in commits not pushed yet"
+  sed 's/^/      /' <<<"$out" >&2
+fi
+exit 0

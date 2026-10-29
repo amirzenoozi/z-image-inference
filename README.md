@@ -92,6 +92,8 @@ Once per clone: `git config core.hooksPath .githooks` and `brew install gitleaks
 
 The same hooks only allow the branch names `dev`, `main`, `feature/…`, `bug/…`, `docs/…` and `test/…`.
 
+Switching branches prints a checklist of these checks for the new branch (`.githooks/post-checkout`); it only informs, the commit and push hooks do the blocking.
+
 ## Documentation
 
 - [Using the app](docs/usage.md): the language, creating images, the prompt builder, prompt weights, Grok chat, History, the viewer, the editor, variations, characters and the face lock
