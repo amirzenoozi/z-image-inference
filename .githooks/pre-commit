@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+hooks="$(git rev-parse --show-toplevel)/.githooks"
+# A detached HEAD (rebase, bisect) has no branch name to check.
+if branch=$(git symbolic-ref --quiet --short HEAD); then
+  "$hooks/check-branch-name" "$branch" || exit 1
+fi
+exec "$hooks/check-secrets" staged
