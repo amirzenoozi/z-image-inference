@@ -107,3 +107,35 @@ def test_images_made_with_a_model_that_became_an_addon_move_to_its_base_model(tm
 
     moved = history_store.item(item.id)
     assert moved is not None and (moved.model, moved.addons) == ("flux-dev", ["flux-create-nsfw"])
+
+
+@pytest.mark.parametrize(
+    ("addon_id", "prompt", "sent"),
+    [
+        ("disney-style", "a cartoon fox in a forest", "DisneyIZT, a cartoon fox in a forest"),
+        ("asian-mix", "a Korean woman in a café", "Asian woman, a Korean woman in a café"),
+        ("cum-on-body", "a woman with cum on body after sex", "a woman with cum on body after sex"),
+        ("squirt-queen", "a woman squirting on a bed", "a woman squirting on a bed"),
+        ("amateur-nude-selfies", "a mirror selfie in a bathroom", "amat_nude, a mirror selfie in a bathroom"),
+    ],
+)
+def test_each_z_image_addon_is_used_by_its_keywords_and_gets_its_trigger_only_when_missing(addon_id: str, prompt: str, sent: str) -> None:
+    used = applied_addons([addon_id], prompt)
+    assert [addon.id for addon in used] == [addon_id]
+    assert with_trigger_words(prompt, used) == sent
+
+
+def test_an_addon_applies_at_the_strength_its_author_recommends() -> None:
+    squirt = (ADDONS["squirt-queen"], ADDONS["cum-on-body"])
+    assert model_server.lora_arguments(squirt)["lora_scales"] == [0.8, 1.0]
+    assert model_server.lora_arguments(squirt)["lora_paths"] == [
+        str(model_server.MODELS_DIR / "lora-squirt-queen" / "squirt-queen.safetensors"),
+        str(model_server.MODELS_DIR / "lora-cum-on-body" / "cum-on-body.safetensors"),
+    ]
+
+
+def test_every_civitai_addon_downloads_one_pinned_version() -> None:
+    for addon in addons_for("z-image-turbo")[1:]:
+        assert addon.source == "civitai"
+        assert addon.download_url.startswith("https://civitai.com/api/download/models/") and "fileId=" in addon.download_url
+        assert addon.lora_file == f"{addon.id}.safetensors"
