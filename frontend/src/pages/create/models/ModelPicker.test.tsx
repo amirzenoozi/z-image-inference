@@ -175,3 +175,31 @@ it('links a model from Civitai to its Civitai page', () => {
   expect(link).toHaveAttribute('href', 'https://civitai.com/models/2178484')
   expect(link).toHaveTextContent('Civitai')
 })
+
+const withTattoo = (tattoo: ModelStatus) => report({ 'z-image-turbo': state('ready', 5.5 * GB), 'wai-illustrious': state('ready', 6.6 * GB), tattoo: state(tattoo, 0) })
+
+it('lists the selected model\'s add-ons in their own tab, with what they do, a download and their page', async () => {
+  vi.mocked(api.downloadModel).mockResolvedValue(state('queued', 0))
+  renderPicker(withTattoo('missing'))
+  await openDialog()
+
+  await userEvent.click(within(dialog()).getByRole('tab', { name: 'Add-ons 1' }))
+  const card = within(dialog()).getByRole('listitem', { name: 'Tattoo' })
+  expect(card).toHaveTextContent('More and bolder tattoos on the body.')
+  expect(card).toHaveTextContent('Used when the prompt mentions “tattoo”, “tattoos”, or “tattooed”.')
+  expect(within(card).getByRole('link', { name: 'Open Tattoo on Civitai' })).toHaveAttribute('href', 'https://civitai.com/models/2178484')
+  expect(within(dialog()).queryByRole('radiogroup', { name: 'Model' })).not.toBeInTheDocument()
+
+  await userEvent.click(within(card).getByRole('button', { name: 'Download Tattoo' }))
+  await userEvent.click(within(card).getByRole('button', { name: 'Download' }))
+  expect(api.downloadModel).toHaveBeenCalledExactlyOnceWith('tattoo')
+})
+
+it('shows only the add-ons of the selected base model, and says when it has none', async () => {
+  renderPicker(withTattoo('ready'), 'wai-illustrious')
+  await openDialog()
+
+  await userEvent.click(within(dialog()).getByRole('tab', { name: 'Add-ons 0' }))
+  expect(within(dialog()).getByText('WAI-Illustrious has no add-ons.')).toBeInTheDocument()
+  expect(within(dialog()).queryByRole('listitem', { name: 'Tattoo' })).not.toBeInTheDocument()
+})

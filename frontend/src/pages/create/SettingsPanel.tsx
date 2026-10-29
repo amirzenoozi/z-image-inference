@@ -62,7 +62,7 @@ export function SettingsPanel(props: Props) {
         <Section title={t('create.sectionModel')}>
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
-          <AddonsPanel model={model} enabled={settings.addons} prompt={settings.prompt} status={props.modelStatus} onChange={(addons) => patch({ addons })} onStatusChanged={props.onModelStatusChanged} />
+          <AddonsPanel model={model} enabled={settings.addons} status={props.modelStatus} onChange={(addons) => patch({ addons })} />
         </Section>
         <PromptSection {...props} onGenerate={generate} model={model} patch={patch} addsLook={addsCharacterLook(settings, character)} />
         <Section title={t('create.sectionResolution')}>

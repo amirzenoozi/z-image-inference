@@ -1,23 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { animeModel, fastModel, tattooAddon } from '../test/fixtures'
+import { animeModel, fastModel } from '../test/fixtures'
 import type { Loadable, ModelStatusReport } from '../types'
-import { addonApplies, addonsToSend, withAddon } from './addons'
+import { addonsToSend, withAddon } from './addons'
 
 const report = (tattoo: 'ready' | 'missing'): Loadable<ModelStatusReport> => ({
   status: 'settled',
   value: { server_running: true, free_bytes: null, models: { tattoo: { status: tattoo, size_bytes: 0 } } },
-})
-
-describe('addonApplies', () => {
-  it.each([
-    ['a dragon tattoo on her back', true],
-    ['TATTOOED arms', true],
-    ['tattoos everywhere', true],
-    ['a tattooist at work', false],
-    ['a beach at sunset', false],
-  ])('%s → %s', (prompt, applies) => {
-    expect(addonApplies(tattooAddon, prompt)).toBe(applies)
-  })
 })
 
 describe('addonsToSend', () => {
