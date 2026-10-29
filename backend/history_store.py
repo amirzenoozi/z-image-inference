@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 
 from image_codec import encode_for_storage, is_webp, to_png
-from model_catalog import DEFAULT_MODEL
+from model_catalog import DEFAULT_MODEL, MODELS_NOW_ADDONS
 from palette import PaletteColour, extract_palette
 from paths import PROJECT_DIR
 from resolutions import CATEGORY_CONDITIONS, Category
@@ -179,6 +179,7 @@ def init_db() -> None:
         """)
         add_missing_columns(conn, "images", ADDED_COLUMNS)
         mark_unchecked_images(conn)
+        move_to_base_models(conn)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS characters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -198,6 +199,12 @@ def mark_unchecked_images(conn: sqlite3.Connection) -> None:
     """Images saved before the sensitive flag existed get it from their prompt, once."""
     unchecked = conn.execute("SELECT id, prompt FROM images WHERE sensitive IS NULL").fetchall()
     conn.executemany("UPDATE images SET sensitive = ? WHERE id = ?", [(int(is_sensitive(prompt or "")), id_) for id_, prompt in unchecked])
+
+
+def move_to_base_models(conn: sqlite3.Connection) -> None:
+    """Images made with a model that is now an add-on become images of its base model, made with that add-on."""
+    for addon_id, base_id in MODELS_NOW_ADDONS.items():
+        conn.execute("UPDATE images SET model = ?, addons = ? WHERE model = ?", (base_id, addon_id, addon_id))
 
 
 def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:

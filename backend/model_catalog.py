@@ -1,6 +1,6 @@
 import os
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal
 
 
@@ -37,9 +37,6 @@ class ModelSpec:
     supports_variations: bool = True
     # Whether it can keep a character's face from a reference image (IP-Adapter, SDXL only)
     supports_face_lock: bool = False
-    # A LoRA runs on another model's files: `repo_id` holds the LoRA, `base_model_id` the model it needs
-    base_model_id: str | None = None
-    lora_file: str = ""
 
 
 Z_IMAGE = ModelSpec(
@@ -165,32 +162,6 @@ FLUX_DEV = ModelSpec(
     default_guidance=3.5,
 )
 
-FLUX_CREATE_NSFW = replace(
-    FLUX_DEV,
-    id="flux-create-nsfw",
-    label="FLUX.1-dev · create-nsfw",
-    repo_id="Bigfawg6669/create-nsfw",
-    description="FLUX.1-dev with the create-nsfw LoRA, for nude photos.",
-    download_gb=0.69,
-    compressed_gb=0.69,
-    base_model_id=FLUX_DEV.id,
-    lora_file="lora.safetensors",
-)
-
-FLUX_ASIAN_NUDITY = replace(
-    FLUX_DEV,
-    id="flux-asian-nudity",
-    label="FLUX.1-dev · asian-nudity-2",
-    repo_id="inuptia/asian-nudity-2",
-    description="FLUX.1-dev with the asian-nudity-2 LoRA, for nude photos of East Asian women.",
-    download_gb=0.04,
-    compressed_gb=0.04,
-    trigger_word="4s14n",
-    base_model_id=FLUX_DEV.id,
-    lora_file="asian-nudity-2.safetensors",
-)
-
-
 Source = Literal["huggingface", "civitai"]
 
 
@@ -231,7 +202,39 @@ TATTOO_ADDON = AddonSpec(
     keywords=("tattoo", "tattoos", "tattooed"),
 )
 
-ADDONS: dict[str, AddonSpec] = {addon.id: addon for addon in (TATTOO_ADDON,)}
+# The two FLUX.1-dev LoRAs were models of their own before add-ons; their ids, and so their folders, are kept
+FLUX_CREATE_NSFW_ADDON = AddonSpec(
+    id="flux-create-nsfw",
+    label="create-nsfw",
+    description="Nude photos.",
+    base_model_id=FLUX_DEV.id,
+    repo_id="Bigfawg6669/create-nsfw",
+    source="huggingface",
+    download_url="",
+    lora_file="lora.safetensors",
+    download_gb=0.69,
+    trigger_word="",
+    keywords=("nsfw", "nude", "naked", "topless"),
+)
+
+FLUX_ASIAN_NUDITY_ADDON = AddonSpec(
+    id="flux-asian-nudity",
+    label="asian-nudity-2",
+    description="Nude photos of East Asian women.",
+    base_model_id=FLUX_DEV.id,
+    repo_id="inuptia/asian-nudity-2",
+    source="huggingface",
+    download_url="",
+    lora_file="asian-nudity-2.safetensors",
+    download_gb=0.04,
+    trigger_word="4s14n",
+    keywords=("asian", "japanese", "korean", "chinese"),
+)
+
+ADDONS: dict[str, AddonSpec] = {addon.id: addon for addon in (TATTOO_ADDON, FLUX_CREATE_NSFW_ADDON, FLUX_ASIAN_NUDITY_ADDON)}
+
+# Models that became add-ons of their base model: History's images made with them are moved over (history_store)
+MODELS_NOW_ADDONS: dict[str, str] = {FLUX_CREATE_NSFW_ADDON.id: FLUX_DEV.id, FLUX_ASIAN_NUDITY_ADDON.id: FLUX_DEV.id}
 
 
 def addons_for(model_id: str) -> list[AddonSpec]:
@@ -276,8 +279,6 @@ def z_image_bits() -> int | None:
 def runs_compressed(spec: ModelSpec) -> bool:
     if spec.id == FLUX_DEV.id:
         return True
-    if spec.base_model_id is not None:
-        return False
     return z_image_bits() is not None if spec.id == Z_IMAGE.id else compression_enabled()
 
 
@@ -289,13 +290,10 @@ def kept_gb(spec: ModelSpec) -> float:
 
 
 def speed_hint(spec: ModelSpec) -> str:
-    """A LoRA model runs as fast as its base model."""
-    if spec.base_model_id is not None:
-        return speed_hint(MODELS[spec.base_model_id])
     return spec.speed_hint if runs_compressed(spec) or spec.original_speed_hint is None else spec.original_speed_hint
 
 
 MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (
-    Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE, REALVIS_XL, FLUX_DEV, FLUX_CREATE_NSFW, FLUX_ASIAN_NUDITY,
+    Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE, REALVIS_XL, FLUX_DEV,
 )}
 DEFAULT_MODEL = Z_IMAGE

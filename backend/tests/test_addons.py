@@ -1,13 +1,28 @@
+import io
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from pydantic import ValidationError
 
+import history_store
 import model_server
+from history_store import NewImage
 
 from generation_request import GenerateRequest
-from model_catalog import ADDONS, applied_addons, with_trigger_words
+from model_catalog import ADDONS, addons_for, applied_addons, with_trigger_words
 
 TATTOO = ADDONS["tattoo"]
+
+
+def png() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (64, 64), "red").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+PNG = png()
 
 
 @pytest.mark.parametrize(
@@ -74,3 +89,21 @@ def test_an_addon_that_is_not_downloaded_is_explained_rather_than_skipped(monkey
 
     assert resp.status_code == 503
     assert "Tattoo" in resp.json()["detail"]
+
+
+def test_flux_offers_its_two_loras_as_addons_used_by_their_keywords() -> None:
+    assert [addon.id for addon in addons_for("flux-dev")] == ["flux-create-nsfw", "flux-asian-nudity"]
+    assert [addon.id for addon in applied_addons(["flux-create-nsfw", "flux-asian-nudity"], "a nude woman on a beach")] == ["flux-create-nsfw"]
+    asian = applied_addons(["flux-asian-nudity"], "a Japanese woman by a window")
+    assert with_trigger_words("a Japanese woman by a window", asian) == "4s14n, a Japanese woman by a window"
+
+
+def test_images_made_with_a_model_that_became_an_addon_move_to_its_base_model(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(history_store, "DB_PATH", tmp_path / "history.db")
+    history_store.init_db()
+    item = history_store.add(NewImage(png=PNG, prompt="a nude woman", negative_prompt="", seed=1, width=64, height=64, steps=25, guidance=3.5, model="flux-create-nsfw", duration_seconds=1.0))
+
+    history_store.init_db()
+
+    moved = history_store.item(item.id)
+    assert moved is not None and (moved.model, moved.addons) == ("flux-dev", ["flux-create-nsfw"])
