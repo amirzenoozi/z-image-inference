@@ -635,3 +635,19 @@ def test_a_variation_of_a_deleted_image_is_refused_before_rendering(client: Test
     resp = generate(client, source_image_id=999, change=0.5)
     assert (resp.status_code, resp.json()["detail"]) == (404, "The start image is no longer in History; remove it and try again")
     assert model_server.calls == []
+
+
+@pytest.mark.skipif(not main.FRONTEND_DIST.exists(), reason="the UI is not built")
+def test_the_app_can_be_installed_on_a_phone(client: TestClient) -> None:
+    page = client.get("/").text
+    assert '<link rel="manifest" href="/manifest.webmanifest" />' in page
+    manifest = client.get("/manifest.webmanifest")
+    assert manifest.headers["content-type"] == "application/manifest+json"
+    data = manifest.json()
+    assert (data["display"], data["start_url"]) == ("standalone", "/")
+    for icon in data["icons"]:
+        image = Image.open(io.BytesIO(client.get(icon["src"]).content))
+        assert f"{image.width}x{image.height}" == icon["sizes"]
+    assert any(icon["purpose"] == "maskable" for icon in data["icons"])
+    assert client.get("/sw.js").headers["content-type"].startswith("text/javascript")
+    assert client.get("/apple-touch-icon.png").status_code == 200
