@@ -4,7 +4,7 @@ import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../.
 import { secondaryButtonClass } from '../../../lib/styles'
 import { Modal } from '../../../shared/ui/Modal'
 import { ModelChooser } from './ModelChooser'
-import { DownloadBadge, HuggingFaceLink } from './modelParts'
+import { DownloadBadge, SourceLink } from './modelParts'
 import { modelDescription } from '../../../lib/categories'
 import { t } from '../../../i18n'
 
@@ -69,7 +69,7 @@ function SelectedModel({ model, status, serverDown, onChange }: SelectedModelPro
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{modelDescription(model)}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{model.speed_hint}</span>
-        <HuggingFaceLink model={model} />
+        <SourceLink model={model} />
       </div>
       {!serverDown && <DownloadBadge model={model} status={status} />}
     </div>

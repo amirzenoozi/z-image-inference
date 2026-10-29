@@ -51,7 +51,7 @@ def write_moss_text_encoder(folder: Path, shards: tuple[str, ...] = ("model-1.sa
 @pytest.fixture
 def download(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeDownload]:
     fake = FakeDownload(tmp_path / WAI)
-    paths = {model_id: tmp_path / model_id for model_id in model_server.MODELS}
+    paths = {model_id: tmp_path / model_id for model_id in model_server.ENTRIES}
     monkeypatch.setattr(model_server, "DOWNLOAD_PATHS", paths)
     monkeypatch.setattr(model_server, "MODEL_FOLDERS", {model_id: [path] for model_id, path in paths.items()})
     monkeypatch.setattr(model_server, "Z_IMAGE_PATH", paths["z-image-turbo"])
@@ -378,3 +378,75 @@ def test_removing_a_lora_model_keeps_the_base(download: FakeDownload) -> None:
 
     assert status_of(client, FLUX) == "ready"
     assert status_of(client, FLUX_LORA) == "missing"
+
+
+TATTOO = "tattoo"
+
+
+class FakeCivitai:
+    """Stands in for requests.get on Civitai's download link, recording what was asked for."""
+
+    def __init__(self, status: int = 200) -> None:
+        self.status = status
+        self.requests: list[tuple[str, dict[str, str]]] = []
+
+    def __call__(self, url: str, headers: dict[str, str], stream: bool, timeout: int) -> "FakeCivitai":
+        self.requests.append((url, headers))
+        return self
+
+    def __enter__(self) -> "FakeCivitai":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def raise_for_status(self) -> None:
+        if self.status >= 400:
+            raise RuntimeError(f"HTTP {self.status}")
+
+    def iter_content(self, chunk_size: int) -> Iterator[bytes]:
+        yield b"lora weights"
+
+
+def test_a_civitai_lora_is_fetched_with_the_api_key(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeCivitai()
+    monkeypatch.setattr(model_server.requests, "get", fake)
+    monkeypatch.setenv("CIVITAI_TOKEN", "secret-key")
+    spec = model_server.ENTRIES[TATTOO]
+
+    model_server.download_from_civitai(spec)
+
+    assert fake.requests == [(spec.download_url, {"Authorization": "Bearer secret-key"})]
+    folder = model_server.lora_path(spec)
+    assert (folder / spec.lora_file).read_bytes() == b"lora weights"
+    assert model_server.download_marker(folder).exists()
+
+
+def test_a_refused_civitai_download_leaves_nothing_marked_downloaded(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_server.requests, "get", FakeCivitai(status=401))
+    spec = model_server.ENTRIES[TATTOO]
+
+    with pytest.raises(RuntimeError):
+        model_server.download_from_civitai(spec)
+
+    assert not model_server.download_marker(model_server.lora_path(spec)).exists()
+    assert not (model_server.lora_path(spec) / spec.lora_file).exists()
+
+
+def test_downloading_from_civitai_without_a_key_explains_how_to_get_one(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CIVITAI_TOKEN", raising=False)
+    client = TestClient(model_server.app)
+
+    resp = client.post(f"/models/{TATTOO}/download")
+
+    assert resp.status_code == 400
+    assert "CIVITAI_TOKEN" in resp.json()["detail"]
+
+
+def test_the_tattoo_addon_is_ready_only_with_z_image(download: FakeDownload) -> None:
+    mark_model_downloaded(TATTOO)
+    assert model_server.model_status(TATTOO) == "missing"
+
+    mark_model_downloaded("z-image-turbo")
+
+    assert model_server.model_status(TATTOO) == "ready"

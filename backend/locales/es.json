@@ -40,5 +40,8 @@
   "notEnoughSpace": "No hay suficiente espacio en disco: libera unos {gb} GB más y vuelve a intentarlo.",
   "removeWhileDownloading": "{label} se está descargando; quítalo cuando haya terminado la descarga.",
   "noSuchJob": "No existe ese trabajo; puede que ya haya terminado",
-  "needsHfToken": "{label} está restringido en Hugging Face: acepta su licencia en la página del modelo, luego añade HF_TOKEN=<tu token> a .env y reinicia el servidor de modelos."
+  "needsHfToken": "{label} está restringido en Hugging Face: acepta su licencia en la página del modelo, luego añade HF_TOKEN=<tu token> a .env y reinicia el servidor de modelos.",
+  "needsCivitaiToken": "{label} se descarga de Civitai, que necesita una clave API: crea una en Account settings → API Keys en civitai.com, añade CIVITAI_TOKEN=<tu clave> a .env y reinicia el servidor de modelos.",
+  "unknownAddon": "{label} no tiene ningún complemento llamado {addon}.",
+  "addonTwice": "Cada complemento solo se puede activar una vez."
 }

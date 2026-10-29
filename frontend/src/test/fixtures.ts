@@ -1,13 +1,26 @@
 import shippedModes from '../../../prompt_modes.json'
-import type { BuilderModeData, Catalog, Character, HistoryItem, ModelInfo } from '../types'
+import type { AddonInfo, BuilderModeData, Catalog, Character, HistoryItem, ModelInfo } from '../types'
 
 /** The modes shipped in prompt_modes.json, so the tests check the real file. */
 // TypeScript reads optional JSON keys as possibly undefined; the catalog serves the same file with the right shape
 export const builderModes = shippedModes as unknown as BuilderModeData[]
 
+export const tattooAddon: AddonInfo = {
+  id: 'tattoo',
+  label: 'Tattoo',
+  description: 'More and bolder tattoos on the body.',
+  keywords: ['tattoo', 'tattoos', 'tattooed'],
+  trigger_word: 'tattoo',
+  download_gb: 0.17,
+  page_url: 'https://civitai.com/models/2178484',
+  source_name: 'Civitai',
+}
+
 export const fastModel: ModelInfo = {
   id: 'z-image-turbo',
   repo_id: 'Tongyi-MAI/Z-Image-Turbo',
+  page_url: 'https://huggingface.co/Tongyi-MAI/Z-Image-Turbo',
+  source_name: 'Hugging Face',
   label: 'Z-Image-Turbo',
   description: 'Fast photos',
   speed_hint: '~10 s',
@@ -27,11 +40,14 @@ export const fastModel: ModelInfo = {
   supports_variations: true,
   supports_face_lock: false,
   examples: ['A red fox in the snow', 'A lighthouse at dawn'],
+  addons: [tattooAddon],
 }
 
 export const animeModel: ModelInfo = {
   id: 'wai-illustrious',
   repo_id: 'votepurchase/waiNSFWIllustrious_v120',
+  page_url: 'https://huggingface.co/votepurchase/waiNSFWIllustrious_v120',
+  source_name: 'Hugging Face',
   label: 'WAI-Illustrious',
   description: 'Anime',
   speed_hint: '~40 s',
@@ -51,6 +67,7 @@ export const animeModel: ModelInfo = {
   supports_variations: true,
   supports_face_lock: true,
   examples: ['1girl, adult woman, kimono'],
+  addons: [],
 }
 
 export const catalog: Catalog = {
@@ -95,6 +112,7 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     character_id: null,
     face_from: null,
     sensitive: false,
+    addons: [],
     ...overrides,
   }
 }

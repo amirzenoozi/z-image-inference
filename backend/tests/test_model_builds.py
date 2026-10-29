@@ -116,3 +116,31 @@ def test_a_flux_lora_model_builds_the_4_bit_copy_once_and_applies_its_lora_while
     assert loaded[0]["model_path"] == str(tmp_path / "flux-dev-q4")
     assert loaded[0]["lora_paths"] == [str(tmp_path / "lora-flux-asian-nudity" / "asian-nudity-2.safetensors")]
     assert loaded[0]["bake_lora"] is False
+
+
+
+def test_z_image_loads_with_the_addons_a_render_uses_and_reloads_only_when_they_change(original: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    made: list[dict[str, object]] = []
+
+    class RecordingZImage(FakeFlux):
+        def __init__(self, **kwargs: object) -> None:
+            made.append(kwargs)
+            super().__init__(**kwargs)
+
+    monkeypatch.setattr(model_server, "ZImage", RecordingZImage)
+    monkeypatch.setattr(model_server, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(model_server, "release_memory", lambda: None)
+    monkeypatch.setattr(model_server, "loaded_generator", None)
+    monkeypatch.setattr(model_server, "loaded_model_id", None)
+    monkeypatch.setattr(model_server, "loaded_addons", ())
+    monkeypatch.setenv("Z_IMAGE_BITS", "original")
+    tattoo = (model_server.ADDONS["tattoo"],)
+
+    model_server.use_model("z-image-turbo", tattoo)
+    model_server.use_model("z-image-turbo", tattoo)
+    model_server.use_model("z-image-turbo")
+
+    with_tattoo, plain = made
+    assert with_tattoo["lora_paths"] == [str(tmp_path / "lora-tattoo" / "tattoo-z.safetensors")]
+    assert with_tattoo["bake_lora"] is False
+    assert "lora_paths" not in plain

@@ -52,8 +52,7 @@
   "removeModel": "{model} verwijderen",
   "removeWithSize": "Verwijderen · {size}",
   "dismiss": "Sluiten",
-  "openOnHuggingFace": "{model} openen op Hugging Face",
-  "huggingFace": "Hugging Face",
+  "openOnSite": "{model} openen op {site}",
   "checkingDownload": "Download controleren…",
   "notDownloaded": "Niet gedownload · {size}",
   "queuedDownload": "In de wachtrij voor download · {size}",
@@ -143,5 +142,13 @@
   "changeAmount": "Verandering",
   "modelDescription_flux-dev": "Gedetailleerde fotorealistische afbeeldingen; traag, en downloaden vraagt een Hugging Face-token.",
   "modelDescription_flux-create-nsfw": "FLUX.1-dev met de create-nsfw-LoRA, voor naaktfoto’s.",
-  "modelDescription_flux-asian-nudity": "FLUX.1-dev met de asian-nudity-2-LoRA, voor naaktfoto’s van Oost-Aziatische vrouwen."
+  "modelDescription_flux-asian-nudity": "FLUX.1-dev met de asian-nudity-2-LoRA, voor naaktfoto’s van Oost-Aziatische vrouwen.",
+  "addonsHeading": "Add-ons",
+  "addonUsed": "Gebruikt: de prompt vraagt erom.",
+  "addonNotUsed": "Niet gebruikt: de prompt noemt {words} niet.",
+  "addonDescription_tattoo": "Meer en opvallendere tatoeages op het lichaam.",
+  "addonLabel_tattoo": "Tatoeage",
+  "paneSettings": "Instellingen",
+  "paneResult": "Resultaat",
+  "panesLabel": "Instellingen of resultaat"
 }

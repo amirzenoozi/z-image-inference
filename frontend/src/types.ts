@@ -1,9 +1,24 @@
 export type Category = 'square' | 'portrait' | 'landscape' | 'widescreen'
 export type Tier = 'S' | 'M' | 'L' | 'XL'
 
+/** A LoRA switched on over its model; used only when the prompt mentions one of its keywords (lib/addons.ts). */
+export interface AddonInfo {
+  id: string
+  label: string
+  description: string
+  keywords: string[]
+  trigger_word: string
+  download_gb: number
+  page_url: string
+  source_name: string
+}
+
 export interface ModelInfo {
   id: string
   repo_id: string
+  /** The model's page, on the site it comes from (source_name: Hugging Face or Civitai). */
+  page_url: string
+  source_name: string
   label: string
   description: string
   speed_hint: string
@@ -25,6 +40,7 @@ export interface ModelInfo {
   /** Whether it can keep a character's face from its face image (IP-Adapter, the SDXL models). */
   supports_face_lock: boolean
   examples: string[]
+  addons: AddonInfo[]
 }
 
 export interface ResolutionInfo {
@@ -112,6 +128,8 @@ export interface HistoryItem {
   face_from: number | null
   /** Blurred in lists: worked out from the prompt when saved, or set by hand in the image viewer. */
   sensitive: boolean
+  /** The add-ons the render used (ids from its model's add-ons); empty for none. */
+  addons: string[]
 }
 
 /** The prompt builder's identity choices a character keeps, named as in the builder's state. */
@@ -228,6 +246,8 @@ export interface GenerationSettings {
   characterId: number | null
   /** The character whose look the prompt already has (written by the prompt builder, or reused from an image); null for none. */
   lookIncluded: number | null
+  /** Add-ons switched on, for any model; only the chosen model's are sent, and each applies only when the prompt mentions it. */
+  addons: string[]
 }
 
 export interface StartImage {

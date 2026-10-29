@@ -92,6 +92,7 @@ export async function generateImage(settings: GenerationSettings, jobId: string,
       source_image_id: settings.startImage?.id ?? null,
       change: settings.startImage?.change ?? null,
       character_id: settings.characterId,
+      addons: settings.addons,
     },
     signal,
   )
