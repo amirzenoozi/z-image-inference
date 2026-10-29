@@ -33,11 +33,11 @@ export function CharactersPage({ maxSeed, onUse, onShowImages }: Props) {
   const all = characters.status === 'settled' ? characters.value : null
   const shown = all?.filter((character) => matchesGender(character, gender)) ?? null
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <GenderSwitch gender={gender} onChange={setGender} />
         <p className="text-sm text-zinc-500 tabular-nums dark:text-zinc-400">{countLabel(shown?.length ?? null, all?.length ?? null)}</p>
-        <button type="button" onClick={() => setEditing({ character: null })} className="ml-auto flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
+        <button type="button" onClick={() => setEditing({ character: null })} className="ml-auto flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500 pointer-coarse:min-h-10">
           <Plus /> {t('characters.newCharacter')}
         </button>
       </div>

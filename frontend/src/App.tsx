@@ -8,8 +8,8 @@ import type { PromptMode } from './pages/create/SettingsPanel'
 import { ErrorNotice, Spinner } from './shared/ui/ui'
 import { useCharacter, useCharacters } from './lib/characters'
 import { promptToSend } from './lib/characterPrompt'
+import { addonsToSend } from './lib/addons'
 import { useGeneration } from './lib/generation'
-import { tabClass } from './lib/styles'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
 import { characterSettings, findModel, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
@@ -17,7 +17,7 @@ import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useUnseenResult } from './lib/unseenResult'
 import { useView, type View } from './lib/view'
 import type { Catalog, GenerationSettings, HistoryItem } from './types'
-import { Sparkles } from 'lucide-react'
+import { Images, Sparkles, UsersRound, WandSparkles, type LucideIcon } from 'lucide-react'
 
 
 function Loading() {
@@ -100,7 +100,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   const generateWith = (next: GenerationSettings) => {
     if (generating || !next.prompt.trim()) return
     askToNotify()
-    void generation.run({ ...next, prompt: promptToSend(next, character, findModel(catalog, next.modelId)) })
+    const model = findModel(catalog, next.modelId)
+    void generation.run({ ...next, prompt: promptToSend(next, character, model), addons: addonsToSend(model, next.addons, modelStatus) })
   }
   const openInCreate = (next: GenerationSettings) => {
     setSettings(next)
@@ -109,7 +110,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    // On phones the views sit in a bar at the bottom, so the page leaves room for it
+    <div className="flex h-dvh flex-col pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] sm:pb-0">
       <Header view={view} onViewChange={setView} unseenResult={unseen} />
       <CreatePage
         catalog={catalog}
@@ -155,30 +157,35 @@ interface HeaderProps {
   unseenResult: boolean
 }
 
+const VIEWS: { id: View; label: () => string; Icon: LucideIcon }[] = [
+  { id: 'create', label: () => t('create.viewCreate'), Icon: WandSparkles },
+  { id: 'history', label: () => t('create.viewHistory'), Icon: Images },
+  { id: 'characters', label: () => t('create.viewCharacters'), Icon: UsersRound },
+]
+
+// One menu for both layouts: in the header from tablet width up, and a bar at the bottom, within thumb reach, on phones
+const NAV_CLASS =
+  'fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur ' +
+  'dark:border-zinc-800 dark:bg-zinc-950/95 sm:static sm:flex sm:gap-1 sm:rounded-xl sm:border-0 sm:bg-zinc-100 sm:p-1 sm:pb-1 sm:dark:bg-zinc-800/70'
+
 function Header({ view, onViewChange, unseenResult }: HeaderProps) {
-  const views: { id: View; label: string }[] = [
-    { id: 'create', label: t('create.viewCreate') },
-    { id: 'history', label: t('create.viewHistory') },
-    { id: 'characters', label: t('create.viewCharacters') },
-  ]
   return (
-    <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 sm:px-5 dark:border-zinc-800 dark:bg-zinc-950">
       <h1 className="flex items-center gap-2 text-sm font-bold tracking-tight">
         <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"><Sparkles /></span>
         Z-Image Studio
       </h1>
-      <nav aria-label={t('create.viewsLabel')} className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm dark:bg-zinc-800/70">
-        {views.map(({ id, label }) => (
+      <nav aria-label={t('create.viewsLabel')} className={NAV_CLASS}>
+        {VIEWS.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
             aria-current={view === id ? 'page' : undefined}
             onClick={() => onViewChange(id)}
-            className={`relative rounded-lg px-4 py-1.5 font-medium transition ${
-              tabClass(view === id)
-            }`}
+            className={`relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition sm:h-auto sm:rounded-lg sm:px-4 sm:py-1.5 sm:text-sm ${navItemClass(view === id)}`}
           >
-            {label}
+            <Icon className="size-5 sm:hidden" aria-hidden="true" />
+            {label()}
             {id === 'create' && unseenResult && <NewResultDot />}
           </button>
         ))}
@@ -187,10 +194,17 @@ function Header({ view, onViewChange, unseenResult }: HeaderProps) {
   )
 }
 
+/** On phones the current view is shown in violet; from tablet width up, as the raised tab (as tabClass draws it). */
+function navItemClass(current: boolean): string {
+  return current
+    ? 'text-violet-700 dark:text-violet-300 sm:bg-white sm:text-zinc-900 sm:shadow-sm sm:dark:bg-zinc-950 sm:dark:text-zinc-100'
+    : 'text-zinc-500 dark:text-zinc-400 sm:hover:bg-white/70 sm:hover:text-zinc-900 sm:dark:hover:bg-zinc-700/70 sm:dark:hover:text-zinc-100'
+}
+
 function NewResultDot() {
   return (
     <>
-      <span aria-hidden="true" className="absolute top-1 right-1.5 size-2 rounded-full bg-red-500 ring-2 ring-zinc-100 dark:ring-zinc-800" />
+      <span aria-hidden="true" className="absolute top-2 right-[calc(50%-1.25rem)] size-2 rounded-full bg-red-500 ring-2 ring-white sm:top-1 sm:right-1.5 sm:ring-zinc-100 dark:ring-zinc-950 sm:dark:ring-zinc-800" />
       <span className="sr-only">{t('create.newResult')}</span>
     </>
   )

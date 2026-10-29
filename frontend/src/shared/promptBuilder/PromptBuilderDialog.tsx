@@ -154,14 +154,15 @@ function styleNote(model: ModelInfo, mode: BuilderMode): string {
 
 function StepNav({ steps, current, onSelect }: { steps: Step[]; current: StepId; onSelect: (id: StepId) => void }) {
   return (
-    <nav aria-label={t('builder.stepsLabel')} className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:flex-col lg:overflow-visible">
+    // On phones the steps stay at the top while a long step scrolls under them
+    <nav aria-label={t('builder.stepsLabel')} className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto bg-white px-1 py-1 lg:static lg:flex-col lg:overflow-visible lg:bg-transparent lg:py-0 dark:bg-zinc-900 lg:dark:bg-transparent">
       {steps.map((step, index) => (
         <button
           key={step.id}
           type="button"
           aria-current={step.id === current ? 'step' : undefined}
           onClick={() => onSelect(step.id)}
-          className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium whitespace-nowrap transition ${
+          className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium whitespace-nowrap transition pointer-coarse:min-h-11 ${
             step.id === current
               ? 'bg-violet-50 text-violet-900 dark:bg-violet-950/60 dark:text-violet-100'
               : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'

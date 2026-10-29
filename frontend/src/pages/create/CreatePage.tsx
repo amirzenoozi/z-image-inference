@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react'
 import { t } from '../../i18n'
 import type { Catalog, GenerationSettings, GenerationState, Loadable, ModelStatusReport } from '../../types'
 import { ResultPanel } from './ResultPanel'
 import { SettingsPanel, type PromptMode } from './SettingsPanel'
+import { PaneSwitch, type Pane } from './PaneSwitch'
 
 interface Props {
   catalog: Catalog
@@ -19,11 +21,40 @@ interface Props {
   hidden: boolean
 }
 
-/** The settings on the left, the result on the right. */
+/**
+ * Below desktop width only one pane shows at a time: Generate opens Result, and a result that arrives while
+ * Settings is open marks the Result tab until it is seen.
+ */
+function usePane(status: GenerationState['status']): { pane: Pane; setPane: (pane: Pane) => void; unseen: boolean } {
+  const [pane, setPaneState] = useState<Pane>('settings')
+  const [unseen, setUnseen] = useState(false)
+  const paneRef = useRef(pane)
+  const previous = useRef(status)
+  const setPane = (next: Pane) => {
+    paneRef.current = next
+    setPaneState(next)
+    if (next === 'result') setUnseen(false)
+  }
+  useEffect(() => {
+    const wasPending = previous.current === 'pending'
+    previous.current = status
+    if (status === 'pending' && !wasPending) {
+      paneRef.current = 'result'
+      setPaneState('result')
+    } else if (wasPending && status !== 'idle' && paneRef.current === 'settings') {
+      setUnseen(true)
+    }
+  }, [status])
+  return { pane, setPane, unseen }
+}
+
+/** The settings on the left, the result on the right; below desktop width, one at a time. */
 export function CreatePage({ catalog, settings, onSettingsChange, generation, hidden, ...props }: Props) {
+  const { pane, setPane, unseen } = usePane(generation.state.status)
   return (
-    <main className={`grid min-h-0 flex-1 lg:grid-cols-[440px_minmax(0,1fr)] ${hidden ? 'hidden' : ''}`}>
-      <aside className="min-h-0 border-zinc-200 bg-white lg:border-r dark:border-zinc-800 dark:bg-zinc-950">
+    <main className={`grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[440px_minmax(0,1fr)] lg:grid-rows-1 ${hidden ? 'hidden' : ''}`}>
+      <PaneSwitch pane={pane} onChange={setPane} resultUnseen={unseen} />
+      <aside className={`min-h-0 border-zinc-200 bg-white lg:block lg:border-r dark:border-zinc-800 dark:bg-zinc-950 ${pane === 'settings' ? '' : 'hidden'}`}>
         <SettingsPanel
           catalog={catalog}
           settings={settings}
@@ -38,7 +69,7 @@ export function CreatePage({ catalog, settings, onSettingsChange, generation, hi
           onChatPrompt={props.onChatPrompt}
         />
       </aside>
-      <section aria-label={t('create.resultLabel')} className="min-h-0 overflow-y-auto">
+      <section aria-label={t('create.resultLabel')} className={`min-h-0 overflow-y-auto lg:block ${pane === 'result' ? '' : 'hidden'}`}>
         <ResultPanel
           state={generation.state}
           models={catalog.models}

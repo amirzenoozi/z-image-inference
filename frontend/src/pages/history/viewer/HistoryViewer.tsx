@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type R
 import { IconButton, IconLink } from '../../../shared/ui/IconButton'
 import { deleteHistoryItem, downloadUrl, fetchHistory, imageUrl } from '../../../api'
 import { errorMessage } from '../../../lib/hooks'
+import { useSwipe } from '../../../lib/swipe'
 import { secondaryButtonClass } from '../../../lib/styles'
 import type { HistoryFilters, HistoryItem, Loadable } from '../../../types'
 import { ColourPalette } from './ColourPalette'
@@ -213,6 +214,14 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
       setDeleteState({ status: 'failed', error: errorMessage(error) })
     }
   }
+  const previous = () => {
+    if (index > 0) moveTo(index - 1)
+  }
+  const next = () => {
+    if (index < image.total - 1) moveTo(index + 1)
+  }
+  // A zoomed image is dragged to look around, so swiping only moves between images when it fits
+  const swipe = useSwipe(previous, next, !zoomed)
   return (
     <Modal title={editing ? t('history.editImage') : t('history.imageDetails')} onClose={requestClose} size="full">
       <div className="grid gap-5 lg:h-full lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -229,13 +238,14 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
           <>
             <div
               ref={area}
-              className={`relative flex items-center justify-center overflow-hidden ${fullScreen.active ? 'h-screen bg-black' : 'h-[60vh] rounded-xl bg-zinc-100 lg:h-full dark:bg-zinc-800'}`}
+              {...swipe}
+              className={`relative flex touch-pan-y items-center justify-center overflow-hidden ${fullScreen.active ? 'h-screen bg-black' : 'h-[55dvh] rounded-xl bg-zinc-100 sm:h-[60vh] lg:h-full dark:bg-zinc-800'}`}
             >
               <ImageArea state={image.state} zoomed={zoomed} onZoomedChange={setZoomed} onRetry={image.retry} />
               <p className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white tabular-nums">
                 {t('history.position', { index: index + 1, total: image.total })}
               </p>
-              <div className="absolute top-3 right-3 flex gap-2">
+              <div className="absolute top-3 right-3 flex max-w-[calc(100%-5.5rem)] flex-wrap justify-end gap-2">
                 {item && (
                   <ImageTools
                     item={item}
