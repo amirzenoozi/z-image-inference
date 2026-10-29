@@ -129,6 +129,8 @@ The header shows how much space History uses, and offers:
 
 Clean up and Delete all also shrink `history.db` on disk.
 
+Images are kept in `history.db` as lossless WebP: the same pixels as the PNG the model made, about 30% smaller. Downloads and the export are still PNG. Images saved before this were PNG; to convert them, stop the web app and run `uv run python backend/tools/recompress_history.py` (`--dry-run` first shows how many there are). It keeps a copy as `history.db.bak`; delete it once you are happy.
+
 ### Sensitive images
 
 Images with nudity or sexual content are blurred in History's list, on character cards and in the face-lock thumbnail, with an eye icon and "Sensitive". Opening one shows it as it is.

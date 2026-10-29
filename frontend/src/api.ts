@@ -197,6 +197,11 @@ export function imageUrl(id: number, thumb = false): string {
   return `/api/history/${id}/image${thumb ? '?thumb=true' : ''}`
 }
 
+/** The image as a PNG file to save; imageUrl may be WebP, which is how History stores it. */
+export function downloadUrl(id: number): string {
+  return `/api/history/${id}/download`
+}
+
 /** Streams Grok's rewritten prompt, calling onText with the text so far; resolves with the full prompt. */
 export async function streamChat(
   messages: ChatMessage[],
