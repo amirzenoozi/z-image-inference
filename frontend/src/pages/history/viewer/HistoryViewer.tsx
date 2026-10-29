@@ -1,7 +1,7 @@
 import { language, t } from '../../../i18n'
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type Ref, type RefObject } from 'react'
 import { IconButton, IconLink } from '../../../shared/ui/IconButton'
-import { deleteHistoryItem, fetchHistory, imageUrl } from '../../../api'
+import { deleteHistoryItem, downloadUrl, fetchHistory, imageUrl } from '../../../api'
 import { errorMessage } from '../../../lib/hooks'
 import { secondaryButtonClass } from '../../../lib/styles'
 import type { HistoryFilters, HistoryItem, Loadable } from '../../../types'
@@ -382,7 +382,7 @@ interface ImageToolsProps {
 function ImageTools({ item, deleting, deleteButton, onDelete, onEdit }: ImageToolsProps) {
   return (
     <>
-      <IconLink label={t('history.download')} href={imageUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={overlayClass}>
+      <IconLink label={t('history.download')} href={downloadUrl(item.id)} download={`z-image-${item.id}-${item.seed}.png`} className={overlayClass}>
         <Download />
       </IconLink>
       <OverlayButton label={t('common.edit')} onClick={onEdit}>

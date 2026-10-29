@@ -670,6 +670,7 @@ it('puts each History dialog\'s buttons in its actions footer, and the image vie
   expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Make variations', 'Reuse settings'])
   // Download, Edit and Delete are icons on the image, beside zoom, full screen and the star
   expect(within(viewer()).getByRole('link', { name: 'Download' })).toHaveAttribute('download', 'z-image-2-42.png')
+  expect(within(viewer()).getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/api/history/2/download')
   expect(within(viewer()).getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   expect(within(viewer()).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   expect(imageActions.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()

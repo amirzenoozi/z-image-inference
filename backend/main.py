@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 
 import character_store
 import history_export
+import image_codec
 import i18n
 import nsfw_detector
 import paths
@@ -550,8 +551,8 @@ def set_sensitive(item_id: int, update: SensitiveUpdate) -> HistoryItem:
     return item
 
 
-def thumbnail(png: bytes) -> bytes:
-    image = Image.open(io.BytesIO(png))
+def thumbnail(data: bytes) -> bytes:
+    image = Image.open(io.BytesIO(data))
     image.thumbnail((THUMBNAIL_SIDE, THUMBNAIL_SIDE))
     buffer = io.BytesIO()
     image.save(buffer, format="WEBP", quality=85)
@@ -560,12 +561,24 @@ def thumbnail(png: bytes) -> bytes:
 
 @app.get("/api/history/{item_id}/image")
 def history_image(item_id: int, thumb: bool = False) -> Response:
-    png = history_store.image_png(item_id)
-    if png is None:
+    """The image as stored (WebP, or PNG for older rows), for showing; downloads use /download."""
+    stored = history_store.stored_image(item_id)
+    if stored is None:
         raise HTTPException(404, i18n.t("imageNotFound"))
     if thumb:
-        return Response(thumbnail(png), media_type="image/webp", headers=IMMUTABLE)
-    return Response(png, media_type="image/png", headers=IMMUTABLE)
+        return Response(thumbnail(stored), media_type="image/webp", headers=IMMUTABLE)
+    return Response(stored, media_type=image_codec.media_type(stored), headers=IMMUTABLE)
+
+
+@app.get("/api/history/{item_id}/download")
+def download_history_image(item_id: int) -> Response:
+    """Always a PNG, which every program opens, named as the app names its images."""
+    item = history_store.item(item_id)
+    png = history_store.image_png(item_id)
+    if item is None or png is None:
+        raise HTTPException(404, i18n.t("imageNotFound"))
+    name = f"z-image-{item.id}-{item.seed}.png"
+    return Response(png, media_type="image/png", headers={**IMMUTABLE, "Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @app.delete("/api/history/{item_id}", status_code=204)
