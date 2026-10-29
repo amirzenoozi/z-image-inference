@@ -12,6 +12,8 @@ cd frontend && npm run dev
 
 Open the address Vite prints; it forwards `/api` to `main.py`. After changing the UI for normal use, rebuild it with `cd frontend && npm run build`; `main.py` serves `frontend/dist`.
 
+`make model-server`, `make app` and `make dev` run the same three commands (`make help` lists every target).
+
 ## Checks
 
 ```bash
@@ -19,6 +21,8 @@ uv run pytest                                 # backend tests
 cd frontend && npm test                       # frontend tests (Vitest)
 cd frontend && npx tsc -b && npx oxlint src   # type check and lint
 ```
+
+`make test`, `make lint` and `make check` (lint and tests) run them.
 
 The backend tests use fake models, so they run in seconds without any model downloaded.
 
