@@ -18,6 +18,13 @@ The app is in English by default. To change it, set `APP_LANGUAGE` in `.env` in 
 
 Everything you read is translated: the interface, the prompt builder's menus and purposes, and the app's messages. The prompts themselves stay in English, since the models understand English best: whatever language the builder's menus show, the prompt it writes and sends is English. An unknown code falls back to English, and `main.py` says so in its terminal.
 
+## Use it on your phone
+
+The app can be added to a phone's home screen and opened full screen, like an app. Images are still made on the Mac, so it must be running and reachable.
+
+- **On the same Wi-Fi:** set `APP_HOST=0.0.0.0` in `.env`, restart the web app, and open `http://<the Mac's address>:7860` (find the address with `ipconfig getifaddr en0`). On an iPhone, **Share → Add to Home Screen** installs it. Android only adds a shortcut that opens in the browser, because a full install needs HTTPS. The app has no login, so anyone on that Wi-Fi can open it: use this only at home.
+- **Anywhere, over HTTPS (recommended):** install [Tailscale](https://tailscale.com/) on the Mac and the phone, keep `APP_HOST` at its default, and run `tailscale serve --bg 7860` on the Mac. Open the `https://….ts.net` address it prints; both iPhone and Android can install it, and only your own devices can reach it.
+
 ## Create
 
 1. **Model**: the sidebar shows the selected model. **Change** opens the model dialog, where models are grouped into **Photorealistic** and **Anime & illustration** tabs. Only downloaded models can be chosen; see [Models](models.md#downloading-and-removing-models).
