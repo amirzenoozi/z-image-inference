@@ -141,14 +141,16 @@
   "modelCategory_anime": "Anime & illustratie",
   "changeAmount": "Verandering",
   "modelDescription_flux-dev": "Gedetailleerde fotorealistische afbeeldingen; traag, en downloaden vraagt een Hugging Face-token.",
-  "modelDescription_flux-create-nsfw": "FLUX.1-dev met de create-nsfw-LoRA, voor naaktfoto’s.",
-  "modelDescription_flux-asian-nudity": "FLUX.1-dev met de asian-nudity-2-LoRA, voor naaktfoto’s van Oost-Aziatische vrouwen.",
   "addonsHeading": "Add-ons",
-  "addonUsed": "Gebruikt: de prompt vraagt erom.",
-  "addonNotUsed": "Niet gebruikt: de prompt noemt {words} niet.",
   "addonDescription_tattoo": "Meer en opvallendere tatoeages op het lichaam.",
   "addonLabel_tattoo": "Tatoeage",
   "paneSettings": "Instellingen",
   "paneResult": "Resultaat",
-  "panesLabel": "Instellingen of resultaat"
+  "panesLabel": "Instellingen of resultaat",
+  "addonUsedWhen": "Gebruikt als de prompt {words} noemt.",
+  "noAddons": "{model} heeft geen add-ons.",
+  "addonLabel_flux-create-nsfw": "create-nsfw",
+  "addonDescription_flux-create-nsfw": "Naaktfoto’s.",
+  "addonLabel_flux-asian-nudity": "asian-nudity-2",
+  "addonDescription_flux-asian-nudity": "Naaktfoto’s van Oost-Aziatische vrouwen."
 }
