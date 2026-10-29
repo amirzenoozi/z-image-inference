@@ -23,6 +23,7 @@ Everything you read is translated: the interface, the prompt builder's menus and
 The app can be added to a phone's home screen and opened full screen, like an app. Images are still made on the Mac, so it must be running and reachable.
 
 - **On the same Wi-Fi:** set `APP_HOST=0.0.0.0` in `.env`, restart the web app, and open `http://<the Mac's address>:7860` (find the address with `ipconfig getifaddr en0`). On an iPhone, **Share → Add to Home Screen** installs it. Android only adds a shortcut that opens in the browser, because a full install needs HTTPS. The app has no login, so anyone on that Wi-Fi can open it: use this only at home.
+- **On a phone** the views are a bar at the bottom, and Create shows **Settings** or **Result** one at a time: Generate opens Result, and a red dot marks Result when an image arrives while you are in Settings. Dialogs fill the screen, and in the image viewer you swipe left or right for the next or previous image.
 - **Anywhere, over HTTPS (recommended):** install [Tailscale](https://tailscale.com/) on the Mac and the phone, keep `APP_HOST` at its default, and run `tailscale serve --bg 7860` on the Mac. Open the `https://….ts.net` address it prints; both iPhone and Android can install it, and only your own devices can reach it.
 
 ## Create

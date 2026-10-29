@@ -9,7 +9,7 @@
 | [RealVisXL V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) (SDXL) | diffusers on MPS, float16 | Photorealistic people, and the face lock in photo style |
 | [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (4-bit), alone or with the [create-nsfw](https://huggingface.co/Bigfawg6669/create-nsfw) or [asian-nudity-2](https://huggingface.co/inuptia/asian-nudity-2) LoRA | mflux (MLX), always 4-bit, the LoRA applied while generating | Detailed photorealistic images, and nude photos with a LoRA; slow |
 
-All eight are defined in one place, `model_catalog.py`, which both the web app and the model server read.
+All eight are defined in one place, with the add-ons (see [Add-ons](#add-ons)),, `model_catalog.py`, which both the web app and the model server read.
 
 ## Defaults
 
@@ -29,6 +29,21 @@ All eight are defined in one place, `model_catalog.py`, which both the web app a
 - MOSS-Image needs its trigger word `moss_xvstyle`; the server adds it to prompts that lack it. So does FLUX.1-dev · asian-nudity-2, with `4s14n`.
 - FLUX.1-dev comes three ways in the model dialog: plain, with create-nsfw, and with asian-nudity-2. They share one download of the base model, and each LoRA is a small extra download. The LoRA is applied while generating, not merged in, which would turn the 4-bit layers 8-bit and need more memory.
 - FLUX.1-dev is gated: accept its licence (non-commercial) on its Hugging Face page while logged in, create a read token, and put `HF_TOKEN=<token>` in `.env`. Without one, **Download** says so. It runs in about 10 GB of memory, and a 1024 × 1024 image takes a few minutes.
+
+## Add-ons
+
+An add-on is a LoRA that goes over a base model instead of being a model of its own. Under the model in Create, **Add-ons** lists the selected model's add-ons: download one there, then switch it on.
+
+- A switched-on add-on is used only when the prompt mentions what it adds; otherwise the image is made with the base model alone. With it switched off, the base model is used whatever the prompt says.
+- When it is used, its trigger phrase is added to the prompt if missing.
+- Create says before you generate whether the add-on will be used ("Used: the prompt asks for it", or which words it is waiting for), and History shows the add-ons an image used next to its model. Reusing an image's settings switches them back on.
+- Switching between a render with an add-on and one without reloads the model (about 10 seconds); renders in a row with the same add-ons do not.
+
+| Add-on | Base model | Used when the prompt mentions | Trigger |
+|--------|-----------|------------------------------|---------|
+| [Tattoo](https://civitai.com/models/2178484) | Z-Image-Turbo | tattoo, tattoos, tattooed | `tattoo` |
+
+The tattoo add-on comes from Civitai, which needs a free API key for downloads: create one under Account settings → API Keys on civitai.com and put `CIVITAI_TOKEN=<key>` in `.env`. Without one, **Download** says so.
 
 ## Downloading and removing models
 
@@ -54,6 +69,7 @@ Files go in `models/` (not in git). One-time builds (compressed copies) are writ
 | RealVisXL | 6.9 GB (only its float16 files are fetched) | same |
 | FLUX.1-dev | 33.8 GB, always kept, plus the 4-bit copy it runs (about 9.6 GB) | same |
 | FLUX.1-dev LoRAs | create-nsfw 0.7 GB, asian-nudity-2 0.04 GB | same |
+| Tattoo add-on (for Z-Image-Turbo) | 0.17 GB | same |
 | Face lock (IP-Adapter, for the SDXL models) | 3.4 GB, downloaded on the first face-locked render, in `models/ip-adapter/` | same |
 
 ## Model compression
