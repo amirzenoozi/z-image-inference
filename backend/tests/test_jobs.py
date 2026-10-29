@@ -139,7 +139,7 @@ def test_a_start_image_is_cropped_to_the_shape_being_made_never_stretched() -> N
     image.paste("blue", (100, 0, 200, 100))
     req = model_server.GenerateRequest(model=WAI, prompt="a cat", width=512, height=512, init_image=png_base64(image), change=0.5)
 
-    job = model_server.to_job(req)
+    job = model_server.to_job(req, ())
 
     assert job.start_image is not None
     assert job.start_image.size == (512, 512)

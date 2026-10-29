@@ -13,7 +13,7 @@ from resolutions import CATEGORY_CONDITIONS, Category
 from sensitive import is_sensitive
 
 DB_PATH = PROJECT_DIR / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -38,6 +38,8 @@ ADDED_COLUMNS: dict[str, str] = {
     "sensitive": "INTEGER",
     # Whether the image itself has been checked for nudity (nsfw_detector.py); unchecked ones are checked in the background
     "image_checked": "INTEGER NOT NULL DEFAULT 0",
+    # The add-ons the render used (model_catalog.ADDONS ids), comma-separated; empty for none
+    "addons": "TEXT NOT NULL DEFAULT ''",
 }
 # Character columns added after characters were first released
 ADDED_CHARACTER_COLUMNS: dict[str, str] = {
@@ -69,8 +71,9 @@ class HistoryItem:
     character_id: int | None
     face_from: int | None
     sensitive: bool
+    addons: list[str]
 
-    def to_dict(self) -> dict[str, str | int | float | None]:
+    def to_dict(self) -> dict[str, str | int | float | list[str] | None]:
         return asdict(self)
 
 
@@ -146,6 +149,8 @@ class NewImage:
     sensitive: bool | None = None
     # Whether the image itself was checked already (its result is in `sensitive`), so the background check skips it
     image_checked: bool = False
+    # The add-ons the render used; an edited copy keeps its original's
+    addons: tuple[str, ...] = ()
 
 
 @contextmanager
@@ -207,10 +212,10 @@ Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, fl
 
 def to_item(row: Row) -> HistoryItem:
     id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
-    edited_from, varied_from, change, character_id, face_from, sensitive = links
+    edited_from, varied_from, change, character_id, face_from, sensitive, addons = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
-        edited_from, varied_from, change, character_id, face_from, bool(sensitive),
+        edited_from, varied_from, change, character_id, face_from, bool(sensitive), [addon for addon in addons.split(",") if addon],
     )
 
 
@@ -218,12 +223,12 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (encode_for_storage(image.png), image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
              image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive),
-             int(image.image_checked)),
+             int(image.image_checked), ",".join(image.addons)),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)

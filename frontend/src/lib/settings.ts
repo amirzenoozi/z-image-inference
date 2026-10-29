@@ -19,7 +19,7 @@ export function modelDefaults(model: ModelInfo): ModelDefaults {
 
 export function initialSettings(catalog: Catalog): GenerationSettings {
   const model = catalog.models[0]
-  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, ...modelDefaults(model) }
+  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, addons: [], ...modelDefaults(model) }
 }
 
 export function findModel(catalog: Catalog, modelId: string): ModelInfo {
@@ -81,6 +81,8 @@ export function settingsFromItem(item: HistoryItem, catalog: Catalog): Generatio
       characterId: item.character_id,
       // An image made for a character was saved with the look in its prompt
       lookIncluded: item.character_id,
+      // The add-ons the image was made with, so the same render can be made again
+      addons: item.addons,
     },
     model,
   )
@@ -119,6 +121,10 @@ function isStartImage(value: unknown): value is StartImage {
   return Number.isInteger(id) && typeof change === 'number' && change >= MIN_CHANGE && change <= MAX_CHANGE
 }
 
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
 /** Restores the last settings, falling back to defaults if storage is empty, unreadable or out of date. */
 export function loadSettings(catalog: Catalog): GenerationSettings {
   let stored: unknown = null
@@ -132,7 +138,8 @@ export function loadSettings(catalog: Catalog): GenerationSettings {
   const startImage = isStartImage(stored.startImage) ? stored.startImage : null
   const characterId = Number.isInteger(stored.characterId) ? stored.characterId : null
   const lookIncluded = Number.isInteger(stored.lookIncluded) ? stored.lookIncluded : null
-  return withModel({ ...stored, startImage, characterId, lookIncluded }, findModel(catalog, stored.modelId))
+  const addons = isStringList(stored.addons) ? stored.addons : []
+  return withModel({ ...stored, startImage, characterId, lookIncluded, addons }, findModel(catalog, stored.modelId))
 }
 
 export function saveSettings(settings: GenerationSettings): void {

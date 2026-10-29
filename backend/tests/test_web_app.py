@@ -651,3 +651,24 @@ def test_the_app_can_be_installed_on_a_phone(client: TestClient) -> None:
     assert any(icon["purpose"] == "maskable" for icon in data["icons"])
     assert client.get("/sw.js").headers["content-type"].startswith("text/javascript")
     assert client.get("/apple-touch-icon.png").status_code == 200
+
+
+def test_models_and_their_addons_link_to_their_pages(client: TestClient) -> None:
+    models = {model["id"]: model for model in client.get("/api/catalog").json()["models"]}
+
+    assert (models["z-image-turbo"]["page_url"], models["z-image-turbo"]["source_name"]) == ("https://huggingface.co/Tongyi-MAI/Z-Image-Turbo", "Hugging Face")
+    tattoo = models["z-image-turbo"]["addons"][0]
+    assert (tattoo["id"], tattoo["page_url"], tattoo["source_name"]) == ("tattoo", "https://civitai.com/models/2178484", "Civitai")
+    assert models["wai-illustrious"]["addons"] == []
+
+
+def test_history_records_the_addons_a_render_used_and_an_edited_copy_keeps_them(client: TestClient, model_server: FakeModelServer) -> None:
+    model_server.body = {"image_base64": base64.b64encode(png_bytes()).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0, "addons": ["tattoo"]}
+    item = generate(client, prompt="a tattooed man", addons=["tattoo"]).json()
+
+    assert model_server.calls[-1]["addons"] == ["tattoo"]
+    assert item["addons"] == ["tattoo"]
+    edited = client.post(f"/api/history/{item['id']}/edits", json={"quarter_turns": 1}).json()
+    assert edited["addons"] == ["tattoo"]
+    model_server.body = None
+    assert generate(client).json()["addons"] == []
