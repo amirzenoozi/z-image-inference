@@ -141,14 +141,16 @@
   "modelCategory_anime": "Anime e illustrazione",
   "changeAmount": "Variazione",
   "modelDescription_flux-dev": "Immagini fotorealistiche dettagliate; lento, e per scaricarlo serve un token Hugging Face.",
-  "modelDescription_flux-create-nsfw": "FLUX.1-dev con la LoRA create-nsfw, per foto di nudo.",
-  "modelDescription_flux-asian-nudity": "FLUX.1-dev con la LoRA asian-nudity-2, per foto di nudo di donne dell’Asia orientale.",
   "addonsHeading": "Add-on",
-  "addonUsed": "Usato: il prompt lo richiede.",
-  "addonNotUsed": "Non usato: il prompt non menziona {words}.",
   "addonDescription_tattoo": "Tatuaggi più numerosi e marcati sul corpo.",
   "addonLabel_tattoo": "Tatuaggio",
   "paneSettings": "Impostazioni",
   "paneResult": "Risultato",
-  "panesLabel": "Impostazioni o risultato"
+  "panesLabel": "Impostazioni o risultato",
+  "addonUsedWhen": "Usato quando il prompt menziona {words}.",
+  "noAddons": "{model} non ha add-on.",
+  "addonLabel_flux-create-nsfw": "create-nsfw",
+  "addonDescription_flux-create-nsfw": "Foto di nudo.",
+  "addonLabel_flux-asian-nudity": "asian-nudity-2",
+  "addonDescription_flux-asian-nudity": "Foto di nudo di donne dell’Asia orientale."
 }

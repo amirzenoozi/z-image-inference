@@ -141,14 +141,16 @@
   "modelCategory_anime": "Anime & Illustration",
   "changeAmount": "Änderung",
   "modelDescription_flux-dev": "Detaillierte fotorealistische Bilder; langsam, der Download braucht ein Hugging-Face-Token.",
-  "modelDescription_flux-create-nsfw": "FLUX.1-dev mit der create-nsfw-LoRA, für Aktfotos.",
-  "modelDescription_flux-asian-nudity": "FLUX.1-dev mit der asian-nudity-2-LoRA, für Aktfotos ostasiatischer Frauen.",
   "addonsHeading": "Add-ons",
-  "addonUsed": "Verwendet: der Prompt verlangt es.",
-  "addonNotUsed": "Nicht verwendet: der Prompt erwähnt {words} nicht.",
   "addonDescription_tattoo": "Mehr und kräftigere Tattoos am Körper.",
   "addonLabel_tattoo": "Tattoo",
   "paneSettings": "Einstellungen",
   "paneResult": "Ergebnis",
-  "panesLabel": "Einstellungen oder Ergebnis"
+  "panesLabel": "Einstellungen oder Ergebnis",
+  "addonUsedWhen": "Verwendet, wenn der Prompt {words} erwähnt.",
+  "noAddons": "{model} hat keine Add-ons.",
+  "addonLabel_flux-create-nsfw": "create-nsfw",
+  "addonDescription_flux-create-nsfw": "Aktfotos.",
+  "addonLabel_flux-asian-nudity": "asian-nudity-2",
+  "addonDescription_flux-asian-nudity": "Aktfotos ostasiatischer Frauen."
 }

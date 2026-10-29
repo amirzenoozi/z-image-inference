@@ -141,14 +141,16 @@
   "modelCategory_anime": "Anime & illustration",
   "changeAmount": "Change",
   "modelDescription_flux-dev": "Detailed photorealistic images; slow, and needs a Hugging Face token to download.",
-  "modelDescription_flux-create-nsfw": "FLUX.1-dev with the create-nsfw LoRA, for nude photos.",
-  "modelDescription_flux-asian-nudity": "FLUX.1-dev with the asian-nudity-2 LoRA, for nude photos of East Asian women.",
   "addonsHeading": "Add-ons",
-  "addonUsed": "Used: the prompt asks for it.",
-  "addonNotUsed": "Not used: the prompt doesn’t mention {words}.",
   "addonDescription_tattoo": "More and bolder tattoos on the body.",
   "addonLabel_tattoo": "Tattoo",
   "paneSettings": "Settings",
   "paneResult": "Result",
-  "panesLabel": "Settings or result"
+  "panesLabel": "Settings or result",
+  "addonUsedWhen": "Used when the prompt mentions {words}.",
+  "noAddons": "{model} has no add-ons.",
+  "addonLabel_flux-create-nsfw": "create-nsfw",
+  "addonDescription_flux-create-nsfw": "Nude photos.",
+  "addonLabel_flux-asian-nudity": "asian-nudity-2",
+  "addonDescription_flux-asian-nudity": "Nude photos of East Asian women."
 }
