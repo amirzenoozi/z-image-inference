@@ -40,5 +40,8 @@
   "notEnoughSpace": "Niet genoeg schijfruimte: maak ongeveer {gb} GB extra vrij en probeer het opnieuw.",
   "removeWhileDownloading": "{label} wordt gedownload; verwijder het als de download klaar is.",
   "noSuchJob": "Deze taak bestaat niet; misschien is hij al klaar",
-  "needsHfToken": "{label} is afgeschermd op Hugging Face: accepteer de licentie op de modelpagina, zet dan HF_TOKEN=<je token> in .env en start de modelserver opnieuw."
+  "needsHfToken": "{label} is afgeschermd op Hugging Face: accepteer de licentie op de modelpagina, zet dan HF_TOKEN=<je token> in .env en start de modelserver opnieuw.",
+  "needsCivitaiToken": "{label} komt van Civitai, waarvoor een API-sleutel nodig is: maak er een aan onder Account settings → API Keys op civitai.com, zet CIVITAI_TOKEN=<je sleutel> in .env en start de modelserver opnieuw.",
+  "unknownAddon": "{label} heeft geen add-on met de naam {addon}.",
+  "addonTwice": "Elke add-on kan maar één keer aangezet worden."
 }
