@@ -1,0 +1,79 @@
+PLAN: Prompt library
+Date: 2026-10-29 09:47
+Status: draft, waiting for review
+
+GOAL
+A Library page in the web app that lists prompts collected from other websites.
+The first source is https://github.com/weshopai/awesome-Z-Image-prompts.
+The library holds only collected prompts. Click one, see it in full, send it to Create.
+
+SOURCE FORMAT (weshopai/awesome-Z-Image-prompts)
+- One README.md, about 32 entries.
+- Each entry: "### No. N: Title", a language badge (EN or 中), the prompt in a fenced
+  code block (plain text or JSON-like), an image under assets/, a "Try it on WeShop AI" link.
+- No LICENSE file. README says prompts are "collected from the community for
+  educational purposes". So: keep the data local (history.db, never in git),
+  show the source and link back to it.
+
+DESIGN
+Sources plus a local importer. A source is a small record: id, name, URL, parser function.
+A second website later means one more parser. No plugin system.
+
+Backend (backend/)
+- prompt_library.py
+  - Table library_prompts: id, source_id, title, prompt, language, source_url,
+    thumbnail (bytes), sensitive. Created next to the other tables in history_store.connection.
+  - WeShop parser: split on "### No.", take the first code block (prefer the English one
+    if there is a translated second block), read the language badge and the image link.
+  - Sync: download the README and each image, shrink the image to about 512px, store it.
+    Works offline afterwards.
+  - Upsert key (source_id, sha256(prompt)), not the entry number (numbers shift).
+    Re-syncing is safe to repeat.
+- Safety
+  - Flag imported prompts with sensitive.py (thumbnails blur like the rest of the app).
+  - Skip any prompt containing a minor term (project rule: every person clearly adult).
+    The existing check (minorTermIn) is frontend-only, so add a small server-side one.
+  - Sync result reports {added, updated, skipped}.
+- Endpoints in main.py
+  - GET  /api/library?source=&q=          list
+  - GET  /api/library/{id}/thumbnail      image
+  - POST /api/library/sync/{source}       run a sync
+  - Network failure: i18n.t message, HTTP 502.
+
+Frontend (frontend/src/)
+- lib/view.ts: add the "library" view; header tab in App.tsx.
+- pages/library/LibraryPage.tsx: card grid (thumbnail, title, snippet), search, source
+  filter, Sync button per source, empty state explaining the first sync.
+- Detail dialog with Modal: full prompt; actions Copy, Open source page, Use in Create.
+- Use in Create goes through the existing openInCreate in App.tsx: set the prompt,
+  lookIncluded: null, switch to the source's model (Z-Image). Same path as Reuse in History.
+- api.ts and types.ts for the client; icons from lucide-react.
+- i18n: new "library" namespace, every key in all seven languages.
+
+TESTS
+- Backend: parser test on a trimmed README fixture (plain, JSON-like, bilingual entry);
+  upsert and re-sync; minor-term skip; endpoint test with the network mocked.
+- Frontend: Vitest for the page (list, search, sync, Use in Create).
+- Run: uv run pytest, npm test, npx tsc -b, npx oxlint src.
+
+DOCS
+- CLAUDE.md "Code layout": add the new files.
+- README.md: short note.
+
+DEFAULTS CHOSEN (change on review if wanted)
+1. Sync is a manual button, no fetch on startup.
+2. Thumbnails stored locally, not hotlinked from GitHub.
+3. Adult content kept, flagged and blurred. Only minor-term prompts are skipped.
+4. Out of scope: favourites, user-submitted prompts, editing entries, a scraper
+   framework, auto-translating the 中 prompts.
+
+BUILD ORDER
+1. Parser and store, with tests.
+2. Endpoints.
+3. Page and i18n.
+4. Docs.
+Each step runs on its own.
+
+OPEN QUESTIONS
+- Do some entries have two code blocks (original plus translation)? Check the real
+  README while writing the parser.
