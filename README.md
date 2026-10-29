@@ -80,6 +80,7 @@ Optional, in a `.env` file in the project folder:
 | Variable | What it does |
 |----------|--------------|
 | `APP_LANGUAGE` | The app's language: `en` (default), `nl`, `it`, `fr`, `de`, `es` or `pt` |
+| `APP_HOST` | Where the web app listens: `127.0.0.1` (default, this Mac only) or `0.0.0.0` to open it from a phone on the same Wi-Fi, at `http://<the Mac's address>:7860` (find it with `ipconfig getifaddr en0`). There is no login, so use it only on a trusted network |
 | `XAI_API_KEY` | Turns on **Chat with Grok** ([xAI API key](https://x.ai/)) |
 | `Z_IMAGE_BITS` | Which Z-Image-Turbo copy to run: `8` (default), `6`, `5`, `4`, `3`, or `original` |
 | `MODEL_COMPRESSION` | `on` keeps smaller compressed copies of the other models instead of their originals |
