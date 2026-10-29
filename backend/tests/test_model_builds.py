@@ -99,16 +99,16 @@ class FakeFlux:
         Path(base_path).mkdir(parents=True)
 
 
-def test_a_flux_lora_model_builds_the_4_bit_copy_once_and_applies_its_lora_while_generating(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_flux_builds_the_4_bit_copy_once_and_applies_its_addons_while_generating(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(model_server, "Flux1", FakeFlux)
     monkeypatch.setattr(model_server, "ensure_downloaded", lambda *args, **kwargs: None)
     monkeypatch.setattr(model_server, "FLUX_Q4_PATH", tmp_path / "flux-dev-q4")
     monkeypatch.setattr(model_server, "MODELS_DIR", tmp_path)
     FakeFlux.made = []
-    spec = model_server.MODELS["flux-asian-nudity"]
+    asian_nudity = (model_server.ADDONS["flux-asian-nudity"],)
 
-    model_server.load_flux(spec)
-    model_server.load_flux(spec)
+    model_server.load_flux(asian_nudity)
+    model_server.load_flux()
 
     built, *loaded = FakeFlux.made
     assert built["quantize"] == 4
@@ -116,6 +116,7 @@ def test_a_flux_lora_model_builds_the_4_bit_copy_once_and_applies_its_lora_while
     assert loaded[0]["model_path"] == str(tmp_path / "flux-dev-q4")
     assert loaded[0]["lora_paths"] == [str(tmp_path / "lora-flux-asian-nudity" / "asian-nudity-2.safetensors")]
     assert loaded[0]["bake_lora"] is False
+    assert "lora_paths" not in loaded[1]
 
 
 

@@ -87,24 +87,27 @@ FLUX_Q4_PATH = MODELS_DIR / "flux-dev-q4"
 FLUX_DEV_FILES = ["model_index.json", "scheduler/*", "text_encoder/*", "text_encoder_2/*", "tokenizer/*", "tokenizer_2/*", "transformer/*", "vae/*"]
 
 
-# Models that are a LoRA on another model's files (base_model_id in the catalogue)
-LORA_MODELS: tuple[ModelSpec, ...] = tuple(spec for spec in MODELS.values() if spec.base_model_id is not None)
 # Everything that can be downloaded and removed: models and the add-ons that go over them
 Downloadable = ModelSpec | AddonSpec
 ENTRIES: dict[str, Downloadable] = {**MODELS, **ADDONS}
 
 
-def lora_path(entry: Downloadable) -> Path:
-    return MODELS_DIR / f"lora-{entry.id}"
+def lora_path(addon: AddonSpec) -> Path:
+    return MODELS_DIR / f"lora-{addon.id}"
 
 
 def source_of(entry: Downloadable) -> Source:
     return entry.source if isinstance(entry, AddonSpec) else "huggingface"
 
 
-def lora_arguments(spec: ModelSpec, addons: tuple[AddonSpec, ...] = ()) -> dict[str, object]:
-    """The model's own LoRA and its add-ons, applied while generating: merged in, they would turn quantised layers 8-bit."""
-    paths = [lora_path(entry) / entry.lora_file for entry in (spec, *addons) if entry.lora_file]
+def base_of(entry: Downloadable) -> str | None:
+    """The model an add-on needs; a model needs none."""
+    return entry.base_model_id if isinstance(entry, AddonSpec) else None
+
+
+def lora_arguments(addons: tuple[AddonSpec, ...]) -> dict[str, object]:
+    """The add-ons, applied while generating: merged in, they would turn quantised layers 8-bit."""
+    paths = [lora_path(addon) / addon.lora_file for addon in addons]
     if not paths:
         return {}
     return {"lora_paths": [str(path) for path in paths], "lora_scales": [1.0] * len(paths), "bake_lora": False}
@@ -324,14 +327,14 @@ def mflux_generator(model: ZImage | Flux1, uses_guidance: bool) -> ImageGenerato
     return generate
 
 
-def load_z_image(spec: ModelSpec = Z_IMAGE, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
-    return mflux_generator(ZImage(model_path=str(z_image_model_path()), **lora_arguments(spec, addons)), uses_guidance=False)
+def load_z_image(addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
+    return mflux_generator(ZImage(model_path=str(z_image_model_path()), **lora_arguments(addons)), uses_guidance=False)
 
 
-def load_flux(spec: ModelSpec, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
-    """FLUX.1-dev always runs its 4-bit copy, with the model's LoRA if it has one."""
+def load_flux(addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
+    """FLUX.1-dev always runs its 4-bit copy, with the add-ons a render uses."""
     build_flux_q4()
-    model = Flux1(model_path=str(FLUX_Q4_PATH), model_config=ModelConfig.dev(), **lora_arguments(spec, addons))
+    model = Flux1(model_path=str(FLUX_Q4_PATH), model_config=ModelConfig.dev(), **lora_arguments(addons))
     return mflux_generator(model, uses_guidance=True)
 
 
@@ -616,11 +619,10 @@ LOADERS: dict[str, Callable[[], ImageGenerator]] = {
     MOSS_IMAGE.id: MossImageGenerator,
     ANIME_DESIRE.id: load_anime_desire,
     REALVIS_XL.id: load_realvis_xl,
-    FLUX_DEV.id: lambda: load_flux(FLUX_DEV),
+    FLUX_DEV.id: load_flux,
 }
-# A LoRA model loads like its base model, with the LoRA added; so does a base model with add-ons
-BASE_LOADERS: dict[str, Callable[[ModelSpec, tuple[AddonSpec, ...]], ImageGenerator]] = {Z_IMAGE.id: load_z_image, FLUX_DEV.id: load_flux}
-LOADERS |= {spec.id: (lambda spec=spec: BASE_LOADERS[spec.base_model_id](spec, ())) for spec in LORA_MODELS if spec.base_model_id}
+# The models add-ons can go over, loaded with the add-ons a render uses
+BASE_LOADERS: dict[str, Callable[[tuple[AddonSpec, ...]], ImageGenerator]] = {Z_IMAGE.id: load_z_image, FLUX_DEV.id: load_flux}
 
 
 def download_z_image() -> None:
@@ -659,7 +661,7 @@ def download_flux_dev() -> None:
     ensure_downloaded(FLUX_DEV.repo_id, FLUX_DEV_PATH, FLUX_DEV_FILES)
 
 
-def download_from_civitai(spec: Downloadable) -> None:
+def download_from_civitai(spec: AddonSpec) -> None:
     """Civitai serves a file from a download link that needs an API key; written to a .part file until complete."""
     folder = lora_path(spec)
     if download_marker(folder).exists():
@@ -676,11 +678,10 @@ def download_from_civitai(spec: Downloadable) -> None:
     download_marker(folder).touch()
 
 
-def download_lora(spec: Downloadable) -> None:
-    """The base model first, if it is missing, then the LoRA from wherever it is hosted."""
-    if spec.base_model_id is not None:
-        DOWNLOADERS[spec.base_model_id]()
-    if source_of(spec) == "civitai":
+def download_addon(spec: AddonSpec) -> None:
+    """The base model first, if it is missing, then the add-on's LoRA from wherever it is hosted."""
+    DOWNLOADERS[spec.base_model_id]()
+    if spec.source == "civitai":
         download_from_civitai(spec)
     else:
         ensure_downloaded(spec.repo_id, lora_path(spec), [spec.lora_file])
@@ -693,7 +694,7 @@ DOWNLOADERS: dict[str, Callable[[], None]] = {
     ANIME_DESIRE.id: download_anime_desire,
     REALVIS_XL.id: download_realvis_xl,
     FLUX_DEV.id: download_flux_dev,
-    **{spec.id: (lambda spec=spec: download_lora(spec)) for spec in (*LORA_MODELS, *ADDONS.values())},
+    **{addon.id: (lambda addon=addon: download_addon(addon)) for addon in ADDONS.values()},
 }
 GB = 1_000_000_000
 
@@ -708,7 +709,7 @@ MODEL_FOLDERS: dict[str, list[Path]] = {
     REALVIS_XL.id: [REALVIS_XL_PATH],
     FLUX_DEV.id: [FLUX_DEV_PATH, FLUX_Q4_PATH, MODELS_DIR / f"{FLUX_Q4_PATH.name}.building"],
     # A LoRA model removes only its LoRA; the base stays for the others
-    **{spec.id: [lora_path(spec)] for spec in (*LORA_MODELS, *ADDONS.values())},
+    **{addon.id: [lora_path(addon)] for addon in ADDONS.values()},
 }
 
 DOWNLOAD_PATHS: dict[str, Path] = {
@@ -718,7 +719,7 @@ DOWNLOAD_PATHS: dict[str, Path] = {
     ANIME_DESIRE.id: ANIME_DESIRE_PATH,
     REALVIS_XL.id: REALVIS_XL_PATH,
     FLUX_DEV.id: FLUX_DEV_PATH,
-    **{spec.id: lora_path(spec) for spec in (*LORA_MODELS, *ADDONS.values())},
+    **{addon.id: lora_path(addon) for addon in ADDONS.values()},
 }
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -731,10 +732,10 @@ downloads: dict[str, Future[None]] = {}
 def is_downloaded(model_id: str) -> bool:
     """Whether the files the current mode needs are on disk (compressed copies, or the originals).
 
-    Z-Image's original is always kept, and its quantised copy is built from it when the model loads. A LoRA
-    model also needs its base model.
+    Z-Image's original is always kept, and its quantised copy is built from it when the model loads. An add-on
+    also needs its base model.
     """
-    base = ENTRIES[model_id].base_model_id
+    base = base_of(ENTRIES[model_id])
     if base is not None and not is_downloaded(base):
         return False
     if compression_enabled():
@@ -809,15 +810,16 @@ def space_needed_bytes(model_id: str) -> int:
     spec = ENTRIES[model_id]
     setup_gb = spec.compressed_gb if isinstance(spec, ModelSpec) and runs_compressed(spec) else 0
     own = int((spec.download_gb + setup_gb) * GB) - folder_bytes(MODEL_FOLDERS[model_id])
-    if spec.base_model_id is None or is_downloaded(spec.base_model_id):
+    base = base_of(spec)
+    if base is None or is_downloaded(base):
         return own
-    return own + space_needed_bytes(spec.base_model_id)
+    return own + space_needed_bytes(base)
 
 
 def download_problem(model_id: str) -> str | None:
     """A download that would be refused for want of a key: FLUX.1-dev is gated on Hugging Face, and Civitai needs an API key."""
     spec = ENTRIES[model_id]
-    needs_flux = FLUX_DEV.id in (model_id, spec.base_model_id) and not is_downloaded(FLUX_DEV.id)
+    needs_flux = FLUX_DEV.id in (model_id, base_of(spec)) and not is_downloaded(FLUX_DEV.id)
     if needs_flux and not get_token():
         return t("needsHfToken", label=FLUX_DEV.label)
     if source_of(spec) == "civitai" and not os.environ.get("CIVITAI_TOKEN", "").strip():
@@ -852,7 +854,7 @@ def use_model(model_id: str, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerat
         loaded_model_id, loaded_addons, loaded_generator = None, (), None
         release_memory()
         print(f"Loading {MODELS[model_id].label}{''.join(f' + {addon.label}' for addon in addons)}...")
-        loaded_generator = BASE_LOADERS[model_id](MODELS[model_id], addons) if addons else LOADERS[model_id]()
+        loaded_generator = BASE_LOADERS[model_id](addons) if addons else LOADERS[model_id]()
         loaded_model_id, loaded_addons = model_id, addons
         print("Model loaded!")
     return loaded_generator
@@ -861,7 +863,7 @@ def use_model(model_id: str, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerat
 def unload_and_remove(model_id: str) -> None:
     """Runs on the model thread, so it waits for any generation in progress to finish first."""
     global loaded_model_id, loaded_addons, loaded_generator
-    if loaded_model_id is not None and model_id in (loaded_model_id, MODELS[loaded_model_id].base_model_id, *(a.id for a in loaded_addons)):
+    if model_id in (loaded_model_id, *(addon.id for addon in loaded_addons)):
         loaded_model_id, loaded_addons, loaded_generator = None, (), None
         release_memory()
     for path in MODEL_FOLDERS[model_id]:

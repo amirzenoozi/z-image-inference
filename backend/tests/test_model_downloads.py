@@ -323,7 +323,7 @@ def test_a_lora_model_is_ready_only_with_its_base(download: FakeDownload) -> Non
 
 
 def test_a_lora_download_counts_the_base_until_it_is_there(download: FakeDownload) -> None:
-    lora, base = model_server.MODELS[FLUX_LORA], model_server.MODELS[FLUX]
+    lora, base = model_server.ADDONS[FLUX_LORA], model_server.MODELS[FLUX]
     with_base = int(lora.download_gb * model_server.GB) + int((base.download_gb + base.compressed_gb) * model_server.GB)
     assert model_server.space_needed_bytes(FLUX_LORA) == with_base
 
@@ -354,10 +354,11 @@ def test_with_the_base_downloaded_a_lora_needs_no_token(download: FakeDownload, 
     assert status_of(client, FLUX_LORA) == "ready"
 
 
-def test_removing_the_base_unloads_a_lora_model_and_keeps_its_lora(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_removing_the_base_unloads_it_with_its_addons_and_keeps_their_files(download: FakeDownload, monkeypatch: pytest.MonkeyPatch) -> None:
     mark_model_downloaded(FLUX)
     mark_model_downloaded(FLUX_LORA)
-    monkeypatch.setattr(model_server, "loaded_model_id", FLUX_LORA)
+    monkeypatch.setattr(model_server, "loaded_model_id", FLUX)
+    monkeypatch.setattr(model_server, "loaded_addons", (model_server.ADDONS[FLUX_LORA],))
     monkeypatch.setattr(model_server, "loaded_generator", lambda job: None)
     monkeypatch.setattr(model_server, "release_memory", lambda: None)
     client = TestClient(model_server.app)
@@ -369,7 +370,7 @@ def test_removing_the_base_unloads_a_lora_model_and_keeps_its_lora(download: Fak
     assert status_of(client, FLUX_LORA) == "missing"
 
 
-def test_removing_a_lora_model_keeps_the_base(download: FakeDownload) -> None:
+def test_removing_an_addon_keeps_the_base(download: FakeDownload) -> None:
     mark_model_downloaded(FLUX)
     mark_model_downloaded(FLUX_LORA)
     client = TestClient(model_server.app)
