@@ -7,9 +7,9 @@ setup: hooks ## First-time setup: Python and UI dependencies, build the UI, git 
 	uv sync
 	cd frontend && npm ci && npm run build
 
-hooks: ## Turn on the git hooks (secret and branch-name checks)
+hooks: ## Turn on the git hooks (secret and branch-name checks) and install gitleaks
 	git config core.hooksPath .githooks
-	@command -v gitleaks >/dev/null || echo "gitleaks is not installed: brew install gitleaks"
+	@command -v gitleaks >/dev/null || brew install gitleaks
 
 build: ## Build the UI that main.py serves
 	cd frontend && npm run build
