@@ -100,7 +100,7 @@ export function HistoryPage({ models, onReuse, onVary }: Props) {
   }
 
   return (
-    <div ref={top} className="space-y-5 p-6">
+    <div ref={top} className="space-y-5 p-4 sm:p-6">
       <HistoryFilterBar
         key={`${filtersVersion}-${visits}`}
         models={models}
@@ -221,10 +221,10 @@ interface HeaderProps {
 function HistoryHeader({ total, firstShown, lastShown, filtered, exportUrl, onCleaned, onCleared }: HeaderProps) {
   const [confirmClear, setConfirmClear] = useState(false)
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <p className="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">{countLabel(total, firstShown, lastShown, filtered)}</p>
       {total > 0 && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pointer-coarse:*:py-2">
           <a href={exportUrl} download className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
             {filtered ? t('history.exportThese') : t('history.export')}
           </a>

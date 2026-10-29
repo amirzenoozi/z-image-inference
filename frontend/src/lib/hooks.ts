@@ -56,12 +56,31 @@ export function formatDuration(seconds: number): string {
 
 const COPIED_FOR_MS = 1500
 
+/**
+ * navigator.clipboard only exists on secure pages (HTTPS or localhost); over plain Wi-Fi from a phone, the text is
+ * copied the older way, from a hidden text box.
+ */
+async function writeToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard) return navigator.clipboard.writeText(text)
+  const box = document.createElement('textarea')
+  box.value = text
+  box.setAttribute('readonly', '')
+  box.style.position = 'fixed'
+  box.style.opacity = '0'
+  document.body.append(box)
+  box.select()
+  // Deprecated, but the only way to copy on a page that is not secure
+  const copied = document.execCommand('copy')
+  box.remove()
+  if (!copied) throw new Error('copy refused')
+}
+
 /** Copies text to the clipboard; `copied` is true for a moment afterwards, for a "Copied" label. */
 export function useCopyToClipboard(): [boolean, (text: string) => Promise<void>] {
   const [copied, setCopied] = useState(false)
   const copy = useCallback(async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text)
+      await writeToClipboard(text)
       setCopied(true)
       setTimeout(() => setCopied(false), COPIED_FOR_MS)
     } catch {

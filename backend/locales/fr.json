@@ -40,5 +40,8 @@
   "notEnoughSpace": "Espace disque insuffisant : libérez environ {gb} GB de plus, puis réessayez.",
   "removeWhileDownloading": "{label} est en cours de téléchargement ; supprimez-le une fois le téléchargement terminé.",
   "noSuchJob": "Tâche introuvable ; elle est peut-être terminée",
-  "needsHfToken": "{label} est protégé sur Hugging Face : acceptez sa licence sur la page du modèle, puis ajoutez HF_TOKEN=<votre jeton> à .env et redémarrez le serveur de modèles."
+  "needsHfToken": "{label} est protégé sur Hugging Face : acceptez sa licence sur la page du modèle, puis ajoutez HF_TOKEN=<votre jeton> à .env et redémarrez le serveur de modèles.",
+  "needsCivitaiToken": "{label} se télécharge depuis Civitai, qui demande une clé API : créez-en une dans Account settings → API Keys sur civitai.com, ajoutez CIVITAI_TOKEN=<votre clé> à .env et redémarrez le serveur de modèles.",
+  "unknownAddon": "{label} n’a pas d’add-on nommé {addon}.",
+  "addonTwice": "Chaque add-on ne peut être activé qu’une seule fois."
 }

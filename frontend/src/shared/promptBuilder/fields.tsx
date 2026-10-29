@@ -2,6 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { optionTitle, t, type MessageKey } from '../../i18n'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../../lib/promptBuilder/build'
 import { fieldLabelClass, tabClass } from '../../lib/styles'
+import { Checkbox } from '../form/Checkbox'
 import { MultiSelect, Select, type SelectGroup } from '../form/Select'
 import { TextInput } from '../form/TextInput'
 
@@ -94,8 +95,8 @@ export function CheckboxGroup({ label, options, value, onChange }: CheckboxGroup
       <legend className={labelClass}>{label}</legend>
       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
         {options.map((option) => (
-          <label key={option} className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700 dark:text-zinc-200">
-            <input type="checkbox" checked={value.includes(option)} onChange={() => toggle(option)} className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-violet-600" />
+          <label key={option} className="flex cursor-pointer items-center gap-2 text-xs text-zinc-700 pointer-coarse:min-h-11 pointer-coarse:text-sm dark:text-zinc-200">
+            <Checkbox checked={value.includes(option)} onChange={() => toggle(option)} />
             {optionTitle(option)}
           </label>
         ))}

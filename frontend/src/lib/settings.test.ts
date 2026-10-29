@@ -52,6 +52,10 @@ it('differsFromDefaults compares only the model-specific settings', () => {
   expect(differsFromDefaults({ ...settings, steps: 3 }, fastModel)).toBe(true)
 })
 
+it('settingsFromItem switches on the add-ons the image was made with', () => {
+  expect(settingsFromItem(historyItem({ addons: ['tattoo'] }), catalog).addons).toEqual(['tattoo'])
+})
+
 it('settingsFromItem restores a history image with its seed fixed', () => {
   const settings = settingsFromItem(historyItem({ model: 'wai-illustrious', guidance: null, seed: 99 }), catalog)
   expect(settings).toMatchObject({ modelId: 'wai-illustrious', seed: 99, randomSeed: false, guidance: 7 })
@@ -64,6 +68,14 @@ describe('loadSettings', () => {
     expect(loadSettings(catalog)).toEqual(initialSettings(catalog))
     localStorage.setItem('z-image-studio.settings.v1', JSON.stringify({ modelId: 'x', steps: 'nine' }))
     expect(loadSettings(catalog)).toEqual(initialSettings(catalog))
+  })
+
+  it('remembers the add-ons switched on, and starts with none when older settings have no list', () => {
+    saveSettings({ ...initialSettings(catalog), addons: ['tattoo'] })
+    expect(loadSettings(catalog).addons).toEqual(['tattoo'])
+    const { addons: _addons, ...older } = initialSettings(catalog)
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify(older))
+    expect(loadSettings(catalog).addons).toEqual([])
   })
 
   it('restores saved settings and maps an unknown model to the first one', () => {

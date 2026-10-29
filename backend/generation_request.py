@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, model_validator
 
 from i18n import t
-from model_catalog import DEFAULT_MODEL, MODELS, ModelSpec
+from model_catalog import ADDONS, DEFAULT_MODEL, MODELS, ModelSpec
 
 MIN_SIDE = 256
 SIDE_STEP = 16
@@ -39,6 +39,8 @@ class GenerateRequest(BaseModel):
     # For a face lock: the character's face image as base64 PNG, which the web app loads from History, and its strength
     face_image: str | None = None
     face_strength: float | None = Field(default=None, ge=MIN_FACE_STRENGTH, le=MAX_FACE_STRENGTH)
+    # Add-ons switched on for the model; each is applied only when the prompt mentions what it adds
+    addons: list[str] = Field(default_factory=list, max_length=10)
 
     def has_start_image(self) -> bool:
         return self.init_image is not None
@@ -53,6 +55,7 @@ class GenerateRequest(BaseModel):
             raise ValueError(t("stepsRange", max_steps=spec.max_steps))
         check_variation(self.has_start_image(), self.change, spec)
         check_face_lock(self.face_image is not None, self.face_strength, spec)
+        check_addons(self.addons, spec)
         return self
 
 
@@ -69,6 +72,15 @@ def check_face_lock(has_face_image: bool, face_strength: float | None, spec: Mod
     if has_face_image and not spec.supports_face_lock:
         able = ", ".join(model.label for model in MODELS.values() if model.supports_face_lock)
         raise ValueError(t("cannotLockFace", label=spec.label, able=able))
+
+
+def check_addons(addons: list[str], spec: ModelSpec) -> None:
+    for addon_id in addons:
+        addon = ADDONS.get(addon_id)
+        if addon is None or addon.base_model_id != spec.id:
+            raise ValueError(t("unknownAddon", addon=addon_id, label=spec.label))
+    if len(set(addons)) != len(addons):
+        raise ValueError(t("addonTwice"))
 
 
 def check_size(width: int, height: int, spec: ModelSpec) -> None:

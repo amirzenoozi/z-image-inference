@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -190,6 +191,69 @@ FLUX_ASIAN_NUDITY = replace(
 )
 
 
+Source = Literal["huggingface", "civitai"]
+
+
+@dataclass(frozen=True)
+class AddonSpec:
+    """A LoRA the user switches on over a base model. It is applied only when the prompt asks for what it adds."""
+
+    id: str
+    label: str
+    description: str
+    base_model_id: str
+    # A Hugging Face repo, or for Civitai its model id, with the file fetched from `download_url`
+    repo_id: str
+    source: Source
+    download_url: str
+    lora_file: str
+    download_gb: float
+    trigger_word: str
+    # Whole words, in any case, that mean the prompt asks for it
+    keywords: tuple[str, ...]
+
+    def matches(self, prompt: str) -> bool:
+        pattern = r"\b(?:" + "|".join(map(re.escape, self.keywords)) + r")\b"
+        return re.search(pattern, prompt, re.IGNORECASE) is not None
+
+
+TATTOO_ADDON = AddonSpec(
+    id="tattoo",
+    label="Tattoo",
+    description="More and bolder tattoos on the body.",
+    base_model_id=Z_IMAGE.id,
+    repo_id="2178484",
+    source="civitai",
+    download_url="https://civitai.com/api/download/models/2453120?fileId=2343903",
+    lora_file="tattoo-z.safetensors",
+    download_gb=0.17,
+    trigger_word="tattoo",
+    keywords=("tattoo", "tattoos", "tattooed"),
+)
+
+ADDONS: dict[str, AddonSpec] = {addon.id: addon for addon in (TATTOO_ADDON,)}
+
+
+def addons_for(model_id: str) -> list[AddonSpec]:
+    return [addon for addon in ADDONS.values() if addon.base_model_id == model_id]
+
+
+def applied_addons(enabled: list[str], prompt: str) -> list[AddonSpec]:
+    """The add-ons a render uses: those switched on whose keywords the prompt mentions. The rule for every add-on."""
+    return [ADDONS[addon_id] for addon_id in enabled if ADDONS[addon_id].matches(prompt)]
+
+
+def with_trigger_words(prompt: str, addons: list[AddonSpec]) -> str:
+    missing = [addon.trigger_word for addon in addons if addon.trigger_word.lower() not in prompt.lower()]
+    return ", ".join([*missing, prompt])
+
+
+def page_url(source: Source, repo_id: str) -> str:
+    if source == "civitai":
+        return f"https://civitai.com/models/{repo_id}"
+    return f"https://huggingface.co/{repo_id}"
+
+
 def compression_enabled() -> bool:
     """MODEL_COMPRESSION=on keeps 4-bit, 8-bit and float16 copies instead of the original files (off by default)."""
     return os.environ.get("MODEL_COMPRESSION", "off").strip().lower() == "on"
@@ -225,6 +289,9 @@ def kept_gb(spec: ModelSpec) -> float:
 
 
 def speed_hint(spec: ModelSpec) -> str:
+    """A LoRA model runs as fast as its base model."""
+    if spec.base_model_id is not None:
+        return speed_hint(MODELS[spec.base_model_id])
     return spec.speed_hint if runs_compressed(spec) or spec.original_speed_hint is None else spec.original_speed_hint
 
 

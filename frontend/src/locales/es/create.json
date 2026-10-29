@@ -52,8 +52,7 @@
   "removeModel": "Quitar {model}",
   "removeWithSize": "Quitar · {size}",
   "dismiss": "Descartar",
-  "openOnHuggingFace": "Abrir {model} en Hugging Face",
-  "huggingFace": "Hugging Face",
+  "openOnSite": "Abrir {model} en {site}",
   "checkingDownload": "Comprobando la descarga…",
   "notDownloaded": "No descargado · {size}",
   "queuedDownload": "En cola para descargar · {size}",
@@ -143,5 +142,13 @@
   "changeAmount": "Cambio",
   "modelDescription_flux-dev": "Imágenes fotorrealistas detalladas; lento, y para descargarlo hace falta un token de Hugging Face.",
   "modelDescription_flux-create-nsfw": "FLUX.1-dev con la LoRA create-nsfw, para fotos de desnudo.",
-  "modelDescription_flux-asian-nudity": "FLUX.1-dev con la LoRA asian-nudity-2, para fotos de desnudo de mujeres de Asia oriental."
+  "modelDescription_flux-asian-nudity": "FLUX.1-dev con la LoRA asian-nudity-2, para fotos de desnudo de mujeres de Asia oriental.",
+  "addonsHeading": "Complementos",
+  "addonUsed": "Se usa: el prompt lo pide.",
+  "addonNotUsed": "No se usa: el prompt no menciona {words}.",
+  "addonDescription_tattoo": "Más tatuajes y más marcados en el cuerpo.",
+  "addonLabel_tattoo": "Tatuaje",
+  "paneSettings": "Ajustes",
+  "paneResult": "Resultado",
+  "panesLabel": "Ajustes o resultado"
 }

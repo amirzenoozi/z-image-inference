@@ -8,6 +8,7 @@ import { useTooltip } from '../../lib/useTooltip'
 import { tabClass } from '../../lib/styles'
 import { CharacterPicker } from './CharacterPicker'
 import { ChatPanel } from './ChatPanel'
+import { AddonsPanel } from './models/AddonsPanel'
 import { ModelPicker } from './models/ModelPicker'
 import { PromptEditor } from './PromptEditor'
 import { ResolutionPicker } from './ResolutionPicker'
@@ -57,10 +58,11 @@ export function SettingsPanel(props: Props) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-7 overflow-y-auto p-5">
+      <div className="flex-1 space-y-7 overflow-y-auto p-4 sm:p-5">
         <Section title={t('create.sectionModel')}>
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
+          <AddonsPanel model={model} enabled={settings.addons} prompt={settings.prompt} status={props.modelStatus} onChange={(addons) => patch({ addons })} onStatusChanged={props.onModelStatusChanged} />
         </Section>
         <PromptSection {...props} onGenerate={generate} model={model} patch={patch} addsLook={addsCharacterLook(settings, character)} />
         <Section title={t('create.sectionResolution')}>
@@ -185,6 +187,8 @@ function GenerateBar({ reason, generating, onGenerate }: { reason: string | null
         {generating && <Spinner className="size-4" />}
         {generating ? t('create.generating') : t('create.generate')}
       </button>
+      {/* Touch screens have no hover tooltip, so the reason is written out; screen readers get it from aria-description */}
+      {reason && <p aria-hidden="true" className="mt-2 hidden text-center text-xs text-zinc-500 pointer-coarse:block dark:text-zinc-400">{reason}</p>}
       {tooltip}
     </div>
   )
