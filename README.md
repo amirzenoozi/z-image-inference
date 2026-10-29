@@ -88,7 +88,7 @@ Restart both servers after changing them. See [Models](docs/models.md) for what 
 
 ### Keeping secrets and odd branch names out of git
 
-Once per clone: `git config core.hooksPath .githooks` and `brew install gitleaks`. The pre-commit and pre-push hooks then block any change that contains a value from your `.env` or looks like a key (`.githooks/check-secrets`). Without gitleaks only the `.env` check runs.
+Once per clone: `make hooks` (it runs `git config core.hooksPath .githooks`; `make setup` includes it) and `brew install gitleaks`. The pre-commit and pre-push hooks then block any change that contains a value from your `.env` or looks like a key (`.githooks/check-secrets`). Without gitleaks only the `.env` check runs.
 
 The same hooks only allow the branch names `main`, `feature/…`, `bug/…`, `docs/…` and `test/…`.
 

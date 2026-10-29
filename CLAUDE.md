@@ -23,6 +23,8 @@ cd frontend && npm test                          # frontend tests (Vitest)
 cd frontend && npx tsc -b && npx oxlint src      # type-check and lint
 ```
 
+The `Makefile` wraps these one to one (`make help` lists the targets): `make setup`, `make build`, `make model-server`, `make app`, `make dev`, `make test`, `make lint`, and `make check` (lint and tests, before a PR). Keep it a thin wrapper: a target is one of the commands above, with no logic of its own.
+
 ## Models
 
 Defined once in `model_catalog.py` (shared by the UI and the server); loaders and downloads live in `model_server.py`. Files go in `models/` (not in git).
