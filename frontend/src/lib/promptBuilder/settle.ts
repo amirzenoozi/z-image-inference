@@ -1,7 +1,7 @@
 import type { BuilderState } from './build'
 import { TEXT_CHOICES, type TextChoice } from './choices'
 import { NOT_SET, RANDOM } from './constants'
-import { ACCESSORIES } from './data'
+import { ALL_ACCESSORIES } from './fitness'
 import { fitsChoice } from './conflicts'
 import { showsStep, type BuilderMode, type StepId } from './modes'
 import { pick } from './random'
@@ -36,8 +36,8 @@ function settleAccessories(state: BuilderState, seed: number): BuilderState {
       const accessories = settled.outfit.accessories.map((current, i) => (i === index ? value : current)) as BuilderState['outfit']['accessories']
       return fitsChoice(settled, { outfit: { ...settled.outfit, accessories } }, value)
     }
-    const fitting = ACCESSORIES.filter(fits)
-    const value = pick(fitting.length ? fitting : ACCESSORIES, seed, `accessory${index}`)
+    const fitting = ALL_ACCESSORIES.filter(fits)
+    const value = pick(fitting.length ? fitting : ALL_ACCESSORIES, seed, `accessory${index}`)
     const accessories = settled.outfit.accessories.map((current, i) => (i === index ? value : current)) as BuilderState['outfit']['accessories']
     settled = { ...settled, outfit: { ...settled.outfit, accessories } }
   })

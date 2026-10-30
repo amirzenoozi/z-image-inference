@@ -31,6 +31,8 @@ export const SKIN_TONES: readonly string[] = ['fair', 'light', 'light olive', 'o
 
 export const SKIN_DETAILS: readonly string[] = [
   'freckles', 'beauty marks', 'sun-kissed glow', 'subtle tan lines', 'dewy skin', 'light body hair', 'stretch marks', 'scars',
+  // After a workout
+  'chalked hands', 'visible veins', 'flushed cheeks', 'wet-look sweat sheen',
 ]
 
 export const HAIR_LENGTHS: readonly string[] = ['buzzed', 'short', 'chin-length', 'shoulder-length', 'long', 'very long']

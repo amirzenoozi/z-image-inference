@@ -1,4 +1,5 @@
-import { ACCESSORIES, BOTTOMS, CLOTHING_COLORS, LINGERIE_BOTTOMS, LINGERIE_TOPS, OUTERWEAR, POSES, SHOES, TOPS } from '../../lib/promptBuilder/data'
+import { CLOTHING_COLORS, LINGERIE_BOTTOMS, LINGERIE_TOPS, POSES } from '../../lib/promptBuilder/data'
+import { ALL_ACCESSORIES, CARDIO_BOXING, GYM_WORKOUTS, PILATES_STRETCHES, SPICY_POSES, YOGA_POSES, outfitOptions } from '../../lib/promptBuilder/fitness'
 import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
 import { explicitDetailOptions } from '../../lib/promptBuilder/rules'
@@ -78,17 +79,18 @@ interface OutfitRow {
   colourLabel: MessageKey
   item: OutfitChoice
   color: OutfitChoice
-  options: readonly string[]
+  /** What this subject may wear in the slot (spicy fitness cuts only for a chosen adult). */
+  options: (state: BuilderState) => readonly string[]
   lingerie?: boolean
 }
 
 const OUTFIT_ROWS: OutfitRow[] = [
-  { label: 'builder.outfitTop', colourLabel: 'builder.outfitTopColour', item: 'top', color: 'topColor', options: TOPS },
-  { label: 'builder.outfitBottom', colourLabel: 'builder.outfitBottomColour', item: 'bottom', color: 'bottomColor', options: BOTTOMS },
-  { label: 'builder.outfitLingerieTop', colourLabel: 'builder.outfitLingerieTopColour', item: 'lingerieTop', color: 'lingerieTopColor', options: LINGERIE_TOPS, lingerie: true },
-  { label: 'builder.outfitLingerieBottom', colourLabel: 'builder.outfitLingerieBottomColour', item: 'lingerieBottom', color: 'lingerieBottomColor', options: LINGERIE_BOTTOMS, lingerie: true },
-  { label: 'builder.outfitOuterwear', colourLabel: 'builder.outfitOuterwearColour', item: 'outerwear', color: 'outerwearColor', options: OUTERWEAR },
-  { label: 'builder.outfitShoes', colourLabel: 'builder.outfitShoesColour', item: 'shoes', color: 'shoesColor', options: SHOES },
+  { label: 'builder.outfitTop', colourLabel: 'builder.outfitTopColour', item: 'top', color: 'topColor', options: (state) => outfitOptions('top', state) },
+  { label: 'builder.outfitBottom', colourLabel: 'builder.outfitBottomColour', item: 'bottom', color: 'bottomColor', options: (state) => outfitOptions('bottom', state) },
+  { label: 'builder.outfitLingerieTop', colourLabel: 'builder.outfitLingerieTopColour', item: 'lingerieTop', color: 'lingerieTopColor', options: () => LINGERIE_TOPS, lingerie: true },
+  { label: 'builder.outfitLingerieBottom', colourLabel: 'builder.outfitLingerieBottomColour', item: 'lingerieBottom', color: 'lingerieBottomColor', options: () => LINGERIE_BOTTOMS, lingerie: true },
+  { label: 'builder.outfitOuterwear', colourLabel: 'builder.outfitOuterwearColour', item: 'outerwear', color: 'outerwearColor', options: (state) => outfitOptions('outerwear', state) },
+  { label: 'builder.outfitShoes', colourLabel: 'builder.outfitShoesColour', item: 'shoes', color: 'shoesColor', options: (state) => outfitOptions('shoes', state) },
 ]
 
 export function OutfitStep({ state, mode, setOutfit }: StepProps) {
@@ -103,12 +105,12 @@ export function OutfitStep({ state, mode, setOutfit }: StepProps) {
       <FieldGrid>
         {rows.map((row) => (
           <div key={row.item} className="contents">
-            <ChoiceSelect label={t(row.label)} value={outfit[row.item]} groups={one(row.options)} allowRemove onChange={(value) => setOutfit({ [row.item]: value })} />
+            <ChoiceSelect label={t(row.label)} value={outfit[row.item]} groups={one(row.options(state))} allowRemove onChange={(value) => setOutfit({ [row.item]: value })} />
             <ChoiceSelect label={t(row.colourLabel)} value={outfit[row.color]} groups={one(CLOTHING_COLORS)} onChange={(value) => setOutfit({ [row.color]: value })} />
           </div>
         ))}
         {outfit.accessories.map((value, index) => (
-          <ChoiceSelect key={index} label={t('builder.outfitAccessory', { number: index + 1 })} value={value} groups={one(ACCESSORIES)} onChange={(item) => setAccessory(index, item)} />
+          <ChoiceSelect key={index} label={t('builder.outfitAccessory', { number: index + 1 })} value={value} groups={one(ALL_ACCESSORIES)} onChange={(item) => setAccessory(index, item)} />
         ))}
         <TextField label={t('builder.fieldOutfitDetails')} value={outfit.details} placeholder={t('builder.placeholderOutfit')} onChange={(details) => setOutfit({ details })} wide />
       </FieldGrid>
@@ -116,10 +118,22 @@ export function OutfitStep({ state, mode, setOutfit }: StepProps) {
   )
 }
 
+const WORKOUT_GROUPS: readonly { label: MessageKey; poses: Readonly<Record<string, string>> }[] = [
+  { label: 'builder.groupGym', poses: GYM_WORKOUTS },
+  { label: 'builder.groupYoga', poses: YOGA_POSES },
+  { label: 'builder.groupPilates', poses: PILATES_STRETCHES },
+  { label: 'builder.groupCardio', poses: CARDIO_BOXING },
+  { label: 'builder.groupFlattering', poses: SPICY_POSES },
+]
+
+/** Everyday poses first, then each kind of workout, then the explicit ones; a group with nothing to offer is left out. */
 function poseGroups(state: BuilderState, mode: BuilderMode) {
   const poses = choicesFor('pose', state, mode)
-  const explicit = poses.filter((pose) => !POSES.includes(pose))
-  return [{ options: poses.filter((pose) => POSES.includes(pose)) }, ...(explicit.length ? [{ label: t('builder.groupExplicit'), options: explicit }] : [])]
+  const workouts = WORKOUT_GROUPS.map((group) => ({ label: t(group.label), options: poses.filter((pose) => pose in group.poses) }))
+  const inWorkout = (pose: string) => WORKOUT_GROUPS.some((group) => pose in group.poses)
+  const explicit = poses.filter((pose) => !POSES.includes(pose) && !inWorkout(pose))
+  const groups = [{ options: poses.filter((pose) => POSES.includes(pose)) }, ...workouts, { label: t('builder.groupExplicit'), options: explicit }]
+  return groups.filter((group) => group.options.length > 0)
 }
 
 function actionGroups(state: BuilderState, mode: BuilderMode) {

@@ -51,6 +51,24 @@ const POSES: Readonly<Record<string, Body>> = {
   'squatting legs apart': { positions: ['squatting'], legs: true }, 'standing bent at waist': { ...standing, legs: true },
   'standing legs apart': { ...standing, legs: true }, straddling: onTop, 'stretching on bed': { ...lying, hands: 2 },
   'topless covering with hands': { hands: 2 },
+  // Workouts (fitness.ts)
+  'barbell back squat': { positions: ['squatting'], hands: 2, legs: true }, deadlift: { ...standing, hands: 2, legs: true },
+  'bench press': { ...lying, hands: 2 }, 'overhead press': { ...standing, hands: 2 }, 'dumbbell curl': { ...standing, hands: 1 },
+  'pull-up': { ...standing, hands: 2 }, 'push-up': { ...allFours, hands: 2 }, plank: { ...allFours, hands: 2 }, 'walking lunges': { ...standing, legs: true },
+  'kettlebell swing': { ...standing, hands: 2, legs: true }, 'battle ropes': { ...standing, hands: 2 }, 'cable row': { ...sitting, hands: 2 },
+  'treadmill run': { ...standing, legs: true }, 'spin bike': { ...sitting, hands: 2, legs: true }, 'rowing machine': { ...sitting, hands: 2, legs: true },
+  'resting on a bench': sitting, 'flexing in the gym mirror': { ...standing, hands: 2 },
+  'downward dog': { ...allFours, hands: 2, legs: true }, 'tree pose': { ...standing, hands: 2, legs: true }, 'warrior I': { ...standing, hands: 2, legs: true },
+  'warrior II': { ...standing, hands: 2, legs: true }, 'triangle pose': { ...standing, hands: 2, legs: true }, "child's pose": { ...kneeling, hands: 2, away: true },
+  'cobra pose': { ...lying, hands: 2 }, 'crow pose': { positions: ['squatting'], hands: 2 }, 'bridge pose': { ...lying, legs: true },
+  'lotus meditation': { ...sitting, hands: 2, legs: true }, headstand: { ...allFours, hands: 2, legs: true }, 'pigeon pose': { ...sitting, legs: true },
+  'pilates reformer': { ...lying, legs: true }, 'side plank': { ...lying, hands: 1 }, 'hamstring stretch': { ...sitting, hands: 2, legs: true },
+  'quad stretch': { ...standing, hands: 1, legs: true }, 'foam rolling': { ...lying, legs: true },
+  'boxing pads': { ...standing, hands: 2 }, 'jump rope': { ...standing, hands: 2, legs: true }, 'sprint start': { positions: ['squatting'], hands: 2, legs: true },
+  'post-run stretch': { ...standing, hands: 1, legs: true },
+  'glute bridge, back arched': { ...lying, legs: true }, 'squat seen from behind': { positions: ['squatting'], hands: 2, away: true, legs: true },
+  'bending for a dumbbell': { ...standing, hands: 1, legs: true }, 'arched back stretch on the mat': { ...allFours, hands: 2 },
+  'cable machine, looking back': { ...standing, hands: 1 }, 'flirty gym mirror selfie': { ...standing, hands: 1 },
 }
 
 const ACTIONS: Readonly<Record<string, Body>> = {
@@ -127,15 +145,19 @@ const TIME_LIGHT: Readonly<Record<string, Daylight>> = {
 const NEEDS_LIGHT: Readonly<Record<string, readonly Daylight[]>> = {
   'golden hour': ['golden'], 'blue hour': ['twilight'], 'harsh midday sun': ['day'], 'backlit sun flare': ['day', 'golden'],
   'overcast soft': ['day'], 'natural window light': ['day', 'golden', 'twilight'], 'golden hour aesthetic': ['golden'], 'neon night': ['night', 'twilight'],
+  'golden hour track light': ['golden'], 'soft studio daylight': ['day', 'golden'],
 }
 
-const INDOOR = new Set(['bedroom', 'bathroom', 'living room', 'kitchen', 'hotel room', 'cafe', 'bar/club', 'gym', 'studio', 'stairwell', 'hallway/corridor'])
+const INDOOR = new Set([
+  'bedroom', 'bathroom', 'living room', 'kitchen', 'hotel room', 'cafe', 'bar/club', 'gym', 'studio', 'stairwell', 'hallway/corridor',
+  'yoga studio', 'pilates studio', 'home gym', 'boxing gym', 'crossfit box',
+])
 /** Weather that would be in the picture, so it can't happen indoors. */
 const OUTDOOR_WEATHER = new Set(['light rain', 'heavy rain', 'falling snow', 'fog', 'heat haze', 'stormy sky'])
 
 /** Accessories worn in the same place, of which only one fits. */
-const SAME_PLACE = [['Baseball cap', 'Beanie'], ['Eyeglasses', 'Sunglasses'], ['Backpack', 'Clutch bag', 'Handbag', 'Tote bag'], ['Bow tie', 'Necktie'], ['Choker', 'Leather choker', 'Spiked choker'], ['Belt', 'Chain belt']]
-const HELD_ACCESSORIES = new Set(['Clutch bag'])
+const SAME_PLACE = [['Baseball cap', 'Beanie'], ['Eyeglasses', 'Sunglasses'], ['Backpack', 'Clutch bag', 'Handbag', 'Tote bag'], ['Bow tie', 'Necktie'], ['Choker', 'Leather choker', 'Spiked choker'], ['Belt', 'Chain belt', 'Lifting belt'], ['Watch', 'Fitness tracker']]
+const HELD_ACCESSORIES = new Set(['Clutch bag', 'Water bottle'])
 
 export type ClashKind = 'hands' | 'position' | 'mouth' | 'facing' | 'framing' | 'hair' | 'light' | 'weather' | 'accessories' | 'build'
 

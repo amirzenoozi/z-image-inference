@@ -5,7 +5,8 @@ import { t } from '../../i18n'
 import type { ModelInfo } from '../../types'
 import { CHOICE_OPTIONS, TEXT_CHOICES, type TextChoice } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
-import { BOTTOMS, CLOTHING_COLORS, LIGHTING_EXPANSIONS, LINGERIE_BOTTOMS, LINGERIE_TOPS, SHOES, TOPS } from './data'
+import { CLOTHING_COLORS, LIGHTING_EXPANSIONS, LINGERIE_BOTTOMS, LINGERIE_TOPS } from './data'
+import { fitnessClothing, isWorkoutFocused, outfitOptions } from './fitness'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
 import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { negativePrompt } from './negatives'
@@ -221,11 +222,16 @@ function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): Bu
   }
 }
 
-function surpriseClothed(state: BuilderState, seed: number): BuilderState {
+/** Everyday clothes, or gym clothes for a purpose about working out. */
+function surpriseClothed(state: BuilderState, seed: number, mode: BuilderMode): BuilderState {
   const p = (options: readonly string[], field: string) => pick(options, seed, field)
+  const workout = isWorkoutFocused(mode.options.pose)
+  const clothes = (slot: 'top' | 'bottom' | 'shoes') => (workout ? fitnessClothing(slot, state) : outfitOptions(slot, state))
   return {
     ...state,
-    outfit: { ...state.outfit, top: p(TOPS, 'top'), topColor: p(CLOTHING_COLORS, 'topColor'), bottom: p(BOTTOMS, 'bottom'), shoes: p(SHOES, 'shoes') },
+    outfit: {
+      ...state.outfit, top: p(clothes('top'), 'top'), topColor: p(CLOTHING_COLORS, 'topColor'), bottom: p(clothes('bottom'), 'bottom'), shoes: p(clothes('shoes'), 'shoes'),
+    },
   }
 }
 
@@ -240,7 +246,7 @@ export function surprise(state: BuilderState, seed: number, mode: BuilderMode): 
     realism: pickSome(REALISM_DETAILS, 2, seed, 'realism'),
   }
   const looked = pickInOrder(start, SURPRISE_BEFORE_ACTS, mode, seed)
-  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed) : surpriseClothed(looked, seed)
+  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed) : surpriseClothed(looked, seed, mode)
   return pickInOrder(acted, ['expression'], mode, seed)
 }
 

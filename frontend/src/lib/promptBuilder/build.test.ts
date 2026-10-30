@@ -182,8 +182,8 @@ describe('options that fit the subject', () => {
     expect(soloActions('woman', 'nude')).toContain('cupping breasts')
     expect(soloActions('man', 'nude')).not.toContain('cupping breasts')
     expect(soloActions('man', 'nude')).toContain('biting lip')
-    expect(poseOptions(true, 'two men')).not.toContain('topless covering with hands')
-    expect(poseOptions(true, 'woman')).toContain('topless covering with hands')
+    expect(poseOptions(true, { who: 'two men', age: '' })).not.toContain('topless covering with hands')
+    expect(poseOptions(true, { who: 'woman', age: '' })).toContain('topless covering with hands')
   })
 
   it.each([

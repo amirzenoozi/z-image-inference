@@ -45,6 +45,21 @@
     "weights": {}
   },
   {
+    "id": "fitness",
+    "label": "Fitness",
+    "description": "Gym, yoga and workout photos: athletic and flattering, safe for work, with no nudity.",
+    "content": "safe",
+    "focus": { "opening": "a fitness photograph", "cues": "An athletic, energetic shot with sharp detail on muscle definition and movement, confident, form-fitting athletic wear and flattering angles", "tags": ["fitness photography", "athletic", "gym aesthetic", "activewear"] },
+    "steps": ["subject", "appearance", "body", "outfit", "pose", "scene", "camera", "finish"],
+    "defaults": { "sceneType": "gym", "photoStyle": "sports editorial", "shotType": "full body", "lightingSetup": "gym overhead light" },
+    "options": {
+      "pose": ["standing", "walking", "squatting", "stretch overhead", "yoga warrior pose", "mirror selfie pose", "standing hand on hip", "standing arms crossed", "sitting on floor", "laughing candid", "barbell back squat", "deadlift", "bench press", "overhead press", "dumbbell curl", "pull-up", "push-up", "plank", "walking lunges", "kettlebell swing", "battle ropes", "cable row", "treadmill run", "spin bike", "rowing machine", "resting on a bench", "flexing in the gym mirror", "downward dog", "tree pose", "warrior I", "warrior II", "triangle pose", "child's pose", "cobra pose", "crow pose", "bridge pose", "lotus meditation", "headstand", "pigeon pose", "pilates reformer", "side plank", "hamstring stretch", "quad stretch", "foam rolling", "boxing pads", "jump rope", "sprint start", "post-run stretch", "glute bridge, back arched", "squat seen from behind", "bending for a dumbbell", "arched back stretch on the mat", "cable machine, looking back", "flirty gym mirror selfie"],
+      "sceneType": ["gym", "yoga studio", "pilates studio", "home gym", "boxing gym", "crossfit box", "running track", "outdoor workout park", "beach", "park"]
+    },
+    "emphasis": ["body", "outfit", "scene"],
+    "weights": {}
+  },
+  {
     "id": "glamour",
     "label": "Glamour (18+)",
     "description": "Sensual and suggestive, up to topless, with no explicit poses or acts. Needs “Who” and an adult age range.",
