@@ -31,7 +31,8 @@ it('walks through steps with a live preview and confirms into the editor', async
   const prompt = 'A photograph of an adult woman in her mid 20s. She has green eyes. Her skin shows freckles.'
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent(prompt)
   await userEvent.click(useIt)
-  expect(onConfirm).toHaveBeenCalledExactlyOnceWith(prompt, expect.stringContaining('extra fingers'), 'replace', false)
+  const spec = { version: 1, purpose: 'general', subject: { who: 'woman', age: 'mid 20s' }, appearance: { eyes: 'green', skin_details: ['freckles'] } }
+  expect(onConfirm).toHaveBeenCalledExactlyOnceWith(prompt, expect.stringContaining('extra fingers'), 'replace', false, expect.objectContaining(spec))
   expect(onClose).toHaveBeenCalledOnce()
 })
 
@@ -48,7 +49,7 @@ it('offers appending when the editor already has a prompt', async () => {
   await chooseOption(screen.getByLabelText('Who'), 'Man')
   expect(screen.getByText(/replaces the text in the Write box/)).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Append to prompt' }))
-  expect(onConfirm).toHaveBeenCalledWith('A photograph of an adult man.', expect.any(String), 'append', false)
+  expect(onConfirm).toHaveBeenCalledWith('A photograph of an adult man.', expect.any(String), 'append', false, expect.objectContaining({ subject: { who: 'man' } }))
 })
 
 it('surprise me fills the choices with something ready to use', async () => {

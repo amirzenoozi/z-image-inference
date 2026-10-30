@@ -1,3 +1,5 @@
+import type { PromptSpec } from './lib/promptBuilder/spec'
+
 export type Category = 'square' | 'portrait' | 'landscape' | 'widescreen'
 export type Tier = 'S' | 'M' | 'L' | 'XL'
 
@@ -156,6 +158,8 @@ export interface HistoryItem {
   sensitive: boolean
   /** The add-ons the render used (ids from its model's add-ons); empty for none. */
   addons: string[]
+  /** The JSON prompt the text was written from, as saved (read it with parseSpec); null for a prompt written as text. */
+  prompt_spec: string | null
 }
 
 /** The prompt builder's identity choices a character keeps, named as in the builder's state. */
@@ -274,6 +278,15 @@ export interface GenerationSettings {
   lookIncluded: number | null
   /** Add-ons switched on, for any model; only the chosen model's are sent, and each applies only when the prompt mentions it. */
   addons: string[]
+  /** 'json': `prompt` is a JSON prompt (lib/promptBuilder/spec.ts), written as text for the model when it is sent. */
+  promptFormat: PromptFormat
+}
+
+export type PromptFormat = 'text' | 'json'
+
+/** What Generate sends: the prompt as text, and the JSON prompt it was written from, if any. */
+export interface SentSettings extends GenerationSettings {
+  promptSpec?: PromptSpec
 }
 
 export interface StartImage {
@@ -302,6 +315,6 @@ export interface JobProgress {
 
 export type GenerationState =
   | { status: 'idle' }
-  | { status: 'pending'; startedAt: number; request: GenerationSettings; jobId: string; cancelling: boolean }
-  | { status: 'failed'; error: string; request: GenerationSettings }
+  | { status: 'pending'; startedAt: number; request: SentSettings; jobId: string; cancelling: boolean }
+  | { status: 'failed'; error: string; request: SentSettings }
   | { status: 'settled'; item: HistoryItem }

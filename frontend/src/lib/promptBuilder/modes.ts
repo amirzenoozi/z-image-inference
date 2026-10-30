@@ -1,5 +1,5 @@
 import { t, tOr } from '../../i18n'
-import type { BuilderModeData } from '../../types'
+import type { BuilderModeData, Character } from '../../types'
 import { CHOICE_OPTIONS, isChoiceField, type ChoiceField } from './choices'
 import { INHERIT_SCENE } from './constants'
 
@@ -66,6 +66,13 @@ export const FALLBACK_MODE: BuilderMode = {
  */
 export function isAdultMode(mode: BuilderMode): boolean {
   return mode.content === 'suggestive' || mode.content === 'explicit' || mode.steps.includes('intimacy')
+}
+
+/** A character with an uploaded face photo is kept safe for work, so the 18+ purposes are not open to it. */
+export function modesForCharacter(modes: readonly BuilderMode[], character: Pick<Character, 'face_uploaded'> | null): BuilderMode[] {
+  if (!character?.face_uploaded) return [...modes]
+  const everyday = modes.filter((mode) => !isAdultMode(mode))
+  return everyday.length ? everyday : [FALLBACK_MODE]
 }
 
 /** Explicit poses and acts: in an adult mode that is not held to suggestive. */

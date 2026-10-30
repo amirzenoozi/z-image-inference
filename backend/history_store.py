@@ -13,7 +13,7 @@ from resolutions import CATEGORY_CONDITIONS, Category
 from sensitive import is_sensitive
 
 DB_PATH = PROJECT_DIR / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -40,6 +40,8 @@ ADDED_COLUMNS: dict[str, str] = {
     "image_checked": "INTEGER NOT NULL DEFAULT 0",
     # The add-ons the render used (model_catalog.ADDONS ids), comma-separated; empty for none
     "addons": "TEXT NOT NULL DEFAULT ''",
+    # The JSON prompt the text was written from (prompt_spec.py); NULL for a prompt written as text
+    "prompt_spec": "TEXT",
 }
 # Character columns added after characters were first released
 ADDED_CHARACTER_COLUMNS: dict[str, str] = {
@@ -72,6 +74,7 @@ class HistoryItem:
     face_from: int | None
     sensitive: bool
     addons: list[str]
+    prompt_spec: str | None
 
     def to_dict(self) -> dict[str, str | int | float | list[str] | None]:
         return asdict(self)
@@ -151,6 +154,8 @@ class NewImage:
     image_checked: bool = False
     # The add-ons the render used; an edited copy keeps its original's
     addons: tuple[str, ...] = ()
+    # The JSON prompt the text was written from, as JSON text
+    prompt_spec: str | None = None
 
 
 @contextmanager
@@ -214,15 +219,16 @@ def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str,
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
 
-Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int]
+Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int, str, str | None]
 
 
 def to_item(row: Row) -> HistoryItem:
     id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
-    edited_from, varied_from, change, character_id, face_from, sensitive, addons = links
+    edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
         edited_from, varied_from, change, character_id, face_from, bool(sensitive), [addon for addon in addons.split(",") if addon],
+        prompt_spec,
     )
 
 
@@ -230,12 +236,12 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons, prompt_spec)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (encode_for_storage(image.png), image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
              image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive),
-             int(image.image_checked), ",".join(image.addons)),
+             int(image.image_checked), ",".join(image.addons), image.prompt_spec),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)

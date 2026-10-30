@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "purpose": "fitness",
+  "subject": { "who": "woman", "age": "late 20s", "ethnicity": "Southeast Asian", "description": "a personal trainer" },
+  "appearance": {
+    "eyes": "hazel",
+    "expression": "confident look",
+    "makeup": ["natural makeup", "winged eyeliner"],
+    "skin_tone": "tan",
+    "skin_details": ["chalked hands", "wet-look sweat sheen"],
+    "extra": "focused eyes"
+  },
+  "hair": { "color": "black", "style": "braided ponytail", "length": "long" },
+  "body": { "type": "athletic build", "height": "tall", "muscles": "toned", "abs": "defined abs", "tattoos": ["hip tattoo"], "piercings": ["ear piercings"], "extra": "strong shoulders" },
+  "outfit": {
+    "top": { "item": "Sports bra", "color": "black" },
+    "bottom": { "item": "Compression tights", "color": "army green" },
+    "shoes": { "item": "Training shoes" },
+    "accessories": ["Lifting belt", "Water bottle"],
+    "details": "a matching set"
+  },
+  "content": { "nudity": "clothed" },
+  "pose": { "pose": "deadlift", "action": "exhaling hard" },
+  "scene": { "type": "gym", "environment": "a quiet gym before opening", "time": "morning" },
+  "lighting": { "setup": "gym overhead light", "more": ["natural window light"], "custom": "a soft rim light" },
+  "camera": { "style": "sports editorial", "shot": "full body", "angle": "slightly low angle", "lens": "35mm", "depth_of_field": "shallow f/2.8" },
+  "finish": { "mood": "determined", "grading": "natural", "realism": ["subtle film grain"] },
+  "details": { "extra": "chalk dust in the air", "negative": "blurry" }
+}

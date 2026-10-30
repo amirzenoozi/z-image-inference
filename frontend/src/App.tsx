@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { loadLanguage, t } from './i18n'
 import { HistoryPage } from './pages/history/HistoryPage'
 import { CharactersPage } from './pages/characters/CharactersPage'
@@ -12,6 +12,7 @@ import { addonsToSend } from './lib/addons'
 import { useGeneration } from './lib/generation'
 import { useCatalog } from './lib/hooks'
 import { useModelStatus } from './lib/modelStatus'
+import { parseModes } from './lib/promptBuilder/modes'
 import { characterSettings, findModel, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
 import { askToNotify, useRenderAlerts } from './lib/renderAlerts'
 import { useUnseenResult } from './lib/unseenResult'
@@ -71,6 +72,7 @@ function useForgetDeletedCharacter(characterId: number | null, forget: () => voi
 
 function Workspace({ catalog }: { catalog: Catalog }) {
   const [settings, setSettings] = useState<GenerationSettings>(() => loadSettings(catalog))
+  const builderModes = useMemo(() => parseModes(catalog.builder_modes).modes, [catalog.builder_modes])
   const [view, setView] = useView()
   const [mode, setMode] = useState<PromptMode>('direct')
   const [lastSeed, setLastSeed] = useState<number | null>(null)
@@ -101,7 +103,9 @@ function Workspace({ catalog }: { catalog: Catalog }) {
     if (generating || !next.prompt.trim()) return
     askToNotify()
     const model = findModel(catalog, next.modelId)
-    void generation.run({ ...next, prompt: promptToSend(next, character, model), addons: addonsToSend(model, next.addons, modelStatus) })
+    const sent = promptToSend(next, character, model, builderModes)
+    if (sent.status !== 'ready') return
+    void generation.run({ ...next, prompt: sent.prompt, promptFormat: 'text', promptSpec: sent.spec, addons: addonsToSend(model, next.addons, modelStatus) })
   }
   const openInCreate = (next: GenerationSettings) => {
     setSettings(next)
@@ -126,7 +130,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
         onGenerate={() => generateWith(settings)}
         onChatPrompt={(prompt) => {
           // Grok's prompt is new, so it doesn't have the character's look yet
-          const next = { ...settings, prompt, lookIncluded: null }
+          const next: GenerationSettings = { ...settings, prompt, promptFormat: 'text', lookIncluded: null }
           setSettings(next)
           generateWith(next)
         }}
