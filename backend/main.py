@@ -16,11 +16,11 @@ import requests
 import uvicorn
 from datetime import date
 
-from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Path as PathParam, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, ValidationError, model_validator
 
 import character_store
 import history_export
@@ -32,11 +32,14 @@ import safe_for_work
 from character_store import BadPhoto, Character, CharacterUpdate, DuplicateName, MissingImage, NewCharacter
 from image_edits import EditOutsideImage, EditRecipe, apply_edits
 import history_store
-from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
+import video_store
+from sensitive import is_sensitive
+from video_store import NewVideo, VideoItem
+from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest, VideoRequest
 from grok_client import GrokClient
 from palette import PaletteColour
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
-from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint
+from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, VIDEO_MODEL, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint, video_size
 from resolutions import CATEGORIES, PRESETS, Category
 
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
@@ -171,8 +174,18 @@ class BuilderMode(BaseModel):
 PROMPT_MODES = TypeAdapter(list[BuilderMode])
 
 
+class VideoModelInfo(BaseModel):
+    """The image-to-video model History uses: what to download, and the lengths it can make."""
+
+    id: str
+    label: str
+    download_gb: float
+    lengths: list[int]
+
+
 class Catalog(BaseModel):
     models: list[ModelInfo]
+    video: VideoModelInfo
     model_categories: list[ModelCategoryInfo]
     resolutions: list[ResolutionInfo]
     categories: list[str]
@@ -256,6 +269,7 @@ def start_image_checks() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     history_store.init_db()
+    video_store.init_db()
     character_store.add_samples_once()
     start_image_checks()
     yield
@@ -285,6 +299,7 @@ def catalog() -> Catalog:
     examples = example_prompts()
     return Catalog(
         models=[ModelInfo.from_spec(spec, examples.get(spec.id, [])) for spec in MODELS.values()],
+        video=VideoModelInfo(id=VIDEO_MODEL.id, label=VIDEO_MODEL.label, download_gb=VIDEO_MODEL.download_gb, lengths=list(VIDEO_MODEL.frames)),
         model_categories=[ModelCategoryInfo(id=key, label=label) for key, label in MODEL_CATEGORIES.items()],
         resolutions=[ResolutionInfo(**preset.to_dict()) for preset in PRESETS],
         categories=list(CATEGORIES),
@@ -452,7 +467,7 @@ def models_status() -> ModelStatusReport:
 
 def model_server_call(method: str, model_id: str, path: str = "") -> requests.Response:
     """Forwards a model or add-on action, passing on the model server's status and message when it refuses."""
-    if model_id not in MODELS and model_id not in ADDONS:
+    if model_id not in MODELS and model_id not in ADDONS and model_id != VIDEO_MODEL.id:
         raise HTTPException(404, i18n.t("unknownModel", model=model_id))
     try:
         resp = requests.request(method, f"{MODEL_SERVER_URL}/models/{model_id}{path}", timeout=REQUEST_TIMEOUT)
@@ -610,6 +625,138 @@ def download_history_image(item_id: int) -> Response:
         raise HTTPException(404, i18n.t("imageNotFound"))
     name = f"z-image-{item.id}-{item.seed}.png"
     return Response(png, media_type="image/png", headers={**IMMUTABLE, "Content-Disposition": f'attachment; filename="{name}"'})
+
+
+class WebVideoRequest(BaseModel):
+    """What the browser sends to animate a History image; the web app loads the image and works out the size."""
+
+    model_config = ConfigDict(extra="forbid")
+    prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
+    seconds: int
+    job_id: str | None = Field(default=None, pattern=JOB_ID_PATTERN)
+
+
+class RenderedVideo(BaseModel):
+    """The model server's answer to /videos."""
+
+    video_base64: str
+    poster_base64: str
+    middle_base64: str
+    seed: int
+    seconds: float
+
+
+def request_video(req: VideoRequest) -> RenderedVideo:
+    try:
+        resp = requests.post(f"{MODEL_SERVER_URL}/videos", json=req.model_dump(), timeout=REQUEST_TIMEOUT)
+    except requests.ConnectionError:
+        raise HTTPException(503, i18n.t("modelServerDown"))
+    except requests.Timeout:
+        raise HTTPException(504, i18n.t("modelServerSlow"))
+    if resp.status_code in (409, 422, 500, 503):
+        raise HTTPException(resp.status_code, model_server_detail(resp))
+    if not resp.ok:
+        raise HTTPException(502, i18n.t("modelServerFailed", status=resp.status_code))
+    return RenderedVideo.model_validate(resp.json())
+
+
+def image_to_animate(item_id: int) -> tuple[HistoryItem, bytes]:
+    item, png = history_store.item(item_id), history_store.image_png(item_id)
+    if item is None or png is None:
+        raise HTTPException(404, i18n.t("imageNotFound"))
+    return item, png
+
+
+def keep_video_safe(item: HistoryItem, prompt: str) -> str | None:
+    """The image's character's name when it has an uploaded face photo, after checking nothing sensitive goes in."""
+    character = character_store.character(item.character_id) if item.character_id is not None else None
+    if character is None or not character.face_uploaded:
+        return None
+    safe_for_work.check_prompt(prompt, character.name)
+    safe_for_work.check_image_check_ready(nsfw_detector.is_ready())
+    return character.name
+
+
+@app.post("/api/history/{item_id}/videos")
+def make_video(item_id: int, req: WebVideoRequest) -> VideoItem:
+    """Animates a History image into a short clip, saved as a video linked to the image."""
+    item, png = image_to_animate(item_id)
+    width, height = video_size(item.width, item.height)
+    try:
+        server_request = VideoRequest(prompt=req.prompt, seconds=req.seconds, job_id=req.job_id, image=base64.b64encode(png).decode(), width=width, height=height)
+        safe_name = keep_video_safe(item, req.prompt)
+        rendered = request_video(server_request)
+        nsfw = nsfw_detector.is_nsfw(base64.b64decode(rendered.middle_base64))
+        if safe_name is not None:
+            safe_for_work.check_result(nsfw, safe_name)
+    except ValidationError as error:
+        raise HTTPException(422, "; ".join(str(problem["msg"]) for problem in error.errors()))
+    except safe_for_work.NotSafeForWork as error:
+        raise HTTPException(422, str(error))
+    return video_store.add(NewVideo(
+        image_id=item.id, mp4=base64.b64decode(rendered.video_base64), poster=base64.b64decode(rendered.poster_base64),
+        prompt=req.prompt, seconds=req.seconds, width=width, height=height, seed=rendered.seed, duration_seconds=rendered.seconds,
+        sensitive=item.sensitive or is_sensitive(req.prompt) or bool(nsfw),
+    ))
+
+
+@app.get("/api/history/{item_id}/videos")
+def image_videos(item_id: int) -> list[VideoItem]:
+    if history_store.item(item_id) is None:
+        raise HTTPException(404, i18n.t("imageNotFound"))
+    return video_store.for_image(item_id)
+
+
+def video_or_404(video_id: int) -> bytes:
+    data = video_store.mp4(video_id)
+    if data is None:
+        raise HTTPException(404, i18n.t("videoNotFound"))
+    return data
+
+
+def byte_range(header: str | None, size: int) -> tuple[int, int] | None:
+    """The first and last byte a "bytes=a-b" Range header asks for; None for the whole file or a range that makes no sense."""
+    if not header or not header.startswith("bytes=") or "," in header:
+        return None
+    first, _, last = header.removeprefix("bytes=").partition("-")
+    if not first.isdigit() or not (last.isdigit() or last == ""):
+        return None
+    start, end = int(first), min(int(last) if last else size - 1, size - 1)
+    return (start, end) if start <= end else None
+
+
+@app.get("/api/videos/{video_id}/video")
+def video_file(video_id: int, range_header: Annotated[str | None, Header(alias="Range")] = None) -> Response:
+    """The MP4, in parts when asked: Safari, on iPhone especially, plays a video only when it can fetch byte ranges."""
+    data = video_or_404(video_id)
+    headers = {**IMMUTABLE, "Accept-Ranges": "bytes"}
+    span = byte_range(range_header, len(data))
+    if span is None:
+        return Response(data, media_type="video/mp4", headers=headers)
+    start, end = span
+    return Response(data[start:end + 1], status_code=206, media_type="video/mp4", headers={**headers, "Content-Range": f"bytes {start}-{end}/{len(data)}"})
+
+
+@app.get("/api/videos/{video_id}/poster")
+def video_poster(video_id: int, thumb: bool = False) -> Response:
+    data = video_store.poster(video_id)
+    if data is None:
+        raise HTTPException(404, i18n.t("videoNotFound"))
+    return Response(thumbnail(data), media_type="image/webp", headers=IMMUTABLE) if thumb else Response(data, media_type="image/png", headers=IMMUTABLE)
+
+
+@app.get("/api/videos/{video_id}/download")
+def download_video(video_id: int) -> Response:
+    item = video_store.item(video_id)
+    data = video_or_404(video_id)
+    name = f"z-image-{item.image_id if item else 0}-video-{video_id}.mp4"
+    return Response(data, media_type="video/mp4", headers={**IMMUTABLE, "Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.delete("/api/videos/{video_id}", status_code=204)
+def delete_video(video_id: int) -> None:
+    if not video_store.delete(video_id):
+        raise HTTPException(404, i18n.t("videoNotFound"))
 
 
 @app.delete("/api/history/{item_id}", status_code=204)

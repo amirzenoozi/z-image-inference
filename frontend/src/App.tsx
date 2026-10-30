@@ -143,7 +143,7 @@ function Workspace({ catalog }: { catalog: Catalog }) {
       )}
       {view === 'history' && (
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <HistoryPage models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
+          <HistoryPage models={catalog.models} video={catalog.video} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
         </main>
       )}
     </div>
