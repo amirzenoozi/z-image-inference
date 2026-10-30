@@ -58,6 +58,11 @@ const POSES: Readonly<Record<string, Body>> = {
   'kettlebell swing': { ...standing, hands: 2, legs: true }, 'battle ropes': { ...standing, hands: 2 }, 'cable row': { ...sitting, hands: 2 },
   'treadmill run': { ...standing, legs: true }, 'spin bike': { ...sitting, hands: 2, legs: true }, 'rowing machine': { ...sitting, hands: 2, legs: true },
   'resting on a bench': sitting, 'flexing in the gym mirror': { ...standing, hands: 2 },
+  // Faceless poses (faceless.ts)
+  'kneeling on the bed, back arched': kneeling, 'lying on the side, hip curve': { ...lying, legs: true }, 'hands at the waistband': { ...standing, hands: 2 },
+  'sitting on the bed edge, legs crossed': { ...sitting, hands: 2, legs: true }, 'leaning on a doorframe': standing,
+  'mirror selfie, phone hiding the face': { ...standing, hands: 1 }, 'stepping out of the shower in a towel': { ...standing, hands: 1 },
+  'adjusting a strap': { hands: 1 }, 'lying on the stomach, legs up': { ...lying, legs: true }, 'standing in profile, back arched': standing,
   'downward dog': { ...allFours, hands: 2, legs: true }, 'tree pose': { ...standing, hands: 2, legs: true }, 'warrior I': { ...standing, hands: 2, legs: true },
   'warrior II': { ...standing, hands: 2, legs: true }, 'triangle pose': { ...standing, hands: 2, legs: true }, "child's pose": { ...kneeling, hands: 2, away: true },
   'cobra pose': { ...lying, hands: 2 }, 'crow pose': { positions: ['squatting'], hands: 2 }, 'bridge pose': { ...lying, legs: true },
@@ -114,10 +119,12 @@ const AWAY_EXPRESSIONS = new Set(['neutral expression', 'shy glance over the sho
 
 const SELFIE = new Set(['mirror selfie', 'selfie arm-length', 'mirror selfie angle', 'overhead selfie angle'])
 /** A pose that already holds the phone, so a selfie needs no extra hand. */
-const PHONE_POSES = new Set(['mirror selfie pose', 'holding phone', 'texting'])
+const PHONE_POSES = new Set(['mirror selfie pose', 'holding phone', 'texting', 'mirror selfie, phone hiding the face'])
 const FACE_SHOTS = new Set(['extreme close-up', 'close-up face', 'headshot'])
 /** Shots that can't show the legs. */
-const UPPER_SHOTS = new Set([...FACE_SHOTS, 'upper body portrait', 'chest-up portrait'])
+const UPPER_SHOTS = new Set([...FACE_SHOTS, 'upper body portrait', 'chest-up portrait', 'collarbone-to-hips crop'])
+/** Shots from behind, which can't show the face. */
+const BACK_SHOTS = new Set(['from-behind candid', 'back view from the shoulders down', 'over-the-shoulder back view'])
 
 const LENGTHS = ['buzzed', 'short', 'chin-length', 'shoulder-length', 'long', 'very long']
 const at = (length: string) => LENGTHS.indexOf(length)
@@ -214,7 +221,7 @@ function mouthClash(choices: Choices): Clash[] {
 }
 
 function facingClash(choices: Choices): Clash[] {
-  const away = [...bodyParts(choices).filter(([, body]) => body.away).map(([value]) => value), ...(choices.shotType === 'from-behind candid' ? [choices.shotType] : [])]
+  const away = [...bodyParts(choices).filter(([, body]) => body.away).map(([value]) => value), ...(BACK_SHOTS.has(choices.shotType) ? [choices.shotType] : [])]
   const face = [
     ...(FACE_SHOTS.has(choices.shotType) ? [choices.shotType] : []),
     ...(selfieIn(choices) ? [selfieIn(choices) as string] : []),

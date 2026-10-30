@@ -14,8 +14,9 @@ const SAFE_NEGATIVES = 'nsfw, nude, nudity, topless, lingerie, underwear, see-th
 // Negatives that would fight explicit content; removed from the user's own negative prompt when it is on
 const SAFE_FOR_WORK_TERMS = new Set(['nsfw', 'censored', 'nude', 'nudity', 'naked'])
 
-function coverageNegatives(facts: Facts): string[] {
-  if (facts.nudity === null) return []
+function coverageNegatives(facts: Facts, mode: BuilderMode): string[] {
+  // An 18+ purpose without the Intimacy step can't choose nudity, so lingerie and swimwear stay covering
+  if (facts.nudity === null) return isAdultMode(mode) ? [BREAST_COVER_NEGATIVES, INTIMATE_COVER_NEGATIVES] : []
   const breastsCovered = facts.nudity === 'clothed' || facts.nudity === 'implied'
   return [breastsCovered ? BREAST_COVER_NEGATIVES : '', facts.nudity === 'nude' ? '' : INTIMATE_COVER_NEGATIVES]
 }
@@ -33,6 +34,6 @@ export function negativePrompt(state: BuilderState, mode: BuilderMode, facts: Fa
   const typed = showsStep(mode, 'finish') ? state.negativePrompt : ''
   const own = isAdultMode(mode) ? withoutSafeForWorkTerms(typed) : typed.trim()
   // Upstream always adds the body terms; here they only apply to prompts with adult content
-  const parts = [own, isSafeMode(mode) ? SAFE_NEGATIVES : '', facts.nudity === null ? '' : BODY_NEGATIVES, ANATOMY_NEGATIVES, ...coverageNegatives(facts)]
+  const parts = [own, mode.negative, isSafeMode(mode) ? SAFE_NEGATIVES : '', facts.nudity === null ? '' : BODY_NEGATIVES, ANATOMY_NEGATIVES, ...coverageNegatives(facts, mode)]
   return parts.filter(Boolean).join(', ')
 }

@@ -80,7 +80,7 @@ export function tagsFrom(f: Facts, mode: Pick<BuilderMode, 'weights' | 'focus'>)
   const { weights } = mode
   const tags = [
     ...QUALITY_TAGS, ...subjectTags(f), ...mode.focus.tags, ...adultTags(f, weights), f.freeAction, ...personTags(f, weights), f.appearanceExtra, f.body.extra,
-    ...f.clothing.map(weighed(weights, 'outfit')), ...f.removed.map((item) => `no ${item}`), f.outfitDetails, ...settingTags(f, weights), f.extraDetails,
+    ...f.clothing.map((item) => weighed(weights, 'outfit')(item.label)), ...f.removed.map((item) => `no ${item}`), f.outfitDetails, ...settingTags(f, weights), f.extraDetails,
   ]
   return [...new Set(tags.map((tag) => tag.trim().replace(/\.+$/, '')).filter(Boolean))].join(', ')
 }

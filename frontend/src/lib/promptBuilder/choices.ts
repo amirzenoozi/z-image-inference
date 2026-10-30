@@ -1,3 +1,4 @@
+import { FACELESS_PHOTO_STYLES, FACELESS_POSES, FACELESS_SHOTS } from './faceless'
 import { FITNESS_LIGHTING, FITNESS_PHOTO_STYLES, FITNESS_SCENES, WORKOUTS } from './fitness'
 import {
   CAMERA_ANGLES,
@@ -67,15 +68,15 @@ export const CHOICE_OPTIONS = {
   bulge: BULGES,
   nipples: NIPPLES,
   pubicHair: PUBIC_HAIR,
-  pose: [...POSES, ...Object.keys(EXPLICIT_POSES), ...Object.keys(WORKOUTS)],
+  pose: [...POSES, ...Object.keys(EXPLICIT_POSES), ...Object.keys(WORKOUTS), ...Object.keys(FACELESS_POSES)],
   explicitAction: [...Object.keys(EXPLICIT_SOLO_ACTIONS), ...Object.keys(EXPLICIT_PARTNER_ACTIONS)],
   nudity: NUDITY_LEVELS.map((level) => level.value),
   sceneType: [...new Set([...SCENE_TYPES, ...Object.keys(FITNESS_SCENES)])],
   timeOfDay: TIMES_OF_DAY,
   weather: WEATHER,
   lightingSetup: [...Object.keys(LIGHTING_EXPANSIONS), ...Object.keys(FITNESS_LIGHTING)],
-  photoStyle: [...PHOTO_STYLES, ...FITNESS_PHOTO_STYLES],
-  shotType: SHOT_TYPES,
+  photoStyle: [...PHOTO_STYLES, ...FITNESS_PHOTO_STYLES, ...FACELESS_PHOTO_STYLES],
+  shotType: [...SHOT_TYPES, ...Object.keys(FACELESS_SHOTS)],
   cameraAngle: CAMERA_ANGLES,
   lens: LENSES,
   depthOfField: DEPTH_OF_FIELD,
