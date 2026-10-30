@@ -20,7 +20,7 @@ class GrokClient:
 
     @property
     def available(self) -> bool:
-        return bool(os.environ.get("XAI_API_KEY"))
+        return bool(os.environ.get("XAI_API_KEY", "").strip())
 
     @property
     def client(self) -> OpenAI:

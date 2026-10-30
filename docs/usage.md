@@ -185,6 +185,17 @@ Click the image to see it at 100% (drag to look around), and click again to fit 
 
 Z-Image-Turbo, WAI-Illustrious, Anime Desire, RealVisXL and FLUX.1-dev can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
 
+## Videos
+
+**Make video** in the image viewer animates the image into a short clip with [LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) (distilled, 4-bit), running on the Mac.
+
+- Write what should move (it starts as "subtle, natural movement"), choose **2 s** or **4 s**, and **Generate video**. The clip keeps the image's shape, with its longer side at 512 px.
+- The first time, download the video model there (about 29 GB, once). It needs git and ffmpeg on the Mac, and says so if one is missing.
+- On this Mac (M5, 24 GB) a 2 s clip takes about 75 seconds and a 4 s clip about 2 minutes. Images and videos take turns on the model server, so a new image waits for a video to finish, and the other way round.
+- While it renders, the **Videos** strip under the image's facts shows its progress and a **Cancel**. Closing the viewer does not stop it; the video appears when the image is opened again.
+- Videos are kept in `history.db`, linked to their image, not as images: they don't appear in History's list. Each image's videos are in its viewer, newest first. Tap one to play it in place of the image, with **Back to the image**, **Download** (MP4) and **Delete**. Deleting the image deletes its videos.
+- A video is blurred in the strip when its image or its prompt is sensitive. For a character with an uploaded face photo, the same safe-for-work rules apply as for images: a sensitive prompt is refused, and a frame from the middle of the clip is checked.
+
 ## Characters
 
 A **character** is a named person you make many images of, such as "Ava". It keeps the prompt builder's **Subject**, **Face & hair** and **Body** choices (who, age, ethnicity, eyes, skin, hair, facial hair, makeup, body, muscles, stomach, chest, tattoos and piercings), but not the outfit, pose or scene, so the same person can go anywhere. Pubic hair, penis size, nipples, body hair and a bulge are not part of a character either: they are chosen for each image.

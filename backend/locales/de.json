@@ -43,5 +43,11 @@
   "needsHfToken": "{label} ist auf Hugging Face zugangsbeschränkt: Akzeptieren Sie die Lizenz auf der Modellseite, tragen Sie dann HF_TOKEN=<Ihr Token> in .env ein und starten Sie den Modellserver neu.",
   "needsCivitaiToken": "{label} wird von Civitai geladen, das einen API-Schlüssel braucht: Legen Sie einen unter Account settings → API Keys auf civitai.com an, tragen Sie CIVITAI_TOKEN=<Ihr Schlüssel> in .env ein und starten Sie den Modellserver neu.",
   "unknownAddon": "{label} hat kein Add-on namens {addon}.",
-  "addonTwice": "Jedes Add-on kann nur einmal eingeschaltet werden."
+  "addonTwice": "Jedes Add-on kann nur einmal eingeschaltet werden.",
+  "videoLength": "Ein Video kann {lengths} Sekunden lang sein.",
+  "videoSize": "Die Seiten eines Videos müssen Vielfache von 64 sein, bis {max} Pixel.",
+  "videoNeedsTools": "Videos brauchen {tools} auf diesem Mac. Installieren Sie sie mit Homebrew (brew install {tools}) und versuchen Sie es erneut.",
+  "videoNeedsImage": "Ein Video braucht das Bild, mit dem es beginnt.",
+  "videoFailed": "Das Video konnte nicht erstellt werden: {detail}",
+  "videoNotFound": "Video nicht gefunden."
 }

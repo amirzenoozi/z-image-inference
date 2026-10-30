@@ -1,5 +1,5 @@
 import shippedModes from '../../../prompt_modes.json'
-import type { AddonInfo, BuilderModeData, Catalog, Character, HistoryItem, ModelInfo } from '../types'
+import type { AddonInfo, BuilderModeData, Catalog, Character, HistoryItem, ModelInfo, VideoItem } from '../types'
 
 /** The modes shipped in prompt_modes.json, so the tests check the real file. */
 // TypeScript reads optional JSON keys as possibly undefined; the catalog serves the same file with the right shape
@@ -74,6 +74,7 @@ export const catalog: Catalog = {
   builder_modes: builderModes,
   language: 'en',
   models: [fastModel, animeModel],
+  video: { id: 'ltx-video', label: 'LTX-2.3 video (4-bit)', download_gb: 29, lengths: [2, 4] },
   model_categories: [
     { id: 'photo', label: 'Photorealistic' },
     { id: 'anime', label: 'Anime & illustration' },
@@ -147,4 +148,11 @@ export function deferred<T>() {
     reject = rej
   })
   return { promise, resolve, reject }
+}
+
+export function video(overrides: Partial<VideoItem> = {}): VideoItem {
+  return {
+    id: 5, image_id: 1, prompt: 'she smiles', seconds: 2, width: 512, height: 512, seed: 7, duration_seconds: 74.2, sensitive: false,
+    created_at: '2026-10-30 12:00:00', ...overrides,
+  }
 }

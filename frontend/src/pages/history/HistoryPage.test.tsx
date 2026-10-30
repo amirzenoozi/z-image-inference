@@ -2,9 +2,9 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../../api'
-import { catalog, character, deferred, historyItem } from '../../test/fixtures'
+import { catalog, character, deferred, historyItem, video } from '../../test/fixtures'
 import { CharactersContext } from '../../lib/characters'
-import type { HistoryFilters, HistoryItem, HistoryPageData } from '../../types'
+import type { HistoryFilters, HistoryItem, HistoryPageData, VideoItem } from '../../types'
 import { SEARCH_DELAY_MS } from './HistoryFilters'
 import { NO_FILTERS } from '../../lib/historyFilters'
 import { HistoryPage, PAGE_SIZE } from './HistoryPage'
@@ -21,6 +21,11 @@ vi.mock('../../api', async (importOriginal) => ({
   setSensitive: vi.fn(),
   fetchPalette: vi.fn(),
   saveEdit: vi.fn(),
+  fetchVideos: vi.fn(),
+  makeVideo: vi.fn(),
+  deleteVideo: vi.fn(),
+  fetchModelStatus: vi.fn(),
+  fetchJobProgress: vi.fn(),
 }))
 
 const fetchHistory = vi.mocked(api.fetchHistory)
@@ -44,13 +49,18 @@ beforeEach(() => {
   vi.mocked(api.fetchHistorySummary).mockReset().mockResolvedValue(summary)
   vi.mocked(api.deleteHistoryOlderThan).mockReset()
   vi.mocked(api.fetchPalette).mockReset().mockResolvedValue([])
+  vi.mocked(api.fetchVideos).mockReset().mockResolvedValue([])
+  vi.mocked(api.makeVideo).mockReset()
+  vi.mocked(api.deleteVideo).mockReset().mockResolvedValue()
+  vi.mocked(api.fetchJobProgress).mockReset().mockResolvedValue({ phase: 'generating', step: 0, total: 1 })
+  vi.mocked(api.fetchModelStatus).mockReset().mockResolvedValue({ server_running: true, free_bytes: 50e9, models: { 'ltx-video': { status: 'ready', size_bytes: 29e9 } } })
 })
 
 function renderHistory() {
   const onReuse = vi.fn()
   render(
     <CharactersContext.Provider value={{ characters: { status: 'settled', value: [character()] }, reload: vi.fn() }}>
-      <HistoryPage models={catalog.models} onReuse={onReuse} onVary={vi.fn()} />
+      <HistoryPage models={catalog.models} video={catalog.video} onReuse={onReuse} onVary={vi.fn()} />
     </CharactersContext.Provider>,
   )
   return onReuse
@@ -667,7 +677,7 @@ it('puts each History dialog\'s buttons in its actions footer, and the image vie
   // The image view has two columns, so its actions sit at the bottom of the details column instead
   expect(screen.queryByRole('group', { name: 'Dialog actions' })).not.toBeInTheDocument()
   const imageActions = within(screen.getByRole('group', { name: 'Image actions' }))
-  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual(['Make variations', 'Reuse settings'])
+  expect(imageActions.getAllByRole('button').map((button) => button.textContent)).toEqual([' Make video', 'Make variations', 'Reuse settings'])
   // Download, Edit and Delete are icons on the image, beside zoom, full screen and the star
   expect(within(viewer()).getByRole('link', { name: 'Download' })).toHaveAttribute('download', 'z-image-2-42.png')
   expect(within(viewer()).getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/api/history/2/download')
@@ -842,4 +852,47 @@ it('marks an image as sensitive from the viewer once the server confirms, and th
 
   await userEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(await within(await screen.findByRole('button', { name: 'Open: a red fox' })).findByText('Sensitive')).toBeInTheDocument()
+})
+
+
+it('makes a video from the open image, shows it rendering, then plays it in place of the image', async () => {
+  const pending = deferred<VideoItem>()
+  vi.mocked(api.makeVideo).mockReturnValue(pending.promise)
+  serveHistory(2)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+  const dialog = () => screen.getByRole('dialog', { name: 'Image details' })
+
+  await userEvent.click(within(dialog()).getByRole('button', { name: /Make video/ }))
+  const make = screen.getByRole('dialog', { name: 'Make video' })
+  await userEvent.click(within(make).getByRole('radio', { name: '4 s' }))
+  await waitFor(() => expect(within(make).getByRole('button', { name: 'Generate video' })).toBeEnabled())
+  await userEvent.click(within(make).getByRole('button', { name: 'Generate video' }))
+
+  expect(api.makeVideo).toHaveBeenCalledExactlyOnceWith(2, 'Subtle, natural movement; the camera stays still.', 4, expect.stringMatching(/^[0-9a-f-]{36}$/))
+  expect(within(dialog()).getByRole('status')).toHaveTextContent('Making a 4 s video')
+
+  const made = video({ id: 9, image_id: 2, seconds: 4 })
+  vi.mocked(api.fetchVideos).mockResolvedValue([made])
+  await act(async () => pending.resolve(made))
+
+  const player = await within(dialog()).findByLabelText('Video: she smiles')
+  expect(player).toHaveAttribute('src', '/api/videos/9/video')
+  expect(within(dialog()).getByRole('button', { name: 'Play the 4 s video' })).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(within(dialog()).getByRole('button', { name: 'Back to the image' }))
+  expect(within(dialog()).queryByLabelText('Video: she smiles')).not.toBeInTheDocument()
+  expect(within(dialog()).getByRole('img', { name: 'image 2' })).toBeInTheDocument()
+})
+
+it('offers to download the video model before a first video', async () => {
+  vi.mocked(api.fetchModelStatus).mockResolvedValue({ server_running: true, free_bytes: 50e9, models: { 'ltx-video': { status: 'missing', size_bytes: 0 } } })
+  serveHistory(1)
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 1' }))
+  await userEvent.click(screen.getByRole('button', { name: /Make video/ }))
+
+  const make = screen.getByRole('dialog', { name: 'Make video' })
+  expect(await within(make).findByText('Download LTX-2.3 video (4-bit) first, once.')).toBeInTheDocument()
+  expect(within(make).getByRole('button', { name: 'Download LTX-2.3 video (4-bit)' })).toBeInTheDocument()
+  expect(within(make).getByRole('button', { name: 'Generate video' })).toBeDisabled()
 })
