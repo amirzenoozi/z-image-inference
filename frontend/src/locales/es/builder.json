@@ -59,10 +59,10 @@
   "outfitTopColour": "Color de la parte de arriba",
   "outfitBottom": "Parte de abajo",
   "outfitBottomColour": "Color de la parte de abajo",
-  "outfitLingerieTop": "Lencería (parte de arriba)",
-  "outfitLingerieTopColour": "Color de la lencería (arriba)",
-  "outfitLingerieBottom": "Lencería (parte de abajo)",
-  "outfitLingerieBottomColour": "Color de la lencería (abajo)",
+  "outfitLingerieTop": "Lencería y baño (parte de arriba)",
+  "outfitLingerieTopColour": "Color de lencería y baño (arriba)",
+  "outfitLingerieBottom": "Lencería y baño (parte de abajo)",
+  "outfitLingerieBottomColour": "Color de lencería y baño (abajo)",
   "outfitOuterwear": "Prenda exterior",
   "outfitOuterwearColour": "Color de la prenda exterior",
   "outfitShoes": "Calzado",
@@ -169,5 +169,8 @@
   "groupCardio": "Cardio y boxeo",
   "groupFlattering": "Favorecedoras (adultos)",
   "modeLabel_fitness": "Fitness",
-  "modeDescription_fitness": "Fotos de gimnasio, yoga y entrenamiento: atléticas y favorecedoras, aptas para el trabajo, sin desnudos."
+  "modeDescription_fitness": "Fotos de gimnasio, yoga y entrenamiento: atléticas y favorecedoras, aptas para el trabajo, sin desnudos.",
+  "groupFaceless": "Sin rostro",
+  "modeLabel_faceless": "Sin rostro (18+)",
+  "modeDescription_faceless": "Del cuello hacia abajo, con la cara fuera del encuadre: lencería, ropa interior y bañadores descritos con detalle, sin desnudez. Necesita «Quién» y una edad adulta."
 }

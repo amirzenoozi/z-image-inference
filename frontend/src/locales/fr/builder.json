@@ -59,10 +59,10 @@
   "outfitTopColour": "Couleur du haut",
   "outfitBottom": "Bas",
   "outfitBottomColour": "Couleur du bas",
-  "outfitLingerieTop": "Haut de lingerie",
-  "outfitLingerieTopColour": "Couleur du haut de lingerie",
-  "outfitLingerieBottom": "Bas de lingerie",
-  "outfitLingerieBottomColour": "Couleur du bas de lingerie",
+  "outfitLingerieTop": "Haut de lingerie et maillot",
+  "outfitLingerieTopColour": "Couleur du haut de lingerie et maillot",
+  "outfitLingerieBottom": "Bas de lingerie et maillot",
+  "outfitLingerieBottomColour": "Couleur du bas de lingerie et maillot",
   "outfitOuterwear": "Veste ou manteau",
   "outfitOuterwearColour": "Couleur de la veste ou du manteau",
   "outfitShoes": "Chaussures",
@@ -169,5 +169,8 @@
   "groupCardio": "Cardio et boxe",
   "groupFlattering": "Flatteuses (adultes)",
   "modeLabel_fitness": "Fitness",
-  "modeDescription_fitness": "Photos de salle, de yoga et d’entraînement : athlétiques et flatteuses, convenables, sans nudité."
+  "modeDescription_fitness": "Photos de salle, de yoga et d’entraînement : athlétiques et flatteuses, convenables, sans nudité.",
+  "groupFaceless": "Sans visage",
+  "modeLabel_faceless": "Sans visage (18+)",
+  "modeDescription_faceless": "À partir du cou, visage hors cadre : lingerie, sous-vêtements et maillots de bain décrits en détail, sans nudité. Nécessite « Qui » et une tranche d’âge adulte."
 }

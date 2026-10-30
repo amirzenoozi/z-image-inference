@@ -59,10 +59,10 @@
   "outfitTopColour": "Kleur bovenstuk",
   "outfitBottom": "Onderstuk",
   "outfitBottomColour": "Kleur onderstuk",
-  "outfitLingerieTop": "Lingerie boven",
-  "outfitLingerieTopColour": "Kleur lingerie boven",
-  "outfitLingerieBottom": "Lingerie onder",
-  "outfitLingerieBottomColour": "Kleur lingerie onder",
+  "outfitLingerieTop": "Lingerie & badmode boven",
+  "outfitLingerieTopColour": "Kleur lingerie & badmode boven",
+  "outfitLingerieBottom": "Lingerie & badmode onder",
+  "outfitLingerieBottomColour": "Kleur lingerie & badmode onder",
   "outfitOuterwear": "Bovenkleding",
   "outfitOuterwearColour": "Kleur bovenkleding",
   "outfitShoes": "Schoenen",
@@ -169,5 +169,8 @@
   "groupCardio": "Cardio en boksen",
   "groupFlattering": "Flatterend (volwassenen)",
   "modeLabel_fitness": "Fitness",
-  "modeDescription_fitness": "Foto’s in de gym, bij yoga en sport: atletisch en flatterend, veilig voor werk, zonder naakt."
+  "modeDescription_fitness": "Foto’s in de gym, bij yoga en sport: atletisch en flatterend, veilig voor werk, zonder naakt.",
+  "groupFaceless": "Zonder gezicht",
+  "modeLabel_faceless": "Zonder gezicht (18+)",
+  "modeDescription_faceless": "Vanaf de nek, met het gezicht buiten beeld: lingerie, ondergoed en badmode tot in detail beschreven, zonder naakt. Vereist “Wie” en een volwassen leeftijd."
 }
