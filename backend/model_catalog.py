@@ -320,3 +320,51 @@ MODELS: dict[str, ModelSpec] = {spec.id: spec for spec in (
     Z_IMAGE, WAI_ILLUSTRIOUS, MOSS_IMAGE, ANIME_DESIRE, REALVIS_XL, FLUX_DEV,
 )}
 DEFAULT_MODEL = Z_IMAGE
+
+
+@dataclass(frozen=True)
+class VideoModelSpec:
+    """The image-to-video model History uses. It runs in its own process and environment, since its pinned packages
+    differ from the app's, and is downloaded and removed like a model."""
+
+    id: str
+    label: str
+    download_gb: float
+    # The engine (ltx-2-mlx) at the commit tested on this Mac, installed with uv into its own environment
+    engine_repo: str
+    engine_commit: str
+    # The 4-bit weights, only the files the distilled image-to-video path reads
+    weights_repo: str
+    weights_files: tuple[str, ...]
+    text_encoder_repo: str
+    frame_rate: int
+    # The clip's longer side; both sides must be multiples of 64
+    max_side: int
+    # Lengths offered in seconds, and the frames each takes (the model wants 8n + 1)
+    frames: dict[int, int]
+
+
+VIDEO_MODEL = VideoModelSpec(
+    id="ltx-video",
+    label="LTX-2.3 video (4-bit)",
+    download_gb=29,
+    engine_repo="https://github.com/dgrauet/ltx-2-mlx.git",
+    engine_commit="895201df379b079c2154738bcf92005b7a371923",
+    weights_repo="dgrauet/ltx-2.3-mlx-q4",
+    weights_files=(
+        "transformer-distilled.safetensors", "connector.safetensors", "vae_encoder.safetensors", "vae_decoder.safetensors",
+        "audio_vae.safetensors", "vocoder.safetensors", "spatial_upscaler_x2_v1_1.safetensors", "spatial_upscaler_x2_v1_1_config.json",
+        "config.json", "embedded_config.json", "quantize_config.json", "split_model.json",
+    ),
+    text_encoder_repo="mlx-community/gemma-3-12b-it-4bit",
+    frame_rate=24,
+    max_side=512,
+    frames={2: 49, 4: 97},
+)
+
+
+def video_size(width: int, height: int) -> tuple[int, int]:
+    """The clip's size for an image: its shape, the longer side at the model's limit, both sides multiples of 64."""
+    scale = VIDEO_MODEL.max_side / max(width, height)
+    snap = lambda side: max(64, round(side * scale / 64) * 64)
+    return snap(width), snap(height)

@@ -5,7 +5,7 @@ import { useHistoryAddress, type AddressChange } from '../../lib/historyAddress'
 import { NO_FILTERS, isFiltered } from '../../lib/historyFilters'
 import { errorMessage } from '../../lib/hooks'
 import { secondaryButtonClass } from '../../lib/styles'
-import type { HistoryFilters, HistoryItem, HistoryPageData, Loadable, ModelInfo } from '../../types'
+import type { HistoryFilters, HistoryItem, HistoryPageData, Loadable, ModelInfo, VideoModelInfo } from '../../types'
 import { CompareDialog } from './CompareDialog'
 import { HistoryViewer, type ViewerStart } from './viewer/HistoryViewer'
 import { HistoryCleanUp } from './HistoryCleanUp'
@@ -49,11 +49,13 @@ function toggleInSelection(selection: HistoryItem[], item: HistoryItem): History
 
 interface Props {
   models: ModelInfo[]
+  /** The model the image viewer's Make video uses. */
+  video: VideoModelInfo
   onReuse: (item: HistoryItem) => void
   onVary: (item: HistoryItem) => void
 }
 
-export function HistoryPage({ models, onReuse, onVary }: Props) {
+export function HistoryPage({ models, video, onReuse, onVary }: Props) {
   const [address, go, visits] = useHistoryAddress(models)
   const { filters, page } = address
   // Remounts the filter bar when the filters are cleared, so its search box empties too
@@ -130,6 +132,7 @@ export function HistoryPage({ models, onReuse, onVary }: Props) {
           filters={filters}
           start={viewing}
           labelOf={labelOf}
+          video={video}
           onIndexChange={followViewer}
           onListChanged={() => setListVersion((n) => n + 1)}
           onReuse={onReuse}
