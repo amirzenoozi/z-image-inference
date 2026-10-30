@@ -59,10 +59,10 @@
   "outfitTopColour": "Farbe des Oberteils",
   "outfitBottom": "Unterteil",
   "outfitBottomColour": "Farbe des Unterteils",
-  "outfitLingerieTop": "Dessous-Oberteil",
-  "outfitLingerieTopColour": "Farbe des Dessous-Oberteils",
-  "outfitLingerieBottom": "Dessous-Unterteil",
-  "outfitLingerieBottomColour": "Farbe des Dessous-Unterteils",
+  "outfitLingerieTop": "Dessous & Bademode oben",
+  "outfitLingerieTopColour": "Farbe Dessous & Bademode oben",
+  "outfitLingerieBottom": "Dessous & Bademode unten",
+  "outfitLingerieBottomColour": "Farbe Dessous & Bademode unten",
   "outfitOuterwear": "Oberbekleidung",
   "outfitOuterwearColour": "Farbe der Oberbekleidung",
   "outfitShoes": "Schuhe",
@@ -169,5 +169,8 @@
   "groupCardio": "Cardio und Boxen",
   "groupFlattering": "Schmeichelhaft (Erwachsene)",
   "modeLabel_fitness": "Fitness",
-  "modeDescription_fitness": "Fotos aus Gym, Yoga und Training: athletisch und schmeichelhaft, jugendfrei, ohne Nacktheit."
+  "modeDescription_fitness": "Fotos aus Gym, Yoga und Training: athletisch und schmeichelhaft, jugendfrei, ohne Nacktheit.",
+  "groupFaceless": "Ohne Gesicht",
+  "modeLabel_faceless": "Ohne Gesicht (18+)",
+  "modeDescription_faceless": "Ab dem Hals, das Gesicht außerhalb des Bildes: Dessous, Unterwäsche und Bademode detailliert beschrieben, ohne Nacktheit. Braucht „Wer“ und eine erwachsene Altersgruppe."
 }

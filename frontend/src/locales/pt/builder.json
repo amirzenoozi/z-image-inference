@@ -59,10 +59,10 @@
   "outfitTopColour": "Cor da parte de cima",
   "outfitBottom": "Parte de baixo",
   "outfitBottomColour": "Cor da parte de baixo",
-  "outfitLingerieTop": "Lingerie (parte de cima)",
-  "outfitLingerieTopColour": "Cor da lingerie (parte de cima)",
-  "outfitLingerieBottom": "Lingerie (parte de baixo)",
-  "outfitLingerieBottomColour": "Cor da lingerie (parte de baixo)",
+  "outfitLingerieTop": "Lingerie e moda praia (parte de cima)",
+  "outfitLingerieTopColour": "Cor da lingerie e moda praia (cima)",
+  "outfitLingerieBottom": "Lingerie e moda praia (parte de baixo)",
+  "outfitLingerieBottomColour": "Cor da lingerie e moda praia (baixo)",
   "outfitOuterwear": "Agasalho",
   "outfitOuterwearColour": "Cor do agasalho",
   "outfitShoes": "Calçados",
@@ -169,5 +169,8 @@
   "groupCardio": "Cardio e boxe",
   "groupFlattering": "Favorecedoras (adultos)",
   "modeLabel_fitness": "Fitness",
-  "modeDescription_fitness": "Fotos de academia, ioga e treino: atléticas e favorecedoras, adequadas para o trabalho, sem nudez."
+  "modeDescription_fitness": "Fotos de academia, ioga e treino: atléticas e favorecedoras, adequadas para o trabalho, sem nudez.",
+  "groupFaceless": "Sem rosto",
+  "modeLabel_faceless": "Sem rosto (18+)",
+  "modeDescription_faceless": "Do pescoço para baixo, com o rosto fora do enquadramento: lingerie, roupa íntima e moda praia descritas em detalhe, sem nudez. Precisa de “Quem” e de uma faixa etária adulta."
 }

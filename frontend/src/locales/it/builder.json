@@ -59,10 +59,10 @@
   "outfitTopColour": "Colore della parte superiore",
   "outfitBottom": "Parte inferiore",
   "outfitBottomColour": "Colore della parte inferiore",
-  "outfitLingerieTop": "Reggiseno di lingerie",
-  "outfitLingerieTopColour": "Colore del reggiseno di lingerie",
-  "outfitLingerieBottom": "Slip di lingerie",
-  "outfitLingerieBottomColour": "Colore dello slip di lingerie",
+  "outfitLingerieTop": "Lingerie e costume (sopra)",
+  "outfitLingerieTopColour": "Colore di lingerie e costume (sopra)",
+  "outfitLingerieBottom": "Lingerie e costume (sotto)",
+  "outfitLingerieBottomColour": "Colore di lingerie e costume (sotto)",
   "outfitOuterwear": "Capospalla",
   "outfitOuterwearColour": "Colore del capospalla",
   "outfitShoes": "Scarpe",
@@ -169,5 +169,8 @@
   "groupCardio": "Cardio e boxe",
   "groupFlattering": "Lusinghiere (adulti)",
   "modeLabel_fitness": "Fitness",
-  "modeDescription_fitness": "Foto di palestra, yoga e allenamento: atletiche e lusinghiere, adatte al lavoro, senza nudità."
+  "modeDescription_fitness": "Foto di palestra, yoga e allenamento: atletiche e lusinghiere, adatte al lavoro, senza nudità.",
+  "groupFaceless": "Senza volto",
+  "modeLabel_faceless": "Senza volto (18+)",
+  "modeDescription_faceless": "Dal collo in giù, con il volto fuori dall'inquadratura: lingerie, intimo e costumi descritti nei dettagli, senza nudità. Richiede «Chi» e una fascia d'età adulta."
 }
