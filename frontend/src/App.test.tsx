@@ -322,6 +322,8 @@ it('forgets a remembered character that no longer exists', async () => {
   localStorage.setItem('z-image-studio.settings.v1', JSON.stringify({ ...initialSettings(catalog), prompt: 'a cat', characterId: 9 }))
   vi.mocked(api.generateImage).mockResolvedValue(historyItem())
   render(<App />)
+  // The character list loads first, and only then is the missing character forgotten
+  await waitFor(() => expect(JSON.parse(localStorage.getItem('z-image-studio.settings.v1') ?? '{}')).toMatchObject({ characterId: null }))
 
   await userEvent.click(await screen.findByRole('button', { name: 'Generate' }))
   expect(api.generateImage).toHaveBeenCalledWith(expect.objectContaining({ characterId: null }), expect.any(String))
