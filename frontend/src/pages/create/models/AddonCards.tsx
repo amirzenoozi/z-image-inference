@@ -1,8 +1,9 @@
 import { language, t, tOr } from '../../../i18n'
 import { addonLabel } from '../../../lib/addons'
 import type { AddonInfo, Loadable, ModelInfo, ModelStatusReport } from '../../../types'
-import { DownloadActions } from './DownloadActions'
-import { DownloadBadge, SourceLink } from './modelParts'
+import { DownloadActions } from '../../../shared/models/DownloadActions'
+import { SourceLink } from './modelParts'
+import { DownloadBadge } from '../../../shared/models/DownloadBadge'
 
 interface Props {
   /** The selected base model: only its add-ons are listed. */

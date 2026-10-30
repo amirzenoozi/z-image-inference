@@ -4,7 +4,8 @@ import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../.
 import { secondaryButtonClass } from '../../../lib/styles'
 import { Modal } from '../../../shared/ui/Modal'
 import { ModelChooser } from './ModelChooser'
-import { DownloadBadge, SourceLink } from './modelParts'
+import { SourceLink } from './modelParts'
+import { DownloadBadge } from '../../../shared/models/DownloadBadge'
 import { modelDescription } from '../../../lib/categories'
 import { t } from '../../../i18n'
 
