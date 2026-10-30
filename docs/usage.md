@@ -102,6 +102,27 @@ The **Fitness** purpose is for gym, yoga and workout photos. Each workout is wri
 - **Flattering (adults)**: once "Who" and an age are chosen, a few spicier poses (a glute bridge with the back arched, a squat seen from behind, a flirty gym mirror selfie and others) and cuts (low-cut and open-back sports bras, high-cut gym briefs, micro running shorts, scrunch-butt leggings; for men a deep-cut stringer and fitted compression shorts) appear. They stay clothed: Fitness is safe for work, nudity and lingerie can't be chosen, and the safe negative prompt keeps nudity out. See-through fabrics are left out on purpose.
 - **Surprise me** in Fitness dresses the subject for the gym and picks a workout.
 
+### JSON prompt
+
+**Use this prompt** puts the builder's choices into the prompt box as a **JSON prompt** rather than finished text. It has a `version`, the `purpose`, and one section per part of the picture (`subject`, `appearance`, `hair`, `body`, `anatomy`, `outfit`, `content`, `pose`, `scene`, `lighting`, `camera`, `finish`, `details`); a choice you left unset is left out, and Random choices are already settled. For example:
+
+```json
+{
+  "version": 1,
+  "purpose": "fitness",
+  "subject": { "who": "woman", "age": "late 20s" },
+  "outfit": { "top": { "item": "Sports bra", "color": "black" } },
+  "pose": { "pose": "deadlift" },
+  "scene": { "type": "gym" }
+}
+```
+
+- **Generate** writes it as text for the selected model: a paragraph for Z-Image, FLUX and MOSS-Image, a tag list for the SDXL models. So one JSON prompt suits every model, and the text is what the model gets. The counter shows the length of that text.
+- **Change it by hand** in the box. Choices take the builder's options (in English, as in `prompt_modes.json`); the free text goes in `description`, `extra`, `action`, `environment`, `custom`, `mood` and `details`. A mistake shows under the box, such as `"sparkly" is not an option for hair.color.`, and Generate waits until it is fixed. The purpose's rules still apply: an 18+ purpose needs "Who" and an adult age, words suggesting a minor are refused, and a character with an uploaded face can't use an 18+ purpose.
+- **Edit in builder** opens the builder on the JSON prompt's choices; **Convert to text** turns it into text for the selected model, for good (text can't be turned back). **Append to prompt** adds text, so it turns the prompt box into text too.
+- **History** saves the JSON prompt beside the text, and **Reuse settings** brings it back. Images made before, or from a typed prompt, have only their text.
+- A new detail later becomes a new optional key; a change that old prompts can't follow raises `version`, and older JSON prompts are upgraded when read.
+
 ## Prompt weights
 
 WAI-Illustrious, Anime Desire and RealVisXL understand weights in the usual Automatic1111 / ComfyUI form:
