@@ -171,7 +171,6 @@
   "addonDescription_squirt-queen": "Squirting.",
   "promptJsonLabel": "Prompt (JSON)",
   "jsonHint": "Se escribe como texto para el modelo elegido al generar.",
-  "convertToText": "Convertir a texto",
   "editInBuilder": "Editar en el generador",
   "jsonUnreadable": "No se puede leer el prompt JSON: {error}",
   "jsonVersion": "Este prompt JSON es de la versión {version}, que esta app no sabe leer.",
@@ -182,5 +181,10 @@
   "jsonNeedsGarment": "{field} necesita un \"item\" y puede tener un \"color\".",
   "jsonNotAnOption": "\"{value}\" no es una opción para {field}.",
   "jsonUnknownPurpose": "El propósito \"{purpose}\" no existe o no está disponible para este personaje.",
-  "jsonTooLong": "El prompt escrito a partir del JSON es demasiado largo ({length} de {max} caracteres). Quita algunos detalles."
+  "jsonTooLong": "El prompt escrito a partir del JSON es demasiado largo ({length} de {max} caracteres). Quita algunos detalles.",
+  "promptView": "Mostrar el prompt como",
+  "viewJson": "JSON",
+  "viewText": "Texto",
+  "promptTextLabel": "Prompt (texto)",
+  "jsonTextHint": "Escrito a partir del JSON para {model}. Cambia el JSON para cambiarlo."
 }

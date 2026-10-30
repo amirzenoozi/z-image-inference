@@ -171,7 +171,6 @@
   "addonDescription_squirt-queen": "Squirten.",
   "promptJsonLabel": "Prompt (JSON)",
   "jsonHint": "Wordt bij genereren als tekst geschreven voor het gekozen model.",
-  "convertToText": "Omzetten naar tekst",
   "editInBuilder": "Bewerken in bouwer",
   "jsonUnreadable": "De JSON-prompt kan niet worden gelezen: {error}",
   "jsonVersion": "Deze JSON-prompt is versie {version}, die deze app niet kan lezen.",
@@ -182,5 +181,10 @@
   "jsonNeedsGarment": "{field} heeft een \"item\" nodig en mag een \"color\" hebben.",
   "jsonNotAnOption": "\"{value}\" is geen optie voor {field}.",
   "jsonUnknownPurpose": "Het doel \"{purpose}\" bestaat niet of is niet beschikbaar voor dit personage.",
-  "jsonTooLong": "De prompt die uit de JSON wordt geschreven is te lang ({length} van {max} tekens). Laat wat details weg."
+  "jsonTooLong": "De prompt die uit de JSON wordt geschreven is te lang ({length} van {max} tekens). Laat wat details weg.",
+  "promptView": "Toon de prompt als",
+  "viewJson": "JSON",
+  "viewText": "Tekst",
+  "promptTextLabel": "Prompt (tekst)",
+  "jsonTextHint": "Geschreven uit de JSON voor {model}. Wijzig de JSON om dit te veranderen."
 }
