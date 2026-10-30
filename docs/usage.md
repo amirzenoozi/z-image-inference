@@ -52,6 +52,7 @@ First pick a **purpose** at the top. Each one shows only the steps it needs, sta
 | **Portrait** | Subject, Face & hair, Scene & light, Camera, Mood & finish; close shot types only | the face, hair and light |
 | **Fashion** | every step except Face & hair and Intimacy; starts as a full-body fashion shot in a studio | the outfit and figure |
 | **Influencer** | every step except Intimacy; safe for work, with no lingerie and nudity kept out by the negative prompt | "An Instagram influencer photo of …", a candid lifestyle look |
+| **Fitness** | every step except Intimacy, with poses narrowed to workouts and places to gyms, studios and outdoor training spots; safe for work, no nudity | "A fitness photograph of …", athletic, energetic, form-fitting activewear |
 | **Glamour (18+)** | every step; nudity up to topless, no explicit poses or acts | "A sensual glamour photograph of …", alluring and tasteful |
 | **Explicit (18+)** | every step and option | "An explicit adult photograph of …", nudity, explicit poses and acts |
 | **Scene** | Scene & light, Camera, Mood & finish; no people | the place and light |
@@ -90,6 +91,16 @@ The purposes live in `prompt_modes.json` in the project folder; edit it and reop
 - `weights`: tag weights from 0.5 to 2, for `nudity`, `action`, `explicitPose`, `pose`, `outfit`, `face`, `hair`, `body`, `scene` and `light`
 
 A purpose with an unknown step, choice or option is left out, with a note in the builder saying why. A purpose that shows the Intimacy step is always treated as 18+, so the adult checks above apply whatever the file says.
+
+### Fitness
+
+The **Fitness** purpose is for gym, yoga and workout photos. Each workout is written out in full, so the model knows what the body is doing ("performing a barbell back squat, the bar resting across the upper back, thighs parallel to the floor, core braced"), and so are the places and light.
+
+- **Pose** has **Gym** (squat, deadlift, bench press, pull-up, push-up, plank, kettlebell swing, battle ropes, treadmill, spin bike, rowing and more), **Yoga** (downward dog, tree, warrior I and II, triangle, child's pose, cobra, crow, bridge, lotus, headstand, pigeon), **Pilates and stretching** and **Cardio and boxing**. These are offered in the other everyday purposes too.
+- **Outfit** adds sports bras, compression tops, stringer tanks (men), muscle tees, athletic, running and compression shorts and tights, training and running shoes, grip socks, a track jacket, and gear: lifting belt, wrist wraps, lifting gloves, sweatband, fitness tracker, gym towel and water bottle.
+- **Scene** adds a yoga studio, Pilates studio, home gym, boxing gym, CrossFit box, running track and outdoor workout park; **light** adds gym overhead light, soft studio daylight and golden hour on the track; **photo style** adds sports editorial and motion blur; **skin** adds chalked hands, visible veins, flushed cheeks and a wet-look sweat sheen.
+- **Flattering (adults)**: once "Who" and an age are chosen, a few spicier poses (a glute bridge with the back arched, a squat seen from behind, a flirty gym mirror selfie and others) and cuts (low-cut and open-back sports bras, high-cut gym briefs, micro running shorts, scrunch-butt leggings; for men a deep-cut stringer and fitted compression shorts) appear. They stay clothed: Fitness is safe for work, nudity and lingerie can't be chosen, and the safe negative prompt keeps nudity out. See-through fabrics are left out on purpose.
+- **Surprise me** in Fitness dresses the subject for the gym and picks a workout.
 
 ## Prompt weights
 
