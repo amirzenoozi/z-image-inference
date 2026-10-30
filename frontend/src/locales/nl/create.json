@@ -168,5 +168,19 @@
   "addonLabel_hyper-futa": "Hyper Futa",
   "addonDescription_hyper-futa": "Vrouwen met een penis, in meer maten.",
   "addonLabel_squirt-queen": "PornMaster Squirt Queen Z-image",
-  "addonDescription_squirt-queen": "Squirten."
+  "addonDescription_squirt-queen": "Squirten.",
+  "promptJsonLabel": "Prompt (JSON)",
+  "jsonHint": "Wordt bij genereren als tekst geschreven voor het gekozen model.",
+  "convertToText": "Omzetten naar tekst",
+  "editInBuilder": "Bewerken in bouwer",
+  "jsonUnreadable": "De JSON-prompt kan niet worden gelezen: {error}",
+  "jsonVersion": "Deze JSON-prompt is versie {version}, die deze app niet kan lezen.",
+  "jsonUnknownField": "De JSON-prompt heeft een onbekend veld: {field}.",
+  "jsonNeedsObject": "{field} moet een JSON-object zijn.",
+  "jsonNeedsText": "{field} moet tekst zijn.",
+  "jsonNeedsList": "{field} moet een lijst met tekst zijn.",
+  "jsonNeedsGarment": "{field} heeft een \"item\" nodig en mag een \"color\" hebben.",
+  "jsonNotAnOption": "\"{value}\" is geen optie voor {field}.",
+  "jsonUnknownPurpose": "Het doel \"{purpose}\" bestaat niet of is niet beschikbaar voor dit personage.",
+  "jsonTooLong": "De prompt die uit de JSON wordt geschreven is te lang ({length} van {max} tekens). Laat wat details weg."
 }

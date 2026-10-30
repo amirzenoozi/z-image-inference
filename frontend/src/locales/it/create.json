@@ -168,5 +168,19 @@
   "addonLabel_hyper-futa": "Hyper Futa",
   "addonDescription_hyper-futa": "Donne con il pene, in più misure.",
   "addonLabel_squirt-queen": "PornMaster Squirt Queen Z-image",
-  "addonDescription_squirt-queen": "Squirting."
+  "addonDescription_squirt-queen": "Squirting.",
+  "promptJsonLabel": "Prompt (JSON)",
+  "jsonHint": "Viene scritto come testo per il modello scelto quando generi.",
+  "convertToText": "Converti in testo",
+  "editInBuilder": "Modifica nel generatore",
+  "jsonUnreadable": "Impossibile leggere il prompt JSON: {error}",
+  "jsonVersion": "Questo prompt JSON è della versione {version}, che l'app non sa leggere.",
+  "jsonUnknownField": "Il prompt JSON ha un campo sconosciuto: {field}.",
+  "jsonNeedsObject": "{field} deve essere un oggetto JSON.",
+  "jsonNeedsText": "{field} deve essere testo.",
+  "jsonNeedsList": "{field} deve essere un elenco di testi.",
+  "jsonNeedsGarment": "{field} richiede un \"item\" e può avere un \"color\".",
+  "jsonNotAnOption": "\"{value}\" non è un'opzione per {field}.",
+  "jsonUnknownPurpose": "Lo scopo \"{purpose}\" non esiste o non è disponibile per questo personaggio.",
+  "jsonTooLong": "Il prompt scritto dal JSON è troppo lungo ({length} di {max} caratteri). Togli qualche dettaglio."
 }
