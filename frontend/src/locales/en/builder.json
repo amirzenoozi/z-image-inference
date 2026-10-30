@@ -162,5 +162,12 @@
   "fieldBodyHair": "Body hair",
   "fieldBulge": "Bulge",
   "clashBuild": "{a} doesn’t go with {b}, so the body may come out wrong.",
-  "forThisImage": "For this image"
+  "forThisImage": "For this image",
+  "groupGym": "Gym",
+  "groupYoga": "Yoga",
+  "groupPilates": "Pilates and stretching",
+  "groupCardio": "Cardio and boxing",
+  "groupFlattering": "Flattering (adults)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Gym, yoga and workout photos: athletic and flattering, safe for work, with no nudity."
 }

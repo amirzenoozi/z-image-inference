@@ -162,5 +162,12 @@
   "fieldBodyHair": "Vello corporal",
   "fieldBulge": "Bulto",
   "clashBuild": "{a} no encaja con {b}, así que el cuerpo puede salir mal.",
-  "forThisImage": "Para esta imagen"
+  "forThisImage": "Para esta imagen",
+  "groupGym": "Gimnasio",
+  "groupYoga": "Yoga",
+  "groupPilates": "Pilates y estiramientos",
+  "groupCardio": "Cardio y boxeo",
+  "groupFlattering": "Favorecedoras (adultos)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Fotos de gimnasio, yoga y entrenamiento: atléticas y favorecedoras, aptas para el trabajo, sin desnudos."
 }

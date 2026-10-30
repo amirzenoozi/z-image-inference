@@ -162,5 +162,12 @@
   "fieldBodyHair": "Pelos do corpo",
   "fieldBulge": "Volume",
   "clashBuild": "{a} não combina com {b}, então o corpo pode sair errado.",
-  "forThisImage": "Para esta imagem"
+  "forThisImage": "Para esta imagem",
+  "groupGym": "Academia",
+  "groupYoga": "Ioga",
+  "groupPilates": "Pilates e alongamento",
+  "groupCardio": "Cardio e boxe",
+  "groupFlattering": "Favorecedoras (adultos)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Fotos de academia, ioga e treino: atléticas e favorecedoras, adequadas para o trabalho, sem nudez."
 }

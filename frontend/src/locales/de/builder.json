@@ -162,5 +162,12 @@
   "fieldBodyHair": "Körperbehaarung",
   "fieldBulge": "Beule",
   "clashBuild": "{a} passt nicht zu {b}, der Körper könnte falsch aussehen.",
-  "forThisImage": "Für dieses Bild"
+  "forThisImage": "Für dieses Bild",
+  "groupGym": "Fitnessstudio",
+  "groupYoga": "Yoga",
+  "groupPilates": "Pilates und Dehnen",
+  "groupCardio": "Cardio und Boxen",
+  "groupFlattering": "Schmeichelhaft (Erwachsene)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Fotos aus Gym, Yoga und Training: athletisch und schmeichelhaft, jugendfrei, ohne Nacktheit."
 }
