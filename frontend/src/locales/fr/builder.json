@@ -162,5 +162,12 @@
   "fieldBodyHair": "Pilosité",
   "fieldBulge": "Bosse",
   "clashBuild": "{a} ne va pas avec {b} : le corps risque d’être mal rendu.",
-  "forThisImage": "Pour cette image"
+  "forThisImage": "Pour cette image",
+  "groupGym": "Salle de sport",
+  "groupYoga": "Yoga",
+  "groupPilates": "Pilates et étirements",
+  "groupCardio": "Cardio et boxe",
+  "groupFlattering": "Flatteuses (adultes)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Photos de salle, de yoga et d’entraînement : athlétiques et flatteuses, convenables, sans nudité."
 }

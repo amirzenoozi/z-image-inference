@@ -162,5 +162,12 @@
   "fieldBodyHair": "Lichaamshaar",
   "fieldBulge": "Bobbel",
   "clashBuild": "{a} past niet bij {b}, dus het lichaam kan verkeerd uitvallen.",
-  "forThisImage": "Voor deze afbeelding"
+  "forThisImage": "Voor deze afbeelding",
+  "groupGym": "Gym",
+  "groupYoga": "Yoga",
+  "groupPilates": "Pilates en stretchen",
+  "groupCardio": "Cardio en boksen",
+  "groupFlattering": "Flatterend (volwassenen)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Foto’s in de gym, bij yoga en sport: atletisch en flatterend, veilig voor werk, zonder naakt."
 }

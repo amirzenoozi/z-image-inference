@@ -162,5 +162,12 @@
   "fieldBodyHair": "Peli del corpo",
   "fieldBulge": "Rigonfiamento",
   "clashBuild": "{a} non va con {b}, quindi il corpo potrebbe venire sbagliato.",
-  "forThisImage": "Per questa immagine"
+  "forThisImage": "Per questa immagine",
+  "groupGym": "Palestra",
+  "groupYoga": "Yoga",
+  "groupPilates": "Pilates e allungamento",
+  "groupCardio": "Cardio e boxe",
+  "groupFlattering": "Lusinghiere (adulti)",
+  "modeLabel_fitness": "Fitness",
+  "modeDescription_fitness": "Foto di palestra, yoga e allenamento: atletiche e lusinghiere, adatte al lavoro, senza nudità."
 }
