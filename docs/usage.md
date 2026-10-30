@@ -54,6 +54,7 @@ First pick a **purpose** at the top. Each one shows only the steps it needs, sta
 | **Influencer** | every step except Intimacy; safe for work, with no lingerie and nudity kept out by the negative prompt | "An Instagram influencer photo of …", a candid lifestyle look |
 | **Fitness** | every step except Intimacy, with poses narrowed to workouts and places to gyms, studios and outdoor training spots; safe for work, no nudity | "A fitness photograph of …", athletic, energetic, form-fitting activewear |
 | **Glamour (18+)** | every step; nudity up to topless, no explicit poses or acts | "A sensual glamour photograph of …", alluring and tasteful |
+| **Faceless (18+)** | Subject, Body, Outfit, Pose, Scene & light, Camera, Mood & finish; framings that keep the face out; no nudity | "A faceless photograph of …", cropped below the chin, every garment described in full |
 | **Explicit (18+)** | every step and option | "An explicit adult photograph of …", nudity, explicit poses and acts |
 | **Scene** | Scene & light, Camera, Mood & finish; no people | the place and light |
 
@@ -101,6 +102,16 @@ The **Fitness** purpose is for gym, yoga and workout photos. Each workout is wri
 - **Scene** adds a yoga studio, Pilates studio, home gym, boxing gym, CrossFit box, running track and outdoor workout park; **light** adds gym overhead light, soft studio daylight and golden hour on the track; **photo style** adds sports editorial and motion blur; **skin** adds chalked hands, visible veins, flushed cheeks and a wet-look sweat sheen.
 - **Flattering (adults)**: once "Who" and an age are chosen, a few spicier poses (a glute bridge with the back arched, a squat seen from behind, a flirty gym mirror selfie and others) and cuts (low-cut and open-back sports bras, high-cut gym briefs, micro running shorts, scrunch-butt leggings; for men a deep-cut stringer and fitted compression shorts) appear. They stay clothed: Fitness is safe for work, nudity and lingerie can't be chosen, and the safe negative prompt keeps nudity out. See-through fabrics are left out on purpose.
 - **Surprise me** in Fitness dresses the subject for the gym and picks a workout.
+
+### Faceless
+
+The **Faceless (18+)** purpose makes pictures from the neck down: the face is never shown, so the body, the pose and above all the clothes carry the picture. It is spicy, but never nude.
+
+- **Framing**: Camera offers only a neck-down shot (the default), a collarbone-to-hips crop, a hips-and-legs crop, a back view from the shoulders down and an over-the-shoulder back view, each written out in full ("cropped just below the chin with the face out of frame"). "face, head, eyes, lips, mouth, smile, portrait, headshot, looking at camera" go into the negative prompt (the purpose's `negative` in `prompt_modes.json`), and the Face & hair step is left out.
+- **Poses**: body-led ones such as kneeling on the bed with the back arched, lying on the side showing the curve of the hip, thumbs at the waistband, a mirror selfie with the phone hiding the face, or stepping out of the shower in a towel, plus everyday poses that work without a face. They are offered in Glamour and Explicit too.
+- **Clothes**: the Outfit step's **Lingerie & swimwear** rows (in every purpose that isn't safe for work) now hold bras, corsets, bodysuits, slips, panties, stockings and garters, bikini tops and bottoms (string, triangle, bandeau, underwire, Brazilian, high-cut, thong, side-tie) and one-piece swimsuits (plunging, cut-out, high-leg); for men boxer briefs, low-rise briefs, trunks, swim briefs and swim trunks. Outerwear adds a silk robe. Each is written out in full in a sentence prompt, in every purpose ("a black balconette bra with half-cups and wide-set straps that lift and frame the bust"); tag prompts keep the short name.
+- **No nudity**: Faceless has no Intimacy step, so nudity can't be chosen; anatomy such as nipples never reaches the prompt, see-through items (sheer bra and panties, bodystocking, cage and harness bras) are not offered, and the negative prompt keeps breasts and the groin covered. Like every 18+ purpose it needs "Who" and an adult age, and is hidden for characters with an uploaded face.
+- **Surprise me** dresses the subject in a matching set: all lingerie or all swimwear, nothing under a one-piece, and only bottoms for a man.
 
 ### JSON prompt
 
