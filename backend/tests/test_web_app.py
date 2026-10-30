@@ -138,7 +138,7 @@ def test_a_broken_examples_file_is_refused(tmp_path: Path, monkeypatch: pytest.M
 def test_catalog_serves_the_prompt_builder_modes(client: TestClient) -> None:
     modes = client.get("/api/catalog").json()["builder_modes"]
 
-    assert [mode["id"] for mode in modes] == ["general", "portrait", "fashion", "influencer", "glamour", "explicit", "scene"]
+    assert [mode["id"] for mode in modes] == ["general", "portrait", "fashion", "influencer", "fitness", "glamour", "explicit", "scene"]
     assert all((mode["content"] in {"suggestive", "explicit"}) == ("intimacy" in mode["steps"]) for mode in modes)
 
 

@@ -1,3 +1,4 @@
+import { FITNESS_LIGHTING, FITNESS_PHOTO_STYLES, FITNESS_SCENES, WORKOUTS } from './fitness'
 import {
   CAMERA_ANGLES,
   COLOR_GRADINGS,
@@ -66,14 +67,14 @@ export const CHOICE_OPTIONS = {
   bulge: BULGES,
   nipples: NIPPLES,
   pubicHair: PUBIC_HAIR,
-  pose: [...POSES, ...Object.keys(EXPLICIT_POSES)],
+  pose: [...POSES, ...Object.keys(EXPLICIT_POSES), ...Object.keys(WORKOUTS)],
   explicitAction: [...Object.keys(EXPLICIT_SOLO_ACTIONS), ...Object.keys(EXPLICIT_PARTNER_ACTIONS)],
   nudity: NUDITY_LEVELS.map((level) => level.value),
-  sceneType: SCENE_TYPES,
+  sceneType: [...new Set([...SCENE_TYPES, ...Object.keys(FITNESS_SCENES)])],
   timeOfDay: TIMES_OF_DAY,
   weather: WEATHER,
-  lightingSetup: Object.keys(LIGHTING_EXPANSIONS),
-  photoStyle: PHOTO_STYLES,
+  lightingSetup: [...Object.keys(LIGHTING_EXPANSIONS), ...Object.keys(FITNESS_LIGHTING)],
+  photoStyle: [...PHOTO_STYLES, ...FITNESS_PHOTO_STYLES],
   shotType: SHOT_TYPES,
   cameraAngle: CAMERA_ANGLES,
   lens: LENSES,
