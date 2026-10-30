@@ -19,7 +19,8 @@ export function SensitiveImage({ src, sensitive, className = '', imgClassName = 
       {sensitive && (
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/20 text-xs font-medium text-white">
           <EyeOff />
-          {!compact && t('history.sensitive')}
+          {/* A compact one shows only the icon; screen readers still get the word */}
+          <span className={compact ? 'sr-only' : ''}>{t('history.sensitive')}</span>
         </span>
       )}
     </span>

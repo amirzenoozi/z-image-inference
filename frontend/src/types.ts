@@ -63,8 +63,34 @@ export interface ModelCategory {
   label: string
 }
 
+/** The image-to-video model History's images are animated with. */
+export interface VideoModelInfo {
+  id: string
+  label: string
+  download_gb: number
+  /** The lengths it can make, in seconds. */
+  lengths: number[]
+}
+
+/** A short clip made from a History image, kept beside it. */
+export interface VideoItem {
+  id: number
+  image_id: number
+  prompt: string
+  seconds: number
+  width: number
+  height: number
+  seed: number
+  /** How long rendering took. */
+  duration_seconds: number
+  /** Blurred until played, like a sensitive image. */
+  sensitive: boolean
+  created_at: string
+}
+
 export interface Catalog {
   models: ModelInfo[]
+  video: VideoModelInfo
   model_categories: ModelCategory[]
   resolutions: ResolutionInfo[]
   categories: Category[]

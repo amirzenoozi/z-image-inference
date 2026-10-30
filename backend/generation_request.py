@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, model_validator
 
 from i18n import t
-from model_catalog import ADDONS, DEFAULT_MODEL, MODELS, ModelSpec
+from model_catalog import ADDONS, DEFAULT_MODEL, MODELS, VIDEO_MODEL, ModelSpec
 
 MIN_SIDE = 256
 SIDE_STEP = 16
@@ -87,3 +87,25 @@ def check_size(width: int, height: int, spec: ModelSpec) -> None:
     for side in (width, height):
         if not MIN_SIDE <= side <= spec.max_side or side % SIDE_STEP:
             raise ValueError(t("sizeRange", step=SIDE_STEP, min_side=MIN_SIDE, max_side=spec.max_side))
+
+
+class VideoRequest(BaseModel):
+    """A clip made from one image; shared by the web app and the model server, so both enforce the same rules."""
+
+    prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
+    seconds: int
+    seed: int | None = Field(default=None, ge=0, le=MAX_SEED)
+    job_id: str | None = Field(default=None, pattern=JOB_ID_PATTERN)
+    # The start image as base64 PNG, which the web app loads from History, and the clip's size
+    image: str | None = None
+    width: int = VIDEO_MODEL.max_side
+    height: int = VIDEO_MODEL.max_side
+
+    @model_validator(mode="after")
+    def check_against_video_model(self) -> "VideoRequest":
+        if self.seconds not in VIDEO_MODEL.frames:
+            raise ValueError(t("videoLength", lengths=", ".join(map(str, VIDEO_MODEL.frames))))
+        for side in (self.width, self.height):
+            if side % 64 or not 64 <= side <= VIDEO_MODEL.max_side:
+                raise ValueError(t("videoSize", max=VIDEO_MODEL.max_side))
+        return self
