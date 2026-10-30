@@ -5,6 +5,7 @@ import type { BuilderState } from './build'
 import { NOT_SET, RANDOM } from './constants'
 import { ACCESSORIES, BOTTOMS, OUTERWEAR, SHOES, TOPS } from './data'
 import { includesMan, includesWoman } from './rules'
+import { LOUNGE_OUTERWEAR } from './faceless'
 
 export const GYM_WORKOUTS: Readonly<Record<string, string>> = {
   'barbell back squat': 'performing a barbell back squat, the bar resting across the upper back, thighs parallel to the floor, core braced',
@@ -140,7 +141,7 @@ export function outfitOptions(slot: ClothingSlot, state: Pick<BuilderState, 'who
     case 'bottom':
       return [...BOTTOMS, ...offered(FITNESS_BOTTOMS, state)]
     case 'outerwear':
-      return [...OUTERWEAR, ...FITNESS_OUTERWEAR]
+      return [...OUTERWEAR, ...FITNESS_OUTERWEAR, ...LOUNGE_OUTERWEAR]
     case 'shoes':
       return [...SHOES, ...offered(FITNESS_SHOES, state)]
   }

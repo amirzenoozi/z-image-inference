@@ -7,9 +7,10 @@ import { t } from '../../i18n'
 import { buildPrompt, emptyBuilderState, type BuilderState, type BuildResult, type OutfitState, type PromptStyle } from './build'
 import { CHOICE_OPTIONS, isChoiceField } from './choices'
 import { INHERIT_SCENE, NOT_SET, REMOVE } from './constants'
-import { CLOTHING_COLORS, LINGERIE_BOTTOMS, LINGERIE_TOPS } from './data'
+import { CLOTHING_COLORS } from './data'
 import { EXPLICIT_DETAILS, EXPLICIT_PIERCINGS, FACIAL_HAIR, INTIMACY_CUES, MAKEUP, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from './extraData'
 import { ALL_ACCESSORIES, outfitOptions, type ClothingSlot } from './fitness'
+import { ALL_INTIMATES } from './intimates'
 import type { BuilderMode } from './modes'
 import { choicesInPrompt, settleChoices } from './settle'
 
@@ -182,8 +183,8 @@ function checkSection(value: unknown, fields: Readonly<Record<string, Field>>, n
 }
 
 const wearable = (slot: GarmentSlot): readonly string[] => {
-  if (slot === 'lingerie_top') return LINGERIE_TOPS
-  if (slot === 'lingerie_bottom') return LINGERIE_BOTTOMS
+  if (slot === 'lingerie_top') return ALL_INTIMATES.lingerieTop
+  if (slot === 'lingerie_bottom') return ALL_INTIMATES.lingerieBottom
   // Everything any subject may wear; what this subject may not is left out when the prompt is written
   return outfitOptions(slot as ClothingSlot, { who: 'couple', age: CHOICE_OPTIONS.age[0] })
 }

@@ -72,6 +72,22 @@
     "weights": { "nudity": 1.2, "outfit": 1.2 }
   },
   {
+    "id": "faceless",
+    "label": "Faceless (18+)",
+    "description": "From the neck down, with the face out of frame: lingerie, underwear and swimwear described in detail, with no nudity. Needs “Who” and an adult age range.",
+    "content": "suggestive",
+    "focus": { "opening": "a faceless photograph", "cues": "Cropped below the chin so the face is never shown, with the body, posture and skin in sharp focus and every detail of the outfit's fabric, cut and fit visible, sensual and confident", "tags": ["faceless", "head out of frame", "body focus", "lingerie photography"] },
+    "steps": ["subject", "body", "outfit", "pose", "scene", "camera", "finish"],
+    "defaults": { "shotType": "neck-down shot", "photoStyle": "boudoir", "sceneType": "bedroom", "lightingSetup": "natural window light" },
+    "options": {
+      "pose": ["standing", "standing hand on hip", "standing contrapposto", "standing one leg bent", "back to camera", "sitting on edge", "kneeling", "leaning against wall", "leaning in doorway", "lying on side", "lying on back", "lying on stomach elbows up", "reclining on sofa", "hand on chest", "stretch overhead", "kneeling on the bed, back arched", "lying on the side, hip curve", "hands at the waistband", "sitting on the bed edge, legs crossed", "leaning on a doorframe", "mirror selfie, phone hiding the face", "stepping out of the shower in a towel", "adjusting a strap", "lying on the stomach, legs up", "standing in profile, back arched"],
+      "shotType": ["neck-down shot", "collarbone-to-hips crop", "hips-and-legs crop", "back view from the shoulders down", "over-the-shoulder back view"]
+    },
+    "emphasis": ["outfit", "body"],
+    "weights": { "outfit": 1.3, "body": 1.1 },
+    "negative": "face, head, eyes, lips, mouth, smile, portrait, headshot, looking at camera"
+  },
+  {
     "id": "explicit",
     "label": "Explicit (18+)",
     "description": "Every option, including explicit poses, acts and nudity. Needs “Who” and an adult age range.",

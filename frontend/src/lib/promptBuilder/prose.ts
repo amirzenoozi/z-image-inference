@@ -86,7 +86,7 @@ function hair(f: Facts): string {
 function clothing(f: Facts): string {
   const { they, are } = f.pronoun
   const only = f.nudity !== null && f.nudity !== 'clothed' ? 'only ' : ''
-  const worn = f.clothing.length ? `${they} ${are} wearing ${only}${joinPieces(f.clothing.map(withArticle))}` : ''
+  const worn = f.clothing.length ? `${they} ${are} wearing ${only}${joinPieces(f.clothing.map((item) => withArticle(item.text)))}` : ''
   const removed = f.removed.length ? `no ${joinPieces(f.removed)}` : ''
   if (worn && removed) return `${worn}, with ${removed}`
   return worn || (removed ? `${they} ${are} wearing ${removed}` : '')

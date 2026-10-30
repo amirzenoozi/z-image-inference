@@ -143,7 +143,7 @@ describe('explicit content', () => {
     const outfit = { ...emptyOutfit(), top: 'Blouse', lingerieTop: 'Lace bra', bottom: 'Denim shorts', shoes: 'High heels', accessories: ['Anklet', NOT_SET, NOT_SET] as [string, string, string] }
     expect(promptOf(adult({ mode: 'explicit', nudity: 'topless', outfit }))).toContain('She is wearing only denim shorts, high heels and an anklet.')
     expect(promptOf(adult({ mode: 'explicit', nudity: 'nude', outfit }))).toContain('She is wearing only high heels and an anklet.')
-    expect(promptOf(adult({ mode: 'explicit', nudity: 'clothed', outfit }))).toContain('She is wearing a lace bra, a blouse, denim shorts, high heels and an anklet.')
+    expect(promptOf(adult({ mode: 'explicit', nudity: 'clothed', outfit }))).toContain('She is wearing a lace bra with scalloped edges and delicate floral detail, a blouse, denim shorts, high heels and an anklet.')
   })
 
   it('describes a man and a couple with the right anatomy', () => {

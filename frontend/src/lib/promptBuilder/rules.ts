@@ -1,6 +1,7 @@
 import type { BuilderState } from './build'
 import { CHOICE_OPTIONS, type ChoiceField } from './choices'
 import { EXPLICIT_PARTNER_ACTIONS, EXPLICIT_POSES, EXPLICIT_SOLO_ACTIONS, POSES } from './data'
+import { FACELESS_POSES } from './faceless'
 import { workoutPoses } from './fitness'
 import { EXPLICIT_DETAILS, type DetailNeeds, type Nudity } from './extraData'
 import { allowsExplicitActs, isAdultMode, showsStep, type BuilderMode } from './modes'
@@ -24,8 +25,9 @@ const WOMAN_ONLY = new Set([
 
 const fitsWho = (who: string) => (option: string) => includesWoman(who) || !WOMAN_ONLY.has(option)
 
-export function poseOptions(explicit: boolean, state: Pick<BuilderState, 'who' | 'age'>): string[] {
-  const everyday = [...POSES, ...workoutPoses(state)]
+/** `adult`: an 18+ purpose, which also offers the faceless, body-led poses. */
+export function poseOptions(explicit: boolean, state: Pick<BuilderState, 'who' | 'age'>, adult = false): string[] {
+  const everyday = [...POSES, ...workoutPoses(state), ...(adult ? Object.keys(FACELESS_POSES) : [])]
   return explicit ? [...everyday, ...Object.keys(EXPLICIT_POSES).filter(fitsWho(state.who))] : everyday
 }
 
@@ -62,7 +64,7 @@ function nudityOptions(mode: BuilderMode): string[] {
 
 function fittingOptions(field: ChoiceField, state: BuilderState, mode: BuilderMode): string[] {
   const explicit = allowsExplicitActs(mode)
-  if (field === 'pose') return poseOptions(explicit, state)
+  if (field === 'pose') return poseOptions(explicit, state, isAdultMode(mode))
   if (field === 'explicitAction') return explicit ? [...soloActions(state.who, state.nudity), ...partnerActions(state.who, state.nudity)] : []
   if (field === 'nudity') return nudityOptions(mode)
   return bodyOptions(field, state, mode) ?? maleOptions(field, state, mode) ?? [...CHOICE_OPTIONS[field]]
@@ -77,7 +79,7 @@ function bodyOptions(field: ChoiceField, state: BuilderState, mode: BuilderMode)
   if (field === 'bust') return includesWoman(state.who) ? [...CHOICE_OPTIONS.bust] : []
   if (field === 'penis') return explicit && includesMan(state.who) ? [...CHOICE_OPTIONS.penis] : []
   if (field === 'pubicHair') return explicit ? [...CHOICE_OPTIONS.pubicHair] : []
-  if (field === 'nipples') return isAdultMode(mode) && includesWoman(state.who) ? [...CHOICE_OPTIONS.nipples] : []
+  if (field === 'nipples') return isAdultMode(mode) && showsIntimacy(mode) && includesWoman(state.who) ? [...CHOICE_OPTIONS.nipples] : []
   return undefined
 }
 

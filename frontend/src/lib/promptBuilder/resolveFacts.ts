@@ -1,15 +1,7 @@
 import type { BuilderState, OutfitState } from './build'
 import type { ChoiceField } from './choices'
 import { INHERIT_SCENE, NOT_SET, REMOVE } from './constants'
-import {
-  CLOTHING_COLORS,
-  EXPLICIT_PARTNER_ACTIONS,
-  EXPLICIT_POSES,
-  EXPLICIT_SOLO_ACTIONS,
-  LIGHTING_EXPANSIONS,
-  LINGERIE_BOTTOMS,
-  LINGERIE_TOPS,
-} from './data'
+import { CLOTHING_COLORS, EXPLICIT_PARTNER_ACTIONS, EXPLICIT_POSES, EXPLICIT_SOLO_ACTIONS, LIGHTING_EXPANSIONS } from './data'
 import { WHO_OPTIONS, type Nudity, type Who } from './extraData'
 import { pronounFor, withArticle, type Facts, type Labelled, type Pronoun } from './facts'
 import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
@@ -17,7 +9,9 @@ import { resolve } from './random'
 import { anatomyShows, choicesFor, explicitDetailOptions, includesMan, includesWoman } from './rules'
 import { picksOf, type MultiChoice } from './multiChoice'
 import { settleChoices } from './settle'
+import { FACELESS_POSES, FACELESS_SHOTS } from './faceless'
 import { ALL_ACCESSORIES, CONDITIONAL_CLOTHING, FITNESS_LIGHTING, FITNESS_SCENES, WORKOUTS, outfitOptions } from './fitness'
+import { CONDITIONAL_INTIMATES, GARMENT_DETAILS, intimateOptions } from './intimates'
 
 const EXPLICIT_ACTIONS: Readonly<Record<string, string>> = { ...EXPLICIT_SOLO_ACTIONS, ...EXPLICIT_PARTNER_ACTIONS }
 const isSet = (value: string) => value !== NOT_SET
@@ -49,7 +43,7 @@ function poseFacts(state: BuilderState, mode: BuilderMode, choose: Choose): Labe
   const chosen = choose('pose', state.pose)
   const label = choicesFor('pose', state, mode).includes(chosen) ? chosen : NOT_SET
   const text = EXPLICIT_POSES[label]
-  return { label, text: text ?? WORKOUTS[label] ?? label, explicit: text !== undefined }
+  return { label, text: text ?? WORKOUTS[label] ?? FACELESS_POSES[label] ?? label, explicit: text !== undefined }
 }
 
 /** A pose or act kept from an earlier "Who", nudity level or mode that no longer fits is left out rather than contradicting it. */
@@ -68,8 +62,8 @@ function nudityFacts(state: BuilderState, mode: BuilderMode): Nudity | null {
 type Wearer = Pick<BuilderState, 'who' | 'age'>
 
 const OUTFIT_SLOTS = [
-  { label: 'lingerie top', item: 'lingerieTop', color: 'lingerieTopColor', options: () => LINGERIE_TOPS },
-  { label: 'lingerie bottom', item: 'lingerieBottom', color: 'lingerieBottomColor', options: () => LINGERIE_BOTTOMS },
+  { label: 'lingerie top', item: 'lingerieTop', color: 'lingerieTopColor', options: (wearer: Wearer, mode: BuilderMode) => intimateOptions('lingerieTop', wearer, mode) },
+  { label: 'lingerie bottom', item: 'lingerieBottom', color: 'lingerieBottomColor', options: (wearer: Wearer, mode: BuilderMode) => intimateOptions('lingerieBottom', wearer, mode) },
   { label: 'top', item: 'top', color: 'topColor', options: (wearer: Wearer) => outfitOptions('top', wearer) },
   { label: 'bottom', item: 'bottom', color: 'bottomColor', options: (wearer: Wearer) => outfitOptions('bottom', wearer) },
   { label: 'outerwear', item: 'outerwear', color: 'outerwearColor', options: (wearer: Wearer) => outfitOptions('outerwear', wearer) },
@@ -88,28 +82,41 @@ const WORN_WITH: Record<Nudity, ReadonlySet<OutfitSlot>> = {
 
 const LINGERIE_SLOTS: ReadonlySet<OutfitSlot> = new Set(['lingerieTop', 'lingerieBottom'])
 
-/** A fitness garment no longer offered (a spicy cut once "Who" or the age is cleared) is left out; anything else is kept. */
-function wornItem(outfit: OutfitState, slot: (typeof OUTFIT_SLOTS)[number], wearer: Wearer, seed: number): string {
-  const options: readonly string[] = slot.options(wearer)
+const isConditional = (item: string) => CONDITIONAL_CLOTHING.has(item) || CONDITIONAL_INTIMATES.has(item)
+
+/**
+ * A garment no longer offered (a spicy cut once "Who" or the age is cleared, swimwear for someone it isn't cut for,
+ * a see-through item where nudity can't be chosen) is left out; anything else is kept.
+ */
+function wornItem(outfit: OutfitState, slot: (typeof OUTFIT_SLOTS)[number], wearer: Wearer, mode: BuilderMode, seed: number): string {
+  const options: readonly string[] = slot.options(wearer, mode)
   const item = resolve(outfit[slot.item], options, seed, slot.item)
-  return CONDITIONAL_CLOTHING.has(item) && !options.includes(item) ? NOT_SET : item
+  return isConditional(item) && !options.includes(item) ? NOT_SET : item
 }
 
-function outfitFacts(state: BuilderState, nudity: Nudity | null, seed: number, safe: boolean): { clothing: string[]; removed: string[] } {
+/** "black lace bra", and in full, "black lace bra with scalloped edges and delicate floral detail". */
+function garment(item: string, color: string): Labelled {
+  const prefix = color ? `${color} ` : ''
+  return { label: `${prefix}${item.toLowerCase()}`, text: `${prefix}${GARMENT_DETAILS[item] ?? item.toLowerCase()}` }
+}
+
+function outfitFacts(state: BuilderState, mode: BuilderMode, nudity: Nudity | null, seed: number): { clothing: Labelled[]; removed: string[] } {
   const { outfit } = state
-  const clothing: string[] = []
+  const safe = isSafeMode(mode)
+  const clothing: Labelled[] = []
   const removed: string[] = []
   for (const slot of OUTFIT_SLOTS.filter((candidate) => !safe || !LINGERIE_SLOTS.has(candidate.item))) {
-    const item = wornItem(outfit, slot, state, seed)
+    const item = wornItem(outfit, slot, state, mode, seed)
     const color = resolve(outfit[slot.color], CLOTHING_COLORS, seed, slot.color)
     const worn = nudity === null || WORN_WITH[nudity].has(slot.item)
     // Bare feet have no colour
     const coloured = isSet(color) && item !== BAREFOOT
     if (item === REMOVE) removed.push(slot.label)
-    else if (isSet(item) && worn) clothing.push(coloured ? `${color} ${item.toLowerCase()}` : item.toLowerCase())
+    else if (isSet(item) && worn) clothing.push(garment(item, coloured ? color : ''))
   }
   const accessories = outfit.accessories.map((item, index) => resolve(item, ALL_ACCESSORIES, seed, `accessory${index}`).toLowerCase())
-  return { clothing: [...clothing, ...new Set(accessories.filter(isSet))], removed }
+  const worn = [...new Set(accessories.filter(isSet))].map((item) => ({ label: item, text: item }))
+  return { clothing: [...clothing, ...worn], removed }
 }
 
 const PREPOSITIONS = ['in ', 'at ', 'on ', 'near ', 'by ', 'inside ', 'outside ', 'under ', 'above ', 'along ', 'within ']
@@ -126,6 +133,8 @@ function lightingOf(setup: string, sceneType: string): Labelled {
   return isSet(sceneType) ? { label: `${sceneType} lighting`, text: `the natural light of the ${sceneType} setting` } : NOTHING
 }
 
+const shotText = (shot: string) => FACELESS_SHOTS[shot] ?? shot
+
 /** "razor thin f/1.4" → "razor thin depth of field at f/1.4". */
 function depthOfField(value: string): string {
   if (!isSet(value)) return ''
@@ -133,10 +142,13 @@ function depthOfField(value: string): string {
   return `${words.slice(0, -1).join(' ')} depth of field at ${words[words.length - 1]}`
 }
 
-/** A choice that no longer fits the subject or nudity (kept from earlier) is left out rather than contradicting them. */
-function anatomyFacts(state: BuilderState, mode: BuilderMode) {
+/**
+ * A choice that no longer fits the subject or nudity (kept from earlier) is left out rather than contradicting them.
+ * Without nudity in the prompt (a purpose that can't choose it), nothing shows.
+ */
+function anatomyFacts(state: BuilderState, mode: BuilderMode, nudity: Nudity | null) {
   const fitting = (field: 'penis' | 'nipples' | 'pubicHair') =>
-    choicesFor(field, state, mode).includes(state[field]) && anatomyShows(field, state.nudity) ? state[field] : NOT_SET
+    choicesFor(field, state, mode).includes(state[field]) && nudity !== null && anatomyShows(field, nudity) ? state[field] : NOT_SET
   return { penis: fitting('penis'), nipples: fitting('nipples'), pubicHair: fitting('pubicHair') }
 }
 
@@ -193,7 +205,7 @@ function settingFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
     lighting: chooseAll(state, mode, choose, 'lightingSetup').map((setup) => lightingOf(setup, sceneType)).filter((light) => light.text),
     lightingCustom: state.lightingCustom.trim(),
     photoStyle: choose('photoStyle', state.photoStyle),
-    shot: choose('shotType', state.shotType),
+    shot: shotText(choose('shotType', state.shotType)),
     angle: choose('cameraAngle', state.cameraAngle),
     lens: choose('lens', state.lens),
     depthOfField: depthOfField(choose('depthOfField', state.depthOfField)),
@@ -267,10 +279,10 @@ export function resolveFacts(state: BuilderState, mode: BuilderMode): Facts {
     nudity,
     intimacy: nudity === null ? [] : state.intimacy,
     explicitDetails: settled.explicitDetails.filter((detail) => explicitDetailOptions(settled, mode).includes(detail)),
-    anatomy: anatomyFacts(settled, mode),
+    anatomy: anatomyFacts(settled, mode, nudity),
     ...buildFacts(settled, mode, nudity),
     ...personFacts(settled, mode, choose),
-    ...outfitFacts(settled, nudity, seed, isSafeMode(mode)),
+    ...outfitFacts(settled, mode, nudity, seed),
     outfitDetails: state.outfit.details.trim(),
     ...setting,
     // A scene without people names its place in the opening sentence, so the scene sentence leaves it out

@@ -5,8 +5,9 @@ import { t } from '../../i18n'
 import type { ModelInfo } from '../../types'
 import { CHOICE_OPTIONS, TEXT_CHOICES, type TextChoice } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
-import { CLOTHING_COLORS, LIGHTING_EXPANSIONS, LINGERIE_BOTTOMS, LINGERIE_TOPS } from './data'
+import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from './data'
 import { fitnessClothing, isWorkoutFocused, outfitOptions } from './fitness'
+import { intimateSet } from './intimates'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
 import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { negativePrompt } from './negatives'
@@ -216,8 +217,7 @@ function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): Bu
     bust: p(choicesFor('bust', state, mode), 'bust'),
     outfit: {
       ...state.outfit,
-      lingerieTop: p(LINGERIE_TOPS, 'lingerieTop'), lingerieTopColor: p(CLOTHING_COLORS, 'lingerieColor'),
-      lingerieBottom: p(LINGERIE_BOTTOMS, 'lingerieBottom'), lingerieBottomColor: p(CLOTHING_COLORS, 'lingerieColor'),
+      ...intimateSet(state, mode, seed), lingerieTopColor: p(CLOTHING_COLORS, 'lingerieColor'), lingerieBottomColor: p(CLOTHING_COLORS, 'lingerieColor'),
     },
   }
 }

@@ -44,6 +44,8 @@ export interface BuilderMode {
   options: Partial<Record<ChoiceField, string[]>>
   emphasis: ProseBlock[]
   weights: Partial<Record<WeightGroup, number>>
+  /** Added to every negative prompt of the purpose, such as the face for a faceless one. */
+  negative: string
 }
 
 /** Used when prompt_modes.json has no valid mode: every everyday step, nothing adult. */
@@ -58,6 +60,7 @@ export const FALLBACK_MODE: BuilderMode = {
   options: {},
   emphasis: [],
   weights: {},
+  negative: '',
 }
 
 /**
@@ -139,7 +142,7 @@ export function parseModes(raw: readonly BuilderModeData[]): { modes: BuilderMod
   for (const data of raw) {
     const found = [...stepProblems(data), ...optionProblems(data), ...writingProblems(data)]
     if (found.length) problems.push(t('builder.problemModeLeftOut', { id: data.id, problems: found.join('; ') }))
-    else modes.push({ ...data, focus: { ...NO_FOCUS, ...data.focus } } as BuilderMode)
+    else modes.push({ ...data, focus: { ...NO_FOCUS, ...data.focus }, negative: data.negative ?? '' } as BuilderMode)
   }
   return modes.length ? { modes, problems } : { modes: [FALLBACK_MODE], problems }
 }

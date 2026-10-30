@@ -4,6 +4,8 @@ import { CHOICE_OPTIONS, TEXT_CHOICES } from './choices'
 import * as data from './data'
 import * as extraData from './extraData'
 import { ALL_ACCESSORIES, ALL_FITNESS_OPTIONS, outfitOptions } from './fitness'
+import { LOUNGE_OUTERWEAR } from './faceless'
+import { ALL_INTIMATES } from './intimates'
 
 const isStringList = (value: unknown): value is readonly string[] => Array.isArray(value) && value.every((item) => typeof item === 'string')
 const isStringRecord = (value: unknown): value is Readonly<Record<string, string>> =>
@@ -16,7 +18,7 @@ function allOptionValues(): string[] {
     return isStringRecord(value) ? Object.keys(value) : []
   })
   // The explicit details are a table of wording and tags, keyed by the option; the fitness options are offered by subject
-  return [...new Set([...values, ...Object.keys(extraData.EXPLICIT_DETAILS), ...TEXT_CHOICES.flatMap((field) => CHOICE_OPTIONS[field]), ...ALL_FITNESS_OPTIONS])].sort()
+  return [...new Set([...values, ...Object.keys(extraData.EXPLICIT_DETAILS), ...TEXT_CHOICES.flatMap((field) => CHOICE_OPTIONS[field]), ...ALL_FITNESS_OPTIONS, ...Object.values(ALL_INTIMATES).flat(), ...LOUNGE_OUTERWEAR])].sort()
 }
 
 it('gives every prompt builder option a label in en/options.json', () => {
@@ -38,7 +40,8 @@ function menus(): [string, readonly string[]][] {
   // The outfit menus with every fitness garment in them, as an adult couple sees them
   const wearer = { who: 'couple', age: 'late 20s' }
   const outfit = (['top', 'bottom', 'outerwear', 'shoes'] as const).map((slot): [string, readonly string[]] => [slot, outfitOptions(slot, wearer)])
-  return [...lists, ...choices, ...outfit, ['accessories', ALL_ACCESSORIES]]
+  const intimates = Object.entries(ALL_INTIMATES)
+  return [...lists, ...choices, ...outfit, ...intimates, ['accessories', ALL_ACCESSORIES]]
 }
 
 it.each(Object.keys(TRANSLATED).map((path) => path.split('/').at(-2) ?? path))('gives the options of one menu different labels in %s', (language) => {

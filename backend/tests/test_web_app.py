@@ -138,8 +138,10 @@ def test_a_broken_examples_file_is_refused(tmp_path: Path, monkeypatch: pytest.M
 def test_catalog_serves_the_prompt_builder_modes(client: TestClient) -> None:
     modes = client.get("/api/catalog").json()["builder_modes"]
 
-    assert [mode["id"] for mode in modes] == ["general", "portrait", "fashion", "influencer", "fitness", "glamour", "explicit", "scene"]
-    assert all((mode["content"] in {"suggestive", "explicit"}) == ("intimacy" in mode["steps"]) for mode in modes)
+    assert [mode["id"] for mode in modes] == ["general", "portrait", "fashion", "influencer", "fitness", "glamour", "faceless", "explicit", "scene"]
+    # Every purpose with the Intimacy step is 18+; Faceless is 18+ without it, so it can't choose nudity
+    assert all(mode["content"] in {"suggestive", "explicit"} for mode in modes if "intimacy" in mode["steps"])
+    assert {mode["id"] for mode in modes if mode["content"] in {"suggestive", "explicit"} and "intimacy" not in mode["steps"]} == {"faceless"}
 
 
 GENERAL_MODE = {"id": "general", "label": "General", "steps": ["subject"]}

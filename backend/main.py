@@ -170,6 +170,8 @@ class BuilderMode(BaseModel):
     options: dict[str, list[str]] = {}
     emphasis: list[str] = []
     weights: dict[str, Annotated[float, Field(ge=0.5, le=2)]] = {}
+    # Added to every negative prompt of the purpose, such as the face for a faceless one
+    negative: Annotated[str, StringConstraints(max_length=500)] = ""
 
 
 PROMPT_MODES = TypeAdapter(list[BuilderMode])

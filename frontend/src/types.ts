@@ -115,6 +115,7 @@ export interface BuilderModeData {
   options: Record<string, string[]>
   emphasis: string[]
   weights: Record<string, number>
+  negative?: string
 }
 
 export type ModelStatus = 'ready' | 'queued' | 'downloading' | 'missing' | 'failed'

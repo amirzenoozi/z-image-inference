@@ -61,7 +61,8 @@ export interface Facts {
   /** A man's beard, and his chest and bulge when they show. */
   male: { facialHair: string[]; chest: string; bulge: string }
   /** Garments and accessories still worn after the nudity level, lower-case, with their colours. */
-  clothing: string[]
+  /** Each garment as a short name for tags and in full for sentences, with its colour. */
+  clothing: Labelled[]
   removed: string[]
   outfitDetails: string
   /** Where the scene is, with its preposition: "in a bedroom setting", "on a sunny beach". */
