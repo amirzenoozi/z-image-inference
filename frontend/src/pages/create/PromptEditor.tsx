@@ -2,15 +2,15 @@ import { useMemo, useState } from 'react'
 import { useCharacter } from '../../lib/characters'
 import type { BuilderModeData, GenerationSettings, Limits, ModelInfo } from '../../types'
 import { isModEnter } from '../../lib/keyboard'
-import { writtenPrompt } from '../../lib/characterPrompt'
-import { secondaryButtonClass } from '../../lib/styles'
+import { writtenPrompt, type SentPrompt } from '../../lib/characterPrompt'
+import { secondaryButtonClass, tabClass } from '../../lib/styles'
 import { Textarea } from '../../shared/form/Textarea'
 import { withoutSafeForWorkTerms, type BuilderState } from '../../lib/promptBuilder/build'
-import { parseModes } from '../../lib/promptBuilder/modes'
-import { parseSpec, specText, stateFromSpec, type PromptSpec } from '../../lib/promptBuilder/spec'
+import { modesForCharacter, parseModes } from '../../lib/promptBuilder/modes'
+import { parseSpec, specFromText, specText, stateFromSpec, type PromptSpec } from '../../lib/promptBuilder/spec'
 import { PromptBuilderDialog, type InsertMode } from '../../shared/promptBuilder/PromptBuilderDialog'
 import { WandSparkles } from 'lucide-react'
-import { t } from '../../i18n'
+import { t, type MessageKey } from '../../i18n'
 
 type PromptPatch = Partial<Pick<GenerationSettings, 'prompt' | 'promptFormat' | 'negativePrompt' | 'characterId' | 'lookIncluded'>>
 
@@ -39,10 +39,10 @@ type BuilderOpen = { initialState?: BuilderState } | null
 
 export function PromptEditor({ settings, model, limits, builderModes, locked, onChange, onSubmit }: Props) {
   const [builder, setBuilder] = useState<BuilderOpen>(null)
+  const [view, setView] = useState<PromptView>('json')
   const character = useCharacter(settings.characterId)
   const modes = useMemo(() => parseModes(builderModes).modes, [builderModes])
   const written = writtenPrompt(settings, character, model, modes)
-  const isJson = settings.promptFormat === 'json'
   const insertBuilt = (prompt: string, negativePrompt: string, insert: InsertMode, explicit: boolean, spec: PromptSpec) => {
     // An existing "nsfw" negative would work against the explicit prompt being added
     const existingNegative = explicit ? withoutSafeForWorkTerms(settings.negativePrompt) : settings.negativePrompt
@@ -50,6 +50,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
     const lookIncluded = character?.id ?? null
     // Added to a prompt, the result is text; on its own it stays JSON, so it can be changed and written for any model
     const current = written.status === 'ready' ? written.prompt : ''
+    setView('json')
     onChange(
       insert === 'replace'
         ? { prompt: specText(spec), promptFormat: 'json', negativePrompt, lookIncluded }
@@ -59,6 +60,12 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
   const openInBuilder = () => {
     const parsed = parseSpec(settings.prompt)
     if (parsed.ok) setBuilder({ initialState: stateFromSpec(parsed.spec) })
+  }
+  const showView = (next: PromptView) => {
+    setView(next)
+    // A typed prompt becomes JSON whole, as the subject, in the first purpose open to the subject
+    const typedToJson = next === 'json' && settings.promptFormat === 'text'
+    if (typedToJson) onChange({ prompt: specText(specFromText(settings.prompt, modesForCharacter(modes, character)[0].id)), promptFormat: 'json' })
   }
   return (
     <div className="space-y-3">
@@ -83,53 +90,125 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
           onConfirm={insertBuilt}
         />
       )}
-      <div>
-        <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-          {t(isJson ? 'create.promptJsonLabel' : 'create.promptLabel')}
-        </label>
-        <Textarea
-          id="prompt"
-          rows={isJson ? 14 : 6}
-          // A JSON prompt is longer than the text written from it, which is what the limit is for
-          maxLength={isJson ? undefined : limits.max_prompt_length}
-          spellCheck={!isJson}
-          value={settings.prompt}
-          readOnly={locked}
-          aria-readonly={locked}
-          onChange={(event) => onChange(typedPrompt(event.target.value))}
-          onKeyDown={(event) => {
-            if (isModEnter(event)) {
-              event.preventDefault()
-              onSubmit()
-            }
-          }}
-          placeholder={t('create.promptPlaceholder')}
-          className={`mt-1 min-h-36 ${isJson ? 'font-mono text-xs' : ''}`}
-        />
-        <p className="mt-1 flex justify-between text-[11px] text-zinc-400">
-          <span>{promptHint(model, isJson)}</span>
-          <span className="tabular-nums">
-            {written.status === 'ready' ? written.prompt.length : settings.prompt.length}/{limits.max_prompt_length}
-          </span>
-        </p>
-        {isJson && (
-          <JsonPromptTools
-            problem={written.status === 'problem' ? written.reason : null}
-            locked={locked}
-            onEdit={openInBuilder}
-            onConvert={() => written.status === 'ready' && onChange({ prompt: written.prompt, promptFormat: 'text' })}
-          />
-        )}
-        <ExampleCards examples={model.examples} disabled={locked} onPick={(prompt) => onChange({ prompt, promptFormat: 'text', lookIncluded: null })} />
-      </div>
+      <PromptBox
+        settings={settings}
+        model={model}
+        limits={limits}
+        written={written}
+        shown={settings.promptFormat === 'json' ? view : 'text'}
+        locked={locked}
+        onView={showView}
+        onChange={onChange}
+        onSubmit={onSubmit}
+        onEdit={openInBuilder}
+      />
+      <ExampleCards examples={model.examples} disabled={locked} onPick={(prompt) => onChange({ prompt, promptFormat: 'text', lookIncluded: null })} />
       {model.uses_guidance && <NegativePrompt value={settings.negativePrompt} model={model} locked={locked} onChange={onChange} />}
     </div>
   )
 }
 
-function promptHint(model: ModelInfo, isJson: boolean): string {
-  if (isJson) return t('create.jsonHint')
+type PromptView = 'json' | 'text'
+
+interface PromptBoxProps {
+  settings: GenerationSettings
+  model: ModelInfo
+  limits: Limits
+  written: SentPrompt
+  /** What the box shows: the JSON prompt, or the text, typed or written from the JSON (then read-only). */
+  shown: PromptView
+  locked: boolean
+  onView: (view: PromptView) => void
+  onChange: (patch: PromptPatch) => void
+  onSubmit: () => void
+  onEdit: () => void
+}
+
+function PromptBox({ settings, model, limits, written, shown, locked, onView, onChange, onSubmit, onEdit }: PromptBoxProps) {
+  const isJson = settings.promptFormat === 'json'
+  const showsJson = shown === 'json'
+  // The text written from a JSON prompt follows the JSON, so it is only read
+  const writtenOnly = isJson && !showsJson
+  const readyText = written.status === 'ready' ? written.prompt : ''
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="prompt" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+          {t(promptLabelKey(isJson, showsJson))}
+        </label>
+        <PromptViewSwitch shown={shown} canShowJson={settings.prompt.trim() !== '' && (isJson || !locked)} onView={onView} />
+      </div>
+      <Textarea
+        id="prompt"
+        rows={showsJson ? 14 : 6}
+        // A JSON prompt is longer than the text written from it, which is what the limit is for
+        maxLength={showsJson ? undefined : limits.max_prompt_length}
+        spellCheck={!showsJson}
+        value={writtenOnly ? readyText : settings.prompt}
+        readOnly={locked || writtenOnly}
+        aria-readonly={locked || writtenOnly}
+        onChange={(event) => onChange(typedPrompt(event.target.value))}
+        onKeyDown={(event) => {
+          if (isModEnter(event)) {
+            event.preventDefault()
+            onSubmit()
+          }
+        }}
+        placeholder={t('create.promptPlaceholder')}
+        className={`mt-1 min-h-36 ${showsJson ? 'font-mono text-xs' : ''}`}
+      />
+      <p className="mt-1 flex justify-between text-[11px] text-zinc-400">
+        <span>{promptHint(model, isJson, showsJson)}</span>
+        <span className="tabular-nums">
+          {readyText.length}/{limits.max_prompt_length}
+        </span>
+      </p>
+      {isJson && <JsonPromptTools problem={written.status === 'problem' ? written.reason : null} locked={locked} onEdit={onEdit} />}
+    </div>
+  )
+}
+
+function promptLabelKey(isJson: boolean, showsJson: boolean): MessageKey {
+  if (showsJson) return 'create.promptJsonLabel'
+  return isJson ? 'create.promptTextLabel' : 'create.promptLabel'
+}
+
+function promptHint(model: ModelInfo, isJson: boolean, showsJson: boolean): string {
+  if (showsJson) return t('create.jsonHint')
+  if (isJson) return t('create.jsonTextHint', { model: model.label })
   return model.trigger_word ? t('create.triggerWordAdded', { word: model.trigger_word }) : t('create.modEnterHint')
+}
+
+interface PromptViewSwitchProps {
+  shown: PromptView
+  /** An empty prompt has nothing to show as JSON, and a typed one isn't turned into JSON while it renders. */
+  canShowJson: boolean
+  onView: (view: PromptView) => void
+}
+
+/** Shows the prompt as JSON or as text; a typed prompt becomes JSON the first time, and the JSON is kept from then on. */
+function PromptViewSwitch({ shown, canShowJson, onView }: PromptViewSwitchProps) {
+  const views: { id: PromptView; label: string; enabled: boolean }[] = [
+    { id: 'json', label: t('create.viewJson'), enabled: canShowJson },
+    { id: 'text', label: t('create.viewText'), enabled: true },
+  ]
+  return (
+    <div role="radiogroup" aria-label={t('create.promptView')} className="flex gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800/70">
+      {views.map(({ id, label, enabled }) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={shown === id}
+          disabled={!enabled}
+          onClick={() => onView(id)}
+          className={`rounded-md px-2.5 py-0.5 font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${tabClass(shown === id)}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 interface JsonPromptToolsProps {
@@ -137,12 +216,10 @@ interface JsonPromptToolsProps {
   problem: string | null
   locked: boolean
   onEdit: () => void
-  onConvert: () => void
 }
 
-/** Opens a JSON prompt in the builder, or turns it into text for the selected model, for good. */
-function JsonPromptTools({ problem, locked, onEdit, onConvert }: JsonPromptToolsProps) {
-  const disabled = locked || problem !== null
+/** Says what is wrong with a JSON prompt, and opens it in the builder. */
+function JsonPromptTools({ problem, locked, onEdit }: JsonPromptToolsProps) {
   return (
     <div className="mt-2 space-y-2">
       {problem && (
@@ -150,14 +227,9 @@ function JsonPromptTools({ problem, locked, onEdit, onConvert }: JsonPromptTools
           {problem}
         </p>
       )}
-      <div className="flex gap-2 max-sm:flex-col">
-        <button type="button" onClick={onEdit} disabled={disabled} className={`${secondaryButtonClass} disabled:opacity-50`}>
-          {t('create.editInBuilder')}
-        </button>
-        <button type="button" onClick={onConvert} disabled={disabled} className={`${secondaryButtonClass} disabled:opacity-50`}>
-          {t('create.convertToText')}
-        </button>
-      </div>
+      <button type="button" onClick={onEdit} disabled={locked || problem !== null} className={`${secondaryButtonClass} disabled:opacity-50 max-sm:w-full`}>
+        {t('create.editInBuilder')}
+      </button>
     </div>
   )
 }
