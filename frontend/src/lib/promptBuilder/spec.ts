@@ -242,6 +242,11 @@ export function parseSpec(text: string): ParsedSpec {
 
 export const specText = (spec: PromptSpec): string => JSON.stringify(spec, null, 2)
 
+/** A prompt typed as text, as a JSON prompt: the whole text is the subject, as the builder writes free text on its own. */
+export function specFromText(text: string, purpose: string): PromptSpec {
+  return { version: SPEC_VERSION, purpose, subject: { description: text.trim() } }
+}
+
 /** The JSON prompt written for a model, with the same rules as the builder; `modes` are the purposes open to the subject. */
 export function promptFromSpec(spec: PromptSpec, modes: readonly BuilderMode[], style: PromptStyle): BuildResult {
   const mode = modes.find((candidate) => candidate.id === spec.purpose)

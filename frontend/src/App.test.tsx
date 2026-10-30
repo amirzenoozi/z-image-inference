@@ -157,14 +157,28 @@ async function buildPromptFor(who: string) {
 
 const jsonPrompt = () => screen.getByLabelText('Prompt (JSON)') as HTMLTextAreaElement
 
-it('turns a JSON prompt into text for the selected model, for good', async () => {
+it('shows a JSON prompt as the text written for the selected model, and back, keeping the JSON', async () => {
   render(<App />)
   await buildPromptFor('Man')
+  const json = jsonPrompt().value
 
-  await userEvent.click(screen.getByRole('button', { name: 'Convert to text' }))
+  await userEvent.click(screen.getByRole('radio', { name: 'Text' }))
+  expect(screen.getByLabelText('Prompt (text)')).toHaveValue('A photograph of an adult man.')
+  expect(screen.getByLabelText('Prompt (text)')).toHaveAttribute('readonly')
 
-  expect(screen.getByLabelText('Prompt')).toHaveValue('A photograph of an adult man.')
-  expect(screen.queryByRole('button', { name: 'Convert to text' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('radio', { name: 'JSON' }))
+  expect(jsonPrompt()).toHaveValue(json)
+})
+
+it('turns a typed prompt into JSON, with the text as the subject', async () => {
+  render(<App />)
+  expect(await screen.findByRole('radio', { name: 'JSON' })).toBeDisabled()
+  await userEvent.type(screen.getByLabelText('Prompt'), 'a red fox')
+
+  await userEvent.click(screen.getByRole('radio', { name: 'JSON' }))
+  expect(JSON.parse(jsonPrompt().value)).toEqual({ version: 1, purpose: 'general', subject: { description: 'a red fox' } })
+  await userEvent.click(screen.getByRole('radio', { name: 'Text' }))
+  expect(screen.getByLabelText('Prompt (text)')).toHaveValue('A photograph of a red fox.')
 })
 
 it('opens a changed JSON prompt in the builder with its choices', async () => {
@@ -186,7 +200,7 @@ it('says what is wrong with a JSON prompt and does not generate it', async () =>
   fireEvent.change(jsonPrompt(), { target: { value: jsonPrompt().value.replace('"man"', '"robot"') } })
 
   expect(screen.getByRole('alert')).toHaveTextContent('"robot" is not an option for subject.who.')
-  expect(screen.getByRole('button', { name: 'Convert to text' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Edit in builder' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true')
   await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
   expect(api.generateImage).not.toHaveBeenCalled()
