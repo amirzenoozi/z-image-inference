@@ -43,5 +43,11 @@
   "needsHfToken": "{label} is gated on Hugging Face: accept its licence on the model page, then add HF_TOKEN=<your token> to .env and restart the model server.",
   "needsCivitaiToken": "{label} is downloaded from Civitai, which needs an API key: create one under Account settings → API Keys on civitai.com, add CIVITAI_TOKEN=<your key> to .env and restart the model server.",
   "unknownAddon": "{label} has no add-on called {addon}.",
-  "addonTwice": "Each add-on can be switched on only once."
+  "addonTwice": "Each add-on can be switched on only once.",
+  "videoLength": "A video can be {lengths} seconds long.",
+  "videoSize": "A video’s sides must be multiples of 64, up to {max} pixels.",
+  "videoNeedsTools": "Videos need {tools} on this Mac. Install them with Homebrew (brew install {tools}), then try again.",
+  "videoNeedsImage": "A video needs the image to start from.",
+  "videoFailed": "The video could not be made: {detail}",
+  "videoNotFound": "Video not found."
 }
