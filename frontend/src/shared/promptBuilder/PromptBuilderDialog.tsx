@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
-import { FALLBACK_MODE, isAdultMode, modeLabel, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
+import { modeLabel, modesForCharacter, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
+import { specFromState, type PromptSpec } from '../../lib/promptBuilder/spec'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../lib/styles'
 import { withTraits } from '../../lib/promptBuilder/character'
@@ -38,13 +39,6 @@ const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 // A chosen character fixes these steps, so one Character step shows its look in their place
 const CHARACTER_STEPS: ReadonlySet<StepId> = new Set(['appearance', 'body'])
 
-/** A character with an uploaded face photo is kept safe for work, so the 18+ purposes are not offered for it. */
-function modesFor(modes: BuilderMode[], character: Character | null): BuilderMode[] {
-  if (!character?.face_uploaded) return modes
-  const everyday = modes.filter((mode) => !isAdultMode(mode))
-  return everyday.length ? everyday : [FALLBACK_MODE]
-}
-
 function stepsFor(mode: BuilderMode, character: Character | null): Step[] {
   const shown = STEPS.filter((step) => mode.steps.includes(step.id))
   if (!character) return shown
@@ -61,30 +55,33 @@ interface Props {
   hasExistingPrompt: boolean
   maxPromptLength: number
   onClose: () => void
-  /** `explicit` says the prompt has explicit content, so the editor can drop negatives such as "nsfw" that fight it. */
-  onConfirm: (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean) => void
+  /** Choices to start from instead of the last ones, such as a JSON prompt opened in the builder. */
+  initialState?: BuilderState
+  /**
+   * `explicit` says the prompt has explicit content, so the editor can drop negatives such as "nsfw" that fight it;
+   * `spec` is the same prompt as JSON.
+   */
+  onConfirm: (prompt: string, negativePrompt: string, mode: InsertMode, explicit: boolean, spec: PromptSpec) => void
 }
 
-export function PromptBuilderDialog({ model, modes: modeData, character, onCharacterSaved, hasExistingPrompt, maxPromptLength, onClose, onConfirm }: Props) {
-  const [state, setState] = useState<BuilderState>(loadBuilderState)
+export function PromptBuilderDialog({ model, modes: modeData, character, onCharacterSaved, hasExistingPrompt, maxPromptLength, initialState, onClose, onConfirm }: Props) {
+  const [state, setState] = useState<BuilderState>(() => initialState ?? loadBuilderState())
   const [stepId, setStepId] = useState<StepId>(STEPS[0].id)
   useEffect(() => saveBuilderState(state), [state])
   const { modes: allModes, problems } = useMemo(() => parseModes(modeData), [modeData])
-  const modes = modesFor(allModes, character)
+  const modes = modesForCharacter(allModes, character)
   const mode = modes.find((candidate) => candidate.id === state.mode) ?? modes[0]
   // The character's look is applied when building, not saved into the builder, so your own choices come back without it
-  const result = useMemo(
-    () => buildPrompt(character ? withTraits(state, character.traits) : state, mode, model.prompt_style),
-    [state, character, mode, model.prompt_style],
-  )
+  const withLook = useMemo(() => (character ? withTraits(state, character.traits) : state), [state, character])
+  const result = useMemo(() => buildPrompt(withLook, mode, model.prompt_style), [withLook, mode, model.prompt_style])
 
   const steps = stepsFor(mode, character)
   const step = steps.find((candidate) => candidate.id === stepId) ?? steps[0]
   const set = (patch: Partial<BuilderState>) => setState((current) => ({ ...current, ...patch }))
   const setOutfit = (patch: Partial<OutfitState>) => setState((current) => ({ ...current, outfit: { ...current.outfit, ...patch } }))
-  const confirm = (mode: InsertMode) => {
+  const confirm = (insert: InsertMode) => {
     if (result.status !== 'ready') return
-    onConfirm(result.prompt, result.negativePrompt, mode, result.explicit)
+    onConfirm(result.prompt, result.negativePrompt, insert, result.explicit, specFromState(withLook, mode))
     onClose()
   }
 

@@ -1,4 +1,4 @@
-import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, GenerationSettings, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport, VideoItem } from './types'
+import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings, VideoItem } from './types'
 import { t } from './i18n'
 
 export class ApiError extends Error {
@@ -76,7 +76,7 @@ export async function removeModel(modelId: string): Promise<void> {
 }
 
 /** `jobId` lets the caller follow the generation with fetchJobProgress and stop it with cancelJob. */
-export async function generateImage(settings: GenerationSettings, jobId: string, signal?: AbortSignal): Promise<HistoryItem> {
+export async function generateImage(settings: SentSettings, jobId: string, signal?: AbortSignal): Promise<HistoryItem> {
   const resp = await postJson(
     '/api/generate',
     {
@@ -93,6 +93,7 @@ export async function generateImage(settings: GenerationSettings, jobId: string,
       change: settings.startImage?.change ?? null,
       character_id: settings.characterId,
       addons: settings.addons,
+      prompt_spec: settings.promptSpec ?? null,
     },
     signal,
   )

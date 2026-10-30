@@ -38,6 +38,7 @@ from video_store import NewVideo, VideoItem
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest, VideoRequest
 from grok_client import GrokClient
 from palette import PaletteColour
+from prompt_spec import PromptSpec
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
 from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, VIDEO_MODEL, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint, video_size
 from resolutions import CATEGORIES, PRESETS, Category
@@ -357,6 +358,8 @@ class WebGenerateRequest(GenerateRequest):
     source_image_id: int | None = None
     # The character the image is made for; it is linked to the image, the prompt is left as written
     character_id: int | None = None
+    # The JSON prompt `prompt` was written from, saved with the image; the model server only needs the text
+    prompt_spec: PromptSpec | None = None
     # The web app loads the start image and the face image itself; image data from the browser is refused
     init_image: None = None
     face_image: None = None
@@ -397,7 +400,7 @@ def face_to_lock(req: WebGenerateRequest, character: Character | None) -> FaceTo
 
 def model_server_request(req: WebGenerateRequest, face: FaceToLock | None, keep_safe: bool) -> GenerateRequest:
     """The request for the model server: the start image and the face loaded here, and safe-for-work negatives when needed."""
-    fields = req.model_dump(exclude={"source_image_id", "character_id"}) | start_image_fields(req)
+    fields = req.model_dump(exclude={"source_image_id", "character_id", "prompt_spec"}) | start_image_fields(req)
     if face:
         fields |= {"face_image": base64.b64encode(face.png).decode(), "face_strength": face.strength}
     if keep_safe:
@@ -452,6 +455,7 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
         face_from=face.image_id if face else None,
         sensitive=True if nsfw else None, image_checked=nsfw is not None, addons=tuple(rendered.addons),
+        prompt_spec=req.prompt_spec.to_json() if req.prompt_spec else None,
     ))
 
 
@@ -573,7 +577,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
         width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
         duration_seconds=None, edited_from=source.id, character_id=source.character_id,
         # A cropped or turned copy keeps its original's flag, which may have been set by hand
-        sensitive=source.sensitive, image_checked=True, addons=tuple(source.addons),
+        sensitive=source.sensitive, image_checked=True, addons=tuple(source.addons), prompt_spec=source.prompt_spec,
     ))
 
 

@@ -136,14 +136,60 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByLabelText('Prompt')).toHaveValue('A photograph of an adult man.')
+  const spec = { version: 1, purpose: 'general', subject: { who: 'man' } }
+  expect(JSON.parse((screen.getByLabelText('Prompt (JSON)') as HTMLTextAreaElement).value)).toEqual(spec)
   expect(api.generateImage).not.toHaveBeenCalled()
 
   await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
   expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({
     prompt: 'A photograph of an adult man.',
+    promptSpec: spec,
     negativePrompt: expect.stringContaining('extra fingers'),
   })
+})
+
+async function buildPromptFor(who: string) {
+  await userEvent.click(await screen.findByRole('button', { name: /Prompt builder/ }))
+  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  await chooseOption(within(dialog).getByLabelText('Who'), who)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
+}
+
+const jsonPrompt = () => screen.getByLabelText('Prompt (JSON)') as HTMLTextAreaElement
+
+it('turns a JSON prompt into text for the selected model, for good', async () => {
+  render(<App />)
+  await buildPromptFor('Man')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Convert to text' }))
+
+  expect(screen.getByLabelText('Prompt')).toHaveValue('A photograph of an adult man.')
+  expect(screen.queryByRole('button', { name: 'Convert to text' })).not.toBeInTheDocument()
+})
+
+it('opens a changed JSON prompt in the builder with its choices', async () => {
+  render(<App />)
+  await buildPromptFor('Man')
+  const spec = JSON.parse(jsonPrompt().value)
+  fireEvent.change(jsonPrompt(), { target: { value: JSON.stringify({ ...spec, subject: { who: 'woman', age: 'late 20s' } }) } })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Edit in builder' }))
+
+  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  expect(within(dialog).getByLabelText('Built prompt')).toHaveTextContent('A photograph of an adult woman in her late 20s.')
+})
+
+it('says what is wrong with a JSON prompt and does not generate it', async () => {
+  render(<App />)
+  await buildPromptFor('Man')
+
+  fireEvent.change(jsonPrompt(), { target: { value: jsonPrompt().value.replace('"man"', '"robot"') } })
+
+  expect(screen.getByRole('alert')).toHaveTextContent('"robot" is not an option for subject.who.')
+  expect(screen.getByRole('button', { name: 'Convert to text' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  expect(api.generateImage).not.toHaveBeenCalled()
 })
 
 afterEach(() => window.history.replaceState(null, '', '/'))
@@ -362,14 +408,15 @@ it('does not add the look again to a prompt the builder wrote for the character'
 
   await chooseOption(await screen.findByLabelText('Character'), 'Ava')
   await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
-  await userEvent.click(within(screen.getByRole('dialog', { name: 'Prompt builder' })).getByRole('button', { name: 'Use this prompt' }))
+  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const built = within(dialog).getByLabelText('Built prompt').textContent
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
   expect(screen.getByText("Your prompt already has Ava's look.")).toBeInTheDocument()
 
-  const built = (screen.getByLabelText('Prompt') as HTMLTextAreaElement).value
   await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
   expect(vi.mocked(api.generateImage).mock.calls[0][0].prompt).toBe(built)
 
-  await userEvent.clear(screen.getByLabelText('Prompt'))
+  await userEvent.clear(screen.getByLabelText('Prompt (JSON)'))
   expect(screen.getByText("Ava's look is added to the start of your prompt.")).toBeInTheDocument()
 })
 

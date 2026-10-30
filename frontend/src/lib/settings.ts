@@ -19,7 +19,7 @@ export function modelDefaults(model: ModelInfo): ModelDefaults {
 
 export function initialSettings(catalog: Catalog): GenerationSettings {
   const model = catalog.models[0]
-  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, addons: [], ...modelDefaults(model) }
+  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, addons: [], promptFormat: 'text', ...modelDefaults(model) }
 }
 
 export function findModel(catalog: Catalog, modelId: string): ModelInfo {
@@ -59,6 +59,16 @@ export function switchModel(settings: GenerationSettings, model: ModelInfo): Gen
   return { ...withModel(settings, model), steps: model.default_steps, guidance: model.default_guidance }
 }
 
+/** An image's JSON prompt when it has a readable one, so it can be changed and written for another model; else its text. */
+function promptOfItem(item: HistoryItem): Pick<GenerationSettings, 'prompt' | 'promptFormat'> {
+  try {
+    if (item.prompt_spec) return { prompt: JSON.stringify(JSON.parse(item.prompt_spec), null, 2), promptFormat: 'json' }
+  } catch {
+    // Not readable as JSON: the text it was sent as still works
+  }
+  return { prompt: item.prompt, promptFormat: 'text' }
+}
+
 /**
  * The settings that produced a history image, keeping the seed fixed so it can be reproduced. The size is snapped
  * to what the model allows, since an edited (cropped) image can have any size.
@@ -69,7 +79,7 @@ export function settingsFromItem(item: HistoryItem, catalog: Catalog): Generatio
   return withModel(
     {
       modelId: model.id,
-      prompt: item.prompt,
+      ...promptOfItem(item),
       negativePrompt: item.negative_prompt,
       width: snap(item.width),
       height: snap(item.height),
@@ -139,7 +149,8 @@ export function loadSettings(catalog: Catalog): GenerationSettings {
   const characterId = Number.isInteger(stored.characterId) ? stored.characterId : null
   const lookIncluded = Number.isInteger(stored.lookIncluded) ? stored.lookIncluded : null
   const addons = isStringList(stored.addons) ? stored.addons : []
-  return withModel({ ...stored, startImage, characterId, lookIncluded, addons }, findModel(catalog, stored.modelId))
+  const promptFormat = stored.promptFormat === 'json' ? 'json' : 'text'
+  return withModel({ ...stored, startImage, characterId, lookIncluded, addons, promptFormat }, findModel(catalog, stored.modelId))
 }
 
 export function saveSettings(settings: GenerationSettings): void {

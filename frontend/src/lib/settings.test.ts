@@ -109,3 +109,12 @@ describe('variations', () => {
     expect(loadSettings(catalog).startImage).toBeNull()
   })
 })
+
+it('settingsFromItem brings back the JSON prompt an image was written from, or its text when there is none', () => {
+  const spec = { version: 1, purpose: 'general', subject: { who: 'man' } }
+  expect(settingsFromItem(historyItem({ prompt: 'A photograph of an adult man.', prompt_spec: JSON.stringify(spec) }), catalog)).toMatchObject({
+    prompt: JSON.stringify(spec, null, 2),
+    promptFormat: 'json',
+  })
+  expect(settingsFromItem(historyItem({ prompt: 'a cat', prompt_spec: null }), catalog)).toMatchObject({ prompt: 'a cat', promptFormat: 'text' })
+})

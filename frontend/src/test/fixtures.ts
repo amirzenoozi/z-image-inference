@@ -114,6 +114,7 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     face_from: null,
     sensitive: false,
     addons: [],
+    prompt_spec: null,
     ...overrides,
   }
 }

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../../types'
 import { useCharacter } from '../../lib/characters'
-import { addsCharacterLook, promptToSend } from '../../lib/characterPrompt'
+import { addsCharacterLook, promptToSend, type SentPrompt } from '../../lib/characterPrompt'
 import { isServerDown } from '../../lib/modelStatus'
+import { parseModes } from '../../lib/promptBuilder/modes'
 import { characterSettings, differsFromDefaults, findModel, modelDefaults, switchModel } from '../../lib/settings'
 import { useTooltip } from '../../lib/useTooltip'
 import { tabClass } from '../../lib/styles'
@@ -38,8 +39,9 @@ export function SettingsPanel(props: Props) {
   const { catalog, settings, onChange, generating, lastSeed, onGenerate } = props
   const model = findModel(catalog, settings.modelId)
   const character = useCharacter(settings.characterId)
-  const sentLength = promptToSend(settings, character, model).length
-  const reason = blockedReason(settings, model, isServerDown(props.modelStatus)) ?? lengthProblem(sentLength, catalog.limits.max_prompt_length)
+  const builderModes = useMemo(() => parseModes(catalog.builder_modes).modes, [catalog.builder_modes])
+  const sent = promptToSend(settings, character, model, builderModes)
+  const reason = blockedReason(settings, model, isServerDown(props.modelStatus)) ?? sentProblem(sent, settings, catalog.limits.max_prompt_length)
   // The same rule for the button and for ⌘/Ctrl + Enter in the prompt box
   const generate = () => {
     if (reason === null && !generating) onGenerate()
@@ -105,9 +107,12 @@ function blockedReason(settings: GenerationSettings, model: ModelInfo, serverDow
   return null
 }
 
-/** The look a character adds can take a prompt that fits the box over the limit. */
-function lengthProblem(sentLength: number, maxLength: number): string | null {
-  return sentLength > maxLength ? t('create.lookTooLong', { length: sentLength, max: maxLength }) : null
+/** A JSON prompt that can't be written, or a written prompt over the limit: the look a character adds, or a long JSON prompt. */
+function sentProblem(sent: SentPrompt, settings: GenerationSettings, maxLength: number): string | null {
+  if (sent.status === 'problem') return sent.reason
+  const length = sent.prompt.length
+  if (length <= maxLength) return null
+  return t(settings.promptFormat === 'json' ? 'create.jsonTooLong' : 'create.lookTooLong', { length, max: maxLength })
 }
 
 function DefaultsHint({ model, onApply, onDismiss }: { model: ModelInfo; onApply: () => void; onDismiss: () => void }) {

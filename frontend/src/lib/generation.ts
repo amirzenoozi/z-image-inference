@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { ApiError, CANCELLED_STATUS, cancelJob, generateImage } from '../api'
-import type { GenerationSettings, GenerationState, HistoryItem } from '../types'
+import type { GenerationState, HistoryItem, SentSettings } from '../types'
 import { errorMessage } from './hooks'
 import { newJobId } from './jobId'
 
@@ -20,7 +20,7 @@ export function useGeneration(onSuccess: (item: HistoryItem) => void, onFailure:
   }, [])
 
   const run = useCallback(
-    async (request: GenerationSettings) => {
+    async (request: SentSettings) => {
       const jobId = newJobId()
       setState({ status: 'pending', startedAt: Date.now(), request, jobId, cancelling: false })
       try {
