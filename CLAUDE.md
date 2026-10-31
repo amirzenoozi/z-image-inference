@@ -67,6 +67,8 @@ By default the original files are kept and run; `MODEL_COMPRESSION=on` in `.env`
 - `image_edits.py`: rotate, flip and crop recipes, applied with Pillow when an edited copy is saved (`POST /api/history/{id}/edits`); the original image is never changed.
 - `prompt_weights.py`: rewrites `(tag:1.3)` weights for Compel, which encodes SDXL prompts with weights and past 77 tokens (`sdxl_conditioning` in `model_server.py`).
 
+- Adult content has two locks. `ADULT_CONTENT` in `.env` (`adult_content.py`, off by default) is enforced by the web app: off, the catalog leaves out adult purposes, models and add-ons (`adult` on `ModelSpec` and `AddonSpec`), History hides sensitive images everywhere (`check_shown`, `hide_sensitive`), and renders are kept safe with the uploaded-face rules (`safe_render_for`, `safe_for_work.py`). On, the browser adds its own (`lib/adultContent.ts`, `shared/adultContent/`): locked until the hidden word `ADULT_UNLOCK_WORD` is typed (checked by `POST /api/adult-content/word`), it works from `catalogFor(catalog, false)` and sends `safe_only` and `hide_sensitive`. Mark any new adult model or add-on `adult=True`.
+
 ## Translations
 
 - The language comes from `APP_LANGUAGE` in `.env` (`en` default; `nl`, `it`, `fr`, `de`, `es`, `pt`), read by `backend/i18n.py` and sent to the UI in the catalog (`language`), which loads it before rendering (`LanguageGate` in `App.tsx`).
