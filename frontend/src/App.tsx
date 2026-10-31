@@ -11,6 +11,9 @@ import { promptToSend } from './lib/characterPrompt'
 import { addonsToSend } from './lib/addons'
 import { useGeneration } from './lib/generation'
 import { useCatalog } from './lib/hooks'
+import { catalogFor, useAdultContent } from './lib/adultContent'
+import { AdultContentProvider } from './shared/adultContent/AdultContentProvider'
+import { useUnlock } from './shared/adultContent/useUnlock'
 import { useModelStatus } from './lib/modelStatus'
 import { parseModes } from './lib/promptBuilder/modes'
 import { characterSettings, findModel, loadSettings, saveSettings, settingsFromItem, variationSettings } from './lib/settings'
@@ -54,9 +57,11 @@ export default function App() {
   }
   return (
     <LanguageGate code={catalog.value.language}>
-      <CharactersProvider>
-        <Workspace catalog={catalog.value} />
-      </CharactersProvider>
+      <AdultContentProvider info={catalog.value.adult_content}>
+        <CharactersProvider>
+          <Workspace fullCatalog={catalog.value} />
+        </CharactersProvider>
+      </AdultContentProvider>
     </LanguageGate>
   )
 }
@@ -70,10 +75,14 @@ function useForgetDeletedCharacter(characterId: number | null, forget: () => voi
   }, [deleted, forget])
 }
 
-function Workspace({ catalog }: { catalog: Catalog }) {
+/** `fullCatalog`: everything .env allows; while this browser's lock is on, the app works from it without anything adult. */
+function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
+  const { shown: adultShown } = useAdultContent()
+  const catalog = useMemo(() => catalogFor(fullCatalog, adultShown), [fullCatalog, adultShown])
   const [settings, setSettings] = useState<GenerationSettings>(() => loadSettings(catalog))
   const builderModes = useMemo(() => parseModes(catalog.builder_modes).modes, [catalog.builder_modes])
   const [view, setView] = useView()
+  const unlock = useUnlock(fullCatalog.adult_content, view === 'create')
   const [mode, setMode] = useState<PromptMode>('direct')
   const [lastSeed, setLastSeed] = useState<number | null>(null)
   const { unseen, finished } = useUnseenResult(view)
@@ -105,7 +114,9 @@ function Workspace({ catalog }: { catalog: Catalog }) {
     const model = findModel(catalog, next.modelId)
     const sent = promptToSend(next, character, model, builderModes)
     if (sent.status !== 'ready') return
-    void generation.run({ ...next, prompt: sent.prompt, promptFormat: 'text', promptSpec: sent.spec, addons: addonsToSend(model, next.addons, modelStatus) })
+    // A model hidden by the lock falls back to the first one shown, so the request names that one too
+    const request = { ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text' as const, promptSpec: sent.spec, safeOnly: !adultShown }
+    void generation.run({ ...request, addons: addonsToSend(model, next.addons, modelStatus) })
   }
   const openInCreate = (next: GenerationSettings) => {
     setSettings(next)
@@ -116,7 +127,8 @@ function Workspace({ catalog }: { catalog: Catalog }) {
   return (
     // On phones the views sit in a bar at the bottom, so the page leaves room for it
     <div className="flex h-dvh flex-col pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] sm:pb-0">
-      <Header view={view} onViewChange={setView} unseenResult={unseen} />
+      <Header view={view} onViewChange={setView} unseenResult={unseen} onTitleTap={unlock.onTitleTap} />
+      {unlock.dialog}
       <CreatePage
         catalog={catalog}
         settings={settings}
@@ -159,6 +171,7 @@ interface HeaderProps {
   onViewChange: (view: View) => void
   /** A render finished while another view was open: Create shows a red dot until it is opened. */
   unseenResult: boolean
+  onTitleTap: () => void
 }
 
 const VIEWS: { id: View; label: () => string; Icon: LucideIcon }[] = [
@@ -172,10 +185,11 @@ const NAV_CLASS =
   'fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur ' +
   'dark:border-zinc-800 dark:bg-zinc-950/95 sm:static sm:flex sm:gap-1 sm:rounded-xl sm:border-0 sm:bg-zinc-100 sm:p-1 sm:pb-1 sm:dark:bg-zinc-800/70'
 
-function Header({ view, onViewChange, unseenResult }: HeaderProps) {
+function Header({ view, onViewChange, unseenResult, onTitleTap }: HeaderProps) {
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 sm:px-5 dark:border-zinc-800 dark:bg-zinc-950">
-      <h1 className="flex items-center gap-2 text-sm font-bold tracking-tight">
+      {/* Five taps on the title open the hidden word's field on a phone (useUnlock); nothing shows that it can */}
+      <h1 onClick={onTitleTap} className="flex items-center gap-2 text-sm font-bold tracking-tight">
         <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"><Sparkles /></span>
         Z-Image Studio
       </h1>

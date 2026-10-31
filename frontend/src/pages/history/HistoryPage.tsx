@@ -14,6 +14,7 @@ import { HistoryGrid } from './HistoryGrid'
 import { Modal } from '../../shared/ui/Modal'
 import { Pagination } from '../../shared/ui/Pagination'
 import { ErrorNotice } from '../../shared/ui/ui'
+import { useAdultContent } from '../../lib/adultContent'
 
 export const PAGE_SIZE = 30
 
@@ -23,15 +24,16 @@ type ActionState = { status: 'idle' } | { status: 'loading' } | { status: 'faile
 function useHistoryPage(filters: HistoryFilters, pageNumber: number) {
   const [page, setPage] = useState<Loadable<HistoryPageData>>({ status: 'pending' })
   const [attempt, setAttempt] = useState(0)
+  const hideSensitive = !useAdultContent().shown
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchHistory((pageNumber - 1) * PAGE_SIZE, PAGE_SIZE, filters, controller.signal).then(
+    fetchHistory((pageNumber - 1) * PAGE_SIZE, PAGE_SIZE, filters, hideSensitive, controller.signal).then(
       (value) => setPage({ status: 'settled', value }),
       (error: unknown) => !controller.signal.aborted && setPage({ status: 'failed', error: errorMessage(error) }),
     )
     return () => controller.abort()
-  }, [filters, pageNumber, attempt])
+  }, [filters, pageNumber, attempt, hideSensitive])
 
   const reload = () => {
     setPage({ status: 'pending' })
@@ -57,6 +59,7 @@ interface Props {
 
 export function HistoryPage({ models, video, onReuse, onVary }: Props) {
   const [address, go, visits] = useHistoryAddress(models)
+  const { shown: adultShown } = useAdultContent()
   const { filters, page } = address
   // Remounts the filter bar when the filters are cleared, so its search box empties too
   const [filtersVersion, setFiltersVersion] = useState(0)
@@ -91,7 +94,7 @@ export function HistoryPage({ models, video, onReuse, onVary }: Props) {
   // A saved edit is the newest image: filters are cleared so it is in the list, and the viewer opens on it
   const openEdited = async (item: HistoryItem) => {
     setListVersion((n) => n + 1)
-    const newest = await fetchHistory(0, 1, NO_FILTERS).catch(() => null)
+    const newest = await fetchHistory(0, 1, NO_FILTERS, !adultShown).catch(() => null)
     go({ filters: NO_FILTERS, page: 1 })
     setFiltersVersion((n) => n + 1)
     setViewing({ index: 0, item, total: newest?.total ?? 1, filtersKey: JSON.stringify(NO_FILTERS) })
@@ -158,6 +161,7 @@ interface ResultsProps {
 
 function HistoryResults({ filters, pageNumber, labelOf, onOpen, onClearFilters, selectedIds, onSelect, onPageChange }: ResultsProps) {
   const { page, reload, replace } = useHistoryPage(filters, pageNumber)
+  const { shown: adultShown } = useAdultContent()
   const [favouriteError, setFavouriteError] = useState<string | null>(null)
   const lastPage = page.status === 'settled' ? Math.max(1, Math.ceil(page.value.total / PAGE_SIZE)) : null
 
@@ -188,7 +192,7 @@ function HistoryResults({ filters, pageNumber, labelOf, onOpen, onClearFilters, 
         firstShown={(pageNumber - 1) * PAGE_SIZE + 1}
         lastShown={(pageNumber - 1) * PAGE_SIZE + items.length}
         filtered={filtered}
-        exportUrl={historyExportUrl(filters)}
+        exportUrl={historyExportUrl(filters, !adultShown)}
         onCleaned={() => showPage(1)}
         onCleared={() => showPage(1)}
       />

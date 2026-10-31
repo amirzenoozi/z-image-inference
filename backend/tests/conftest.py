@@ -17,3 +17,10 @@ def english(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests check English messages, whatever APP_LANGUAGE your .env sets."""
     monkeypatch.delenv("APP_LANGUAGE", raising=False)
     i18n.language.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def adult_content_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """As the app's own .env has it; the lock's tests switch it off or set a word themselves."""
+    monkeypatch.setenv("ADULT_CONTENT", "on")
+    monkeypatch.delenv("ADULT_UNLOCK_WORD", raising=False)

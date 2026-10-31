@@ -37,6 +37,7 @@ from sensitive import is_sensitive
 from video_store import NewVideo, VideoItem
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest, VideoRequest
 from grok_client import GrokClient
+import adult_content
 from palette import PaletteColour
 from prompt_spec import PromptSpec
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
@@ -79,12 +80,14 @@ class AddonInfo(BaseModel):
     download_gb: float
     page_url: str
     source_name: str
+    # It adds nudity or sex: the browser hides it while its own lock is on
+    adult: bool
 
     @classmethod
     def from_spec(cls, addon: AddonSpec) -> "AddonInfo":
         return cls(
             id=addon.id, label=addon.label, description=addon.description, keywords=list(addon.keywords), trigger_word=addon.trigger_word,
-            download_gb=addon.download_gb, page_url=page_url(addon.source, addon.repo_id), source_name=SOURCE_NAMES[addon.source],
+            download_gb=addon.download_gb, page_url=page_url(addon.source, addon.repo_id), source_name=SOURCE_NAMES[addon.source], adult=addon.adult,
         )
 
 
@@ -114,6 +117,8 @@ class ModelInfo(BaseModel):
     supports_face_lock: bool
     examples: list[str]
     addons: list[AddonInfo]
+    # Made for adult content: the browser hides it while its own lock is on
+    adult: bool
 
     @classmethod
     def from_spec(cls, spec: ModelSpec, examples: list[str]) -> "ModelInfo":
@@ -124,8 +129,8 @@ class ModelInfo(BaseModel):
             default_width=width, default_height=height, uses_guidance=spec.uses_guidance,
             default_guidance=spec.default_guidance, default_negative_prompt=spec.default_negative_prompt,
             trigger_word=spec.trigger_word, prompt_style=spec.prompt_style, supports_variations=spec.supports_variations,
-            supports_face_lock=spec.supports_face_lock, examples=examples,
-            addons=[AddonInfo.from_spec(addon) for addon in addons_for(spec.id)],
+            supports_face_lock=spec.supports_face_lock, examples=examples, adult=spec.adult,
+            addons=[AddonInfo.from_spec(addon) for addon in addons_for(spec.id) if adult_content.enabled() or not addon.adult],
         )
 
 
@@ -173,6 +178,10 @@ class BuilderMode(BaseModel):
     # Added to every negative prompt of the purpose, such as the face for a faceless one
     negative: Annotated[str, StringConstraints(max_length=500)] = ""
 
+    def is_adult(self) -> bool:
+        """As the browser's isAdultMode: an 18+ content level, or the Intimacy step."""
+        return self.content in ("suggestive", "explicit") or "intimacy" in self.steps
+
 
 PROMPT_MODES = TypeAdapter(list[BuilderMode])
 
@@ -197,6 +206,14 @@ class Catalog(BaseModel):
     builder_modes: list[BuilderMode]
     # The UI's language, from APP_LANGUAGE in .env
     language: str
+    adult_content: "AdultContentInfo"
+
+
+class AdultContentInfo(BaseModel):
+    # ADULT_CONTENT is on in .env; off, nothing adult is in the catalog at all
+    available: bool
+    # A hidden word is set, so the browser keeps its own lock until it is typed
+    word_lock: bool
 
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -301,16 +318,31 @@ def prompt_modes() -> list[BuilderMode]:
 def catalog() -> Catalog:
     examples = example_prompts()
     return Catalog(
-        models=[ModelInfo.from_spec(spec, examples.get(spec.id, [])) for spec in MODELS.values()],
+        models=[ModelInfo.from_spec(spec, examples.get(spec.id, [])) for spec in MODELS.values() if adult_content.enabled() or not spec.adult],
         video=VideoModelInfo(id=VIDEO_MODEL.id, label=VIDEO_MODEL.label, download_gb=VIDEO_MODEL.download_gb, lengths=list(VIDEO_MODEL.frames)),
         model_categories=[ModelCategoryInfo(id=key, label=label) for key, label in MODEL_CATEGORIES.items()],
         resolutions=[ResolutionInfo(**preset.to_dict()) for preset in PRESETS],
         categories=list(CATEGORIES),
         chat_available=grok_client.available,
         limits=Limits(),
-        builder_modes=prompt_modes(),
+        builder_modes=[mode for mode in prompt_modes() if adult_content.enabled() or not mode.is_adult()],
         language=i18n.language(),
+        adult_content=AdultContentInfo(available=adult_content.enabled(), word_lock=bool(adult_content.unlock_word())),
     )
+
+
+class TypedKeys(BaseModel):
+    typed: Annotated[str, StringConstraints(max_length=200)]
+
+
+class WordCheck(BaseModel):
+    match: bool
+
+
+@app.post("/api/adult-content/word")
+def check_unlock_word(keys: TypedKeys) -> WordCheck:
+    """Whether the keys typed in the app end with the hidden word, which the browser then uses to switch its lock."""
+    return WordCheck(match=adult_content.ends_with_unlock_word(keys.typed))
 
 
 def model_server_detail(resp: requests.Response) -> str:
@@ -362,6 +394,8 @@ class WebGenerateRequest(GenerateRequest):
     character_id: int | None = None
     # The JSON prompt `prompt` was written from, saved with the image; the model server only needs the text
     prompt_spec: PromptSpec | None = None
+    # The browser's adult content lock is on: the render is kept safe for work, as when ADULT_CONTENT is off
+    safe_only: bool = False
     # The web app loads the start image and the face image itself; image data from the browser is refused
     init_image: None = None
     face_image: None = None
@@ -402,11 +436,13 @@ def face_to_lock(req: WebGenerateRequest, character: Character | None) -> FaceTo
 
 def model_server_request(req: WebGenerateRequest, face: FaceToLock | None, keep_safe: bool) -> GenerateRequest:
     """The request for the model server: the start image and the face loaded here, and safe-for-work negatives when needed."""
-    fields = req.model_dump(exclude={"source_image_id", "character_id", "prompt_spec"}) | start_image_fields(req)
+    fields = req.model_dump(exclude={"source_image_id", "character_id", "prompt_spec", "safe_only"}) | start_image_fields(req)
     if face:
         fields |= {"face_image": base64.b64encode(face.png).decode(), "face_strength": face.strength}
     if keep_safe:
         fields["negative_prompt"] = safe_for_work.with_safe_negative(req.negative_prompt)
+        # An add-on that adds nudity is never applied to a safe render
+        fields["addons"] = [addon for addon in req.addons if addon not in ADDONS or not ADDONS[addon].adult]
     return GenerateRequest(**fields)
 
 
@@ -419,12 +455,14 @@ def character_of(character_id: int | None) -> Character | None:
     return character
 
 
-def check_safe_request(req: WebGenerateRequest, name: str) -> None:
-    """Before rendering, for a character with an uploaded face: nothing sensitive may go in, and the check must be ready."""
+def check_safe_request(req: WebGenerateRequest, name: str | None) -> None:
+    """Before a safe render (an uploaded face, or adult content locked): nothing sensitive may go in, and the check must be ready."""
+    if name is None and MODELS[req.model].adult:
+        raise safe_for_work.NotSafeForWork(i18n.t("lockedModel", model=MODELS[req.model].label))
     safe_for_work.check_prompt(req.prompt, name)
     start = history_store.item(req.source_image_id) if req.source_image_id is not None else None
     safe_for_work.check_start_image(start is not None and start.sensitive, name)
-    safe_for_work.check_image_check_ready(nsfw_detector.is_ready())
+    safe_for_work.check_image_check_ready(nsfw_detector.is_ready(), name)
 
 
 @app.post("/api/generate")
@@ -436,11 +474,20 @@ def generate(req: WebGenerateRequest) -> HistoryItem:
         raise HTTPException(422, str(error))
 
 
+def safe_render_for(req: WebGenerateRequest, character: Character | None) -> tuple[bool, str | None]:
+    """
+    Whether the render is kept safe for work, and the character it is for when that is the reason (named in messages):
+    a character with an uploaded photo as its face may show a real person, and locked adult content allows nothing adult.
+    """
+    if character is not None and character.face_uploaded:
+        return True, character.name
+    return req.safe_only or not adult_content.enabled(), None
+
+
 def render_and_save(req: WebGenerateRequest, character: Character | None) -> HistoryItem:
-    # A character with an uploaded photo as its face may show a real person, so its images are kept safe for work
-    keep_safe = character is not None and character.face_uploaded
+    keep_safe, name = safe_render_for(req, character)
     if keep_safe:
-        check_safe_request(req, character.name)
+        check_safe_request(req, name)
     face = face_to_lock(req, character)
     server_request = model_server_request(req, face, keep_safe)
     rendered = request_image(server_request)
@@ -449,7 +496,7 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
     # The image itself is checked too, since a model can make nudity the prompt doesn't ask for
     nsfw = nsfw_detector.is_nsfw(png)
     if keep_safe:
-        safe_for_work.check_result(nsfw, character.name)
+        safe_for_work.check_result(nsfw, name)
     return history_store.add(NewImage(
         png=png, prompt=req.prompt, negative_prompt=server_request.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
@@ -523,11 +570,18 @@ def history_filter(
     favourites: bool = False,
     ratio: Category | None = None,
     character: int | None = Query(None, ge=1),
+    hide_sensitive: bool = False,
 ) -> HistoryFilter:
-    """History's filters from the query string, checked the same way wherever History is listed or exported."""
+    """
+    History's filters from the query string, checked the same way wherever History is listed or exported. Sensitive
+    images are left out when the browser's lock asks, and always while adult content is off.
+    """
     if model is not None and model not in MODELS:
         raise HTTPException(422, i18n.t("unknownModel", model=model))
-    return HistoryFilter(model=model, search=q.strip(), favourites_only=favourites, category=ratio, character_id=character)
+    return HistoryFilter(
+        model=model, search=q.strip(), favourites_only=favourites, category=ratio, character_id=character,
+        hide_sensitive=hide_sensitive or not adult_content.enabled(),
+    )
 
 
 @app.get("/api/history")
@@ -551,12 +605,20 @@ def export_history(filters: HistoryFilter = Depends(history_filter)) -> Streamin
     )
 
 
+def check_shown(item_id: int) -> None:
+    """A missing History image, or a sensitive one while adult content is off, is not found."""
+    item = history_store.item(item_id)
+    if item is None or adult_content.hidden(item.sensitive):
+        raise HTTPException(404, i18n.t("imageNotFound"))
+
+
 class FavouriteUpdate(BaseModel):
     favourite: bool
 
 
 @app.get("/api/history/{item_id}/palette")
 def history_palette(item_id: int) -> list[PaletteColour]:
+    check_shown(item_id)
     colours = history_store.palette(item_id)
     if colours is None:
         raise HTTPException(404, i18n.t("imageNotFound"))
@@ -566,6 +628,7 @@ def history_palette(item_id: int) -> list[PaletteColour]:
 @app.post("/api/history/{item_id}/edits", status_code=201)
 def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
     """Saves the turned, flipped or cropped image as a new image; the original is never changed."""
+    check_shown(item_id)
     source = history_store.item(item_id)
     png = history_store.image_png(item_id)
     if source is None or png is None:
@@ -585,6 +648,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
 
 @app.put("/api/history/{item_id}/favourite")
 def set_favourite(item_id: int, update: FavouriteUpdate) -> HistoryItem:
+    check_shown(item_id)
     item = history_store.set_favourite(item_id, update.favourite)
     if item is None:
         raise HTTPException(404, i18n.t("imageNotFound"))
@@ -597,6 +661,7 @@ class SensitiveUpdate(BaseModel):
 
 @app.put("/api/history/{item_id}/sensitive")
 def set_sensitive(item_id: int, update: SensitiveUpdate) -> HistoryItem:
+    check_shown(item_id)
     item = history_store.set_sensitive(item_id, update.sensitive)
     if item is None:
         raise HTTPException(404, i18n.t("imageNotFound"))
@@ -614,6 +679,7 @@ def thumbnail(data: bytes) -> bytes:
 @app.get("/api/history/{item_id}/image")
 def history_image(item_id: int, thumb: bool = False) -> Response:
     """The image as stored (WebP, or PNG for older rows), for showing; downloads use /download."""
+    check_shown(item_id)
     stored = history_store.stored_image(item_id)
     if stored is None:
         raise HTTPException(404, i18n.t("imageNotFound"))
@@ -625,6 +691,7 @@ def history_image(item_id: int, thumb: bool = False) -> Response:
 @app.get("/api/history/{item_id}/download")
 def download_history_image(item_id: int) -> Response:
     """Always a PNG, which every program opens, named as the app names its images."""
+    check_shown(item_id)
     item = history_store.item(item_id)
     png = history_store.image_png(item_id)
     if item is None or png is None:
@@ -640,6 +707,8 @@ class WebVideoRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     seconds: int
     job_id: str | None = Field(default=None, pattern=JOB_ID_PATTERN)
+    # The browser's adult content lock is on
+    safe_only: bool = False
 
 
 class RenderedVideo(BaseModel):
@@ -667,20 +736,25 @@ def request_video(req: VideoRequest) -> RenderedVideo:
 
 
 def image_to_animate(item_id: int) -> tuple[HistoryItem, bytes]:
+    check_shown(item_id)
     item, png = history_store.item(item_id), history_store.image_png(item_id)
     if item is None or png is None:
         raise HTTPException(404, i18n.t("imageNotFound"))
     return item, png
 
 
-def keep_video_safe(item: HistoryItem, prompt: str) -> str | None:
-    """The image's character's name when it has an uploaded face photo, after checking nothing sensitive goes in."""
+def keep_video_safe(item: HistoryItem, req: WebVideoRequest) -> tuple[bool, str | None]:
+    """
+    Whether the clip is kept safe for work, after checking nothing sensitive goes in, and the character's name when its
+    uploaded face is the reason (None when locked adult content is).
+    """
     character = character_store.character(item.character_id) if item.character_id is not None else None
-    if character is None or not character.face_uploaded:
-        return None
-    safe_for_work.check_prompt(prompt, character.name)
-    safe_for_work.check_image_check_ready(nsfw_detector.is_ready())
-    return character.name
+    name = character.name if character is not None and character.face_uploaded else None
+    if name is None and adult_content.enabled() and not req.safe_only:
+        return False, None
+    safe_for_work.check_prompt(req.prompt, name)
+    safe_for_work.check_image_check_ready(nsfw_detector.is_ready(), name)
+    return True, name
 
 
 @app.post("/api/history/{item_id}/videos")
@@ -690,11 +764,11 @@ def make_video(item_id: int, req: WebVideoRequest) -> VideoItem:
     width, height = video_size(item.width, item.height)
     try:
         server_request = VideoRequest(prompt=req.prompt, seconds=req.seconds, job_id=req.job_id, image=base64.b64encode(png).decode(), width=width, height=height)
-        safe_name = keep_video_safe(item, req.prompt)
+        keep_safe, name = keep_video_safe(item, req)
         rendered = request_video(server_request)
         nsfw = nsfw_detector.is_nsfw(base64.b64decode(rendered.middle_base64))
-        if safe_name is not None:
-            safe_for_work.check_result(nsfw, safe_name)
+        if keep_safe:
+            safe_for_work.check_result(nsfw, name)
     except ValidationError as error:
         raise HTTPException(422, "; ".join(str(problem["msg"]) for problem in error.errors()))
     except safe_for_work.NotSafeForWork as error:
@@ -708,12 +782,19 @@ def make_video(item_id: int, req: WebVideoRequest) -> VideoItem:
 
 @app.get("/api/history/{item_id}/videos")
 def image_videos(item_id: int) -> list[VideoItem]:
-    if history_store.item(item_id) is None:
-        raise HTTPException(404, i18n.t("imageNotFound"))
-    return video_store.for_image(item_id)
+    check_shown(item_id)
+    return [video for video in video_store.for_image(item_id) if not adult_content.hidden(video.sensitive)]
+
+
+def check_video_shown(video_id: int) -> None:
+    """A missing video, or a sensitive one while adult content is off, is not found."""
+    video = video_store.item(video_id)
+    if video is None or adult_content.hidden(video.sensitive):
+        raise HTTPException(404, i18n.t("videoNotFound"))
 
 
 def video_or_404(video_id: int) -> bytes:
+    check_video_shown(video_id)
     data = video_store.mp4(video_id)
     if data is None:
         raise HTTPException(404, i18n.t("videoNotFound"))
@@ -745,6 +826,7 @@ def video_file(video_id: int, range_header: Annotated[str | None, Header(alias="
 
 @app.get("/api/videos/{video_id}/poster")
 def video_poster(video_id: int, thumb: bool = False) -> Response:
+    check_video_shown(video_id)
     data = video_store.poster(video_id)
     if data is None:
         raise HTTPException(404, i18n.t("videoNotFound"))

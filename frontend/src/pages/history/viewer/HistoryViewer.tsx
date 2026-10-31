@@ -18,6 +18,7 @@ import { SensitiveButton } from './SensitiveButton'
 import { ImageFacts } from '../../../shared/images/ImageFacts'
 import { Modal } from '../../../shared/ui/Modal'
 import { ErrorNotice, PromptBlock, Spinner } from '../../../shared/ui/ui'
+import { useAdultContent } from '../../../lib/adultContent'
 import { ChevronLeft, ChevronRight, Clapperboard, Download, Maximize, Minimize, Pencil, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 
 /** The image the viewer opens on, and its position among all images matching the filters. */
@@ -58,11 +59,12 @@ function useImageAt(filters: HistoryFilters, index: number, start: ViewerStart) 
   const [failure, setFailure] = useState<{ index: number; message: string } | null>(null)
   const [attempt, setAttempt] = useState(0)
   const item = loaded[index]
+  const hideSensitive = !useAdultContent().shown
 
   useEffect(() => {
     if (item) return
     const controller = new AbortController()
-    fetchHistory(index, 1, filters, controller.signal).then(
+    fetchHistory(index, 1, filters, hideSensitive, controller.signal).then(
       (page) => {
         setTotal(page.total)
         if (page.items[0]) setLoaded((current) => ({ ...current, [index]: page.items[0] }))
@@ -71,7 +73,7 @@ function useImageAt(filters: HistoryFilters, index: number, start: ViewerStart) 
       (error: unknown) => !controller.signal.aborted && setFailure({ index, message: errorMessage(error) }),
     )
     return () => controller.abort()
-  }, [filters, index, item, attempt])
+  }, [filters, index, item, attempt, hideSensitive])
 
   const state: Loadable<HistoryItem> = item
     ? { status: 'settled', value: item }
