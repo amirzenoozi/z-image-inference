@@ -26,6 +26,15 @@ The app can be added to a phone's home screen and opened full screen, like an ap
 - **On a phone** the views are a bar at the bottom, and Create shows **Settings** or **Result** one at a time: Generate opens Result, and a red dot marks Result when an image arrives while you are in Settings. Dialogs fill the screen, and in the image viewer you swipe left or right for the next or previous image.
 - **Anywhere, over HTTPS (recommended):** install [Tailscale](https://tailscale.com/) on the Mac and the phone, keep `APP_HOST` at its default, and run `tailscale serve --bg 7860` on the Mac. Open the `https://….ts.net` address it prints; both iPhone and Android can install it, and only your own devices can reach it.
 
+## Adult content lock
+
+Everything adult (the Glamour, Faceless and Explicit purposes, the Lingerie & swimwear rows, the adult models WAI-NSFW-Illustrious, MOSS-Image NSFW and Anime Desire, the add-ons that add nudity or sex, and sensitive History images and their videos) sits behind two locks.
+
+1. **`ADULT_CONTENT` in `.env`** (`off` by default, `on` to allow it; restart the web app after a change). Off, the web app itself serves none of it: the catalog leaves it out, History leaves sensitive images out of the list, the counts, the export and every image and video link, and every render is kept safe for work, as for a character with an uploaded face (a sensitive prompt or start image is refused, safe negatives are added, an adult model is refused, an adult add-on is not applied, and a result the image check finds nudity in is discarded).
+2. **A hidden word in `ADULT_UNLOCK_WORD`**, with `ADULT_CONTENT=on`. Each browser then starts locked, and keeps its own state: type the word on the Create page with no text box selected (nothing shows while you type; the browser asks the web app once you pause, so the word itself never reaches the page), or on a phone tap the **Z-Image Studio** title five times and type it in the box that opens. A short notice says "Adult content shown"; typing the word again hides it. While a browser is locked it works as if `ADULT_CONTENT` were off: the adult purposes, models and add-ons are hidden, the other purposes are kept safe for work, History leaves sensitive images out, and Generate and Make video ask the web app to keep the result safe. With no word set, what `.env` allows is simply shown.
+
+The browser's lock is a privacy screen for that browser, not security: anyone who can use the web app's API, or this browser's storage, can get past it. `ADULT_CONTENT=off` is the lock that holds.
+
 ## Create
 
 1. **Model**: the sidebar shows the selected model. **Change** opens the model dialog, where models are grouped into **Photorealistic** and **Anime & illustration** tabs. Only downloaded models can be chosen; see [Models](models.md#downloading-and-removing-models).
