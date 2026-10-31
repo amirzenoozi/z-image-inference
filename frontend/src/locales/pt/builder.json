@@ -177,5 +177,11 @@
   "lockStep": "Bloquear {step} para Surpreenda-me",
   "unlockStep": "Desbloquear {step}",
   "stepLockedNote": "(bloqueado)",
-  "clashPlace": "{a} não combina numa cena de {b}."
+  "clashPlace": "{a} não combina numa cena de {b}.",
+  "clashFilter": "{a} traz cores e foco próprios, e {b} vai contra eles.",
+  "sectionImageFilter": "Filtro de imagem",
+  "fieldImageFilter": "Filtro",
+  "fieldDateStamp": "Data impressa",
+  "placeholderDateStamp": "ex.: OCT 29 26",
+  "introImageFilter": "Um filme, uma câmera antiga ou uma cópia impressa, com cores, grão e foco próprios. Deixe a correção de cor vazia ao escolher um."
 }

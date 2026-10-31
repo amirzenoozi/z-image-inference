@@ -177,5 +177,11 @@
   "lockStep": "{step} für Überrasch mich sperren",
   "unlockStep": "{step} entsperren",
   "stepLockedNote": "(gesperrt)",
-  "clashPlace": "{a} passt nicht zu einer Szene wie {b}."
+  "clashPlace": "{a} passt nicht zu einer Szene wie {b}.",
+  "clashFilter": "{a} bringt eigene Farben und Schärfe mit, gegen die {b} arbeitet.",
+  "sectionImageFilter": "Bildfilter",
+  "fieldImageFilter": "Filter",
+  "fieldDateStamp": "Datumsstempel",
+  "placeholderDateStamp": "z. B. OCT 29 26",
+  "introImageFilter": "Ein Filmmaterial, eine alte Kamera oder ein Abzug, mit eigenen Farben, Korn und Schärfe. Lass die Farbkorrektur leer, wenn du einen wählst."
 }

@@ -177,5 +177,11 @@
   "lockStep": "Lock {step} against Surprise me",
   "unlockStep": "Unlock {step}",
   "stepLockedNote": "(locked)",
-  "clashPlace": "{a} doesn't fit a {b} scene."
+  "clashPlace": "{a} doesn't fit a {b} scene.",
+  "clashFilter": "{a} brings its own colours and focus, which {b} works against.",
+  "sectionImageFilter": "Image filter",
+  "fieldImageFilter": "Filter",
+  "fieldDateStamp": "Date stamp",
+  "placeholderDateStamp": "e.g. OCT 29 26",
+  "introImageFilter": "A film stock, an old camera or a print look, with its own colours, grain and focus. Leave colour grading unset when you pick one."
 }
