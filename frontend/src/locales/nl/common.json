@@ -24,5 +24,11 @@
   "pages": "Pagina's",
   "dialogActions": "Dialoogacties",
   "prompt": "Prompt",
-  "negativePrompt": "Negatieve prompt"
+  "negativePrompt": "Negatieve prompt",
+  "adultShown": "Volwassen inhoud zichtbaar",
+  "adultHidden": "Volwassen inhoud verborgen",
+  "unlockTitle": "Voer het woord in",
+  "unlockLabel": "Woord",
+  "unlockConfirm": "OK",
+  "unlockWrong": "Dat is niet het woord."
 }

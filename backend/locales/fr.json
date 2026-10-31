@@ -49,5 +49,10 @@
   "videoNeedsTools": "Les vidéos ont besoin de {tools} sur ce Mac. Installez-les avec Homebrew (brew install {tools}), puis réessayez.",
   "videoNeedsImage": "Une vidéo a besoin de l’image de départ.",
   "videoFailed": "La vidéo n’a pas pu être créée : {detail}",
-  "videoNotFound": "Vidéo introuvable."
+  "videoNotFound": "Vidéo introuvable.",
+  "lockedPrompt": "Le contenu pour adultes est verrouillé, ce prompt ne peut donc pas être utilisé. Retirez « {word} ».",
+  "lockedStartImage": "Le contenu pour adultes est verrouillé : impossible de créer une variante d’une image sensible.",
+  "lockedCheckNotReady": "La vérification des images démarre encore, et tant que le contenu pour adultes est verrouillé, aucune image ne peut être enregistrée sans elle. Réessayez dans un instant.",
+  "lockedDiscarded": "L’image contenait de la nudité, elle a donc été supprimée : le contenu pour adultes est verrouillé.",
+  "lockedModel": "{model} est destiné au contenu pour adultes, qui est verrouillé."
 }

@@ -49,5 +49,10 @@
   "videoNeedsTools": "Videos need {tools} on this Mac. Install them with Homebrew (brew install {tools}), then try again.",
   "videoNeedsImage": "A video needs the image to start from.",
   "videoFailed": "The video could not be made: {detail}",
-  "videoNotFound": "Video not found."
+  "videoNotFound": "Video not found.",
+  "lockedPrompt": "Adult content is locked, so this prompt can't be used. Remove “{word}” from it.",
+  "lockedStartImage": "Adult content is locked, so a variation of a sensitive image can't be made.",
+  "lockedCheckNotReady": "The image check is still starting, and while adult content is locked no image can be saved without it. Try again in a moment.",
+  "lockedDiscarded": "The image came out with nudity, so it was discarded: adult content is locked.",
+  "lockedModel": "{model} is for adult content, which is locked."
 }

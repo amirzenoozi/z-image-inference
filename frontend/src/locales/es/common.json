@@ -24,5 +24,11 @@
   "pages": "Páginas",
   "dialogActions": "Acciones del cuadro de diálogo",
   "prompt": "Prompt",
-  "negativePrompt": "Prompt negativo"
+  "negativePrompt": "Prompt negativo",
+  "adultShown": "Contenido para adultos visible",
+  "adultHidden": "Contenido para adultos oculto",
+  "unlockTitle": "Escribe la palabra",
+  "unlockLabel": "Palabra",
+  "unlockConfirm": "Aceptar",
+  "unlockWrong": "Esa no es la palabra."
 }
