@@ -173,5 +173,8 @@
   "surpriseStep": "Verras me: {step}",
   "groupEveryday": "Dagelijks",
   "groupLingerie": "Lingerie",
-  "groupSwimwear": "Badmode"
+  "groupSwimwear": "Badmode",
+  "lockStep": "{step} vergrendelen voor Verras me",
+  "unlockStep": "{step} ontgrendelen",
+  "stepLockedNote": "(vergrendeld)"
 }
