@@ -18,7 +18,7 @@ const STEP_FIELDS: Readonly<Record<StepId, readonly (keyof BuilderState)[]>> = {
   pose: ['pose', 'explicitAction', 'expression'],
   intimacy: ['nudity', 'intimacy', 'explicitDetails'],
   scene: ['sceneType', 'timeOfDay', 'weather', 'lightingSetup', 'lightingMore'],
-  camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField'],
+  camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField', 'imageFilter', 'dateStamp'],
   finish: ['colorGrading', 'realism'],
 }
 

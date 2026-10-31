@@ -7,6 +7,7 @@ import { CHOICE_OPTIONS, TEXT_CHOICES, type TextChoice } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
 import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from './data'
 import { fitnessClothing, isWorkoutFocused, outfitOptions } from './fitness'
+import { SHARP_REALISM } from './filters'
 import { intimateOptions, intimateSet } from './intimates'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
 import { alwaysClothed, isAdultMode, isSafeMode, showsStep, type BuilderMode, type StepId } from './modes'
@@ -102,6 +103,9 @@ export interface BuilderState {
   cameraAngle: string
   lens: string
   depthOfField: string
+  /** A film stock, old camera or print look (filters.ts), and an optional date stamp printed on the picture. */
+  imageFilter: string
+  dateStamp: string
   mood: string
   colorGrading: string
   realism: string[]
@@ -137,7 +141,7 @@ export function emptyBuilderState(): BuilderState {
     outfit: emptyOutfit(), mode: 'general', nudity: 'clothed', intimacy: [], explicitDetails: [],
     pose: NOT_SET, explicitAction: NOT_SET, action: '',
     sceneType: NOT_SET, environment: '', timeOfDay: NOT_SET, weather: NOT_SET, lightingSetup: NOT_SET, lightingMore: [], lightingCustom: '',
-    photoStyle: NOT_SET, shotType: NOT_SET, cameraAngle: NOT_SET, lens: NOT_SET, depthOfField: NOT_SET,
+    photoStyle: NOT_SET, shotType: NOT_SET, cameraAngle: NOT_SET, lens: NOT_SET, depthOfField: NOT_SET, imageFilter: NOT_SET, dateStamp: '',
     mood: '', colorGrading: NOT_SET, realism: [], extraDetails: '', negativePrompt: '', rollSeed: 1, lockedSteps: [],
   }
 }
@@ -158,7 +162,7 @@ export function minorTermIn(state: BuilderState, mode: BuilderMode): string | nu
   if (!usesAdultContent(state, mode)) return null
   const freeText = [
     state.subject, state.appearanceExtra, state.bodyExtra, state.action, state.environment, state.mood,
-    state.extraDetails, state.outfit.details,
+    state.extraDetails, state.outfit.details, state.dateStamp,
   ].join(' ')
   return minorWordIn(freeText)
 }
@@ -229,7 +233,7 @@ const STEP_FIELDS: Readonly<Record<StepId, readonly (keyof BuilderState)[]>> = {
   pose: ['pose', 'explicitAction'],
   intimacy: ['nudity', 'intimacy', 'explicitDetails'],
   scene: ['sceneType', 'timeOfDay', 'weather', 'lightingSetup', 'lightingMore'],
-  camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField'],
+  camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField', 'imageFilter', 'dateStamp'],
   finish: ['colorGrading', 'realism'],
 }
 
@@ -276,7 +280,8 @@ export function surprise(state: BuilderState, seed: number, mode: BuilderMode): 
     age: state.age === NOT_SET && needsPerson ? pick(CHOICE_OPTIONS.age, seed, 'age') : state.age,
     realism: locked.has('realism') ? state.realism : pickSome(REALISM_DETAILS, 2, seed, 'realism'),
   }
-  const looked = pickInOrder(start, unlocked(locked, SURPRISE_BEFORE_ACTS), mode, seed)
+  const picked = pickInOrder(start, unlocked(locked, SURPRISE_BEFORE_ACTS), mode, seed)
+  const looked = locked.has('imageFilter') ? picked : surpriseFilter(picked, mode, seed, !locked.has('colorGrading') && !locked.has('realism'))
   const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed, locked) : looked
   const dressed = locked.has('outfit') ? acted : surpriseOutfit(acted, mode, seed)
   return pickInOrder(dressed, unlocked(locked, ['expression'] as const), mode, seed)
@@ -290,6 +295,21 @@ const STEP_CHOICES: Readonly<Partial<Record<StepId, readonly TextChoice[]>>> = {
   scene: ['sceneType', 'timeOfDay', 'weather', 'lightingSetup'],
   camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField'],
   finish: ['colorGrading'],
+}
+
+// One surprise in three gets an image filter
+const FILTER_ODDS = [NOT_SET, NOT_SET, 'filter']
+
+/**
+ * Sometimes an image filter. It brings its own colours and focus, so it replaces the colour grading and the
+ * sharp-focus realism details when `canChangeLook`; otherwise it is only picked when they leave room for it.
+ */
+function surpriseFilter(state: BuilderState, mode: BuilderMode, seed: number, canChangeLook: boolean): BuilderState {
+  const none = { ...state, imageFilter: NOT_SET }
+  if (pick(FILTER_ODDS, seed, 'filterOdds') === NOT_SET) return none
+  const imageFilter = pick(choicesFor('imageFilter', state, mode), seed, 'imageFilter')
+  if (canChangeLook) return { ...state, imageFilter, colorGrading: NOT_SET, realism: state.realism.filter((detail) => !SHARP_REALISM.has(detail)) }
+  return fitsChoice(state, { imageFilter }, imageFilter) ? { ...state, imageFilter } : none
 }
 
 /** "Who" is kept once chosen, since the body, the outfit and the acts are chosen for it. */
@@ -316,7 +336,16 @@ export function surpriseStep(state: BuilderState, step: StepId, seed: number, mo
   if (step === 'outfit') return surpriseOutfit(state, mode, seed)
   if (step === 'intimacy') return surpriseIntimacy(state, mode, seed)
   const picked = pickInOrder(withoutFurtherPicks(state, step), STEP_CHOICES[step] ?? [], mode, seed)
-  return step === 'finish' ? { ...picked, realism: pickSome(REALISM_DETAILS, 2, seed, 'realism') } : picked
+  // The Camera step's filter is picked to fit the colour grading and realism details, which belong to another step
+  if (step === 'camera') return surpriseFilter(picked, mode, seed, false)
+  // A new colour grading or realism detail that would fight the filter is not picked
+  return step === 'finish' ? withoutFilterClash({ ...picked, realism: pickSome(REALISM_DETAILS, 2, seed, 'realism') }, state) : picked
+}
+
+function withoutFilterClash(picked: BuilderState, before: BuilderState): BuilderState {
+  if (before.imageFilter === NOT_SET) return picked
+  const colorGrading = picked.colorGrading === 'natural' ? picked.colorGrading : NOT_SET
+  return { ...picked, colorGrading, realism: picked.realism.filter((detail) => !SHARP_REALISM.has(detail)) }
 }
 
 // ── Modes ────────────────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import { IMAGE_FILTERS } from './filters'
 import { FACELESS_PHOTO_STYLES, FACELESS_POSES, FACELESS_SHOTS } from './faceless'
 import { FITNESS_LIGHTING, FITNESS_PHOTO_STYLES, FITNESS_SCENES, WORKOUTS } from './fitness'
 import {
@@ -81,6 +82,7 @@ export const CHOICE_OPTIONS = {
   lens: LENSES,
   depthOfField: DEPTH_OF_FIELD,
   colorGrading: COLOR_GRADINGS,
+  imageFilter: Object.keys(IMAGE_FILTERS),
 } satisfies Record<string, readonly string[]>
 
 export type ChoiceField = keyof typeof CHOICE_OPTIONS

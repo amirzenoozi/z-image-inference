@@ -36,7 +36,7 @@ const FIELDS = {
   pose: { pose: 'pose', explicit_action: 'explicitAction', action: 'action' },
   scene: { type: 'sceneType', environment: 'environment', time: 'timeOfDay', weather: 'weather' },
   lighting: { setup: 'lightingSetup', more: 'lightingMore', custom: 'lightingCustom' },
-  camera: { style: 'photoStyle', shot: 'shotType', angle: 'cameraAngle', lens: 'lens', depth_of_field: 'depthOfField' },
+  camera: { style: 'photoStyle', shot: 'shotType', angle: 'cameraAngle', lens: 'lens', depth_of_field: 'depthOfField', filter: 'imageFilter', date_stamp: 'dateStamp' },
   finish: { mood: 'mood', grading: 'colorGrading', realism: 'realism' },
   details: { extra: 'extraDetails', negative: 'negativePrompt' },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, Field>>>>
