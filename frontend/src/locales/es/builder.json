@@ -173,5 +173,8 @@
   "surpriseStep": "Sorpréndeme: {step}",
   "groupEveryday": "Diario",
   "groupLingerie": "Lencería",
-  "groupSwimwear": "Ropa de baño"
+  "groupSwimwear": "Ropa de baño",
+  "lockStep": "Bloquear {step} para Sorpréndeme",
+  "unlockStep": "Desbloquear {step}",
+  "stepLockedNote": "(bloqueado)"
 }

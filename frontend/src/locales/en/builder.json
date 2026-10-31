@@ -173,5 +173,8 @@
   "surpriseStep": "Surprise me: {step}",
   "groupEveryday": "Everyday",
   "groupLingerie": "Lingerie",
-  "groupSwimwear": "Swimwear"
+  "groupSwimwear": "Swimwear",
+  "lockStep": "Lock {step} against Surprise me",
+  "unlockStep": "Unlock {step}",
+  "stepLockedNote": "(locked)"
 }
