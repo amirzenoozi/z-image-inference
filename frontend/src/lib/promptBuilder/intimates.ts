@@ -35,6 +35,7 @@ const MORE_LINGERIE_TOPS: Readonly<Record<string, For>> = {
   'Cut-out bodysuit': 'woman', 'Halter bodysuit': 'woman', 'Thong bodysuit': 'woman', 'Garter bodysuit': 'woman', 'Crop cami': 'woman',
   'Mini tube top': 'woman', 'Bralette crop top': 'woman', Chemise: 'woman', 'Babydoll with a thigh slit': 'woman',
   'Nipple pasties': 'woman', 'Shelf bra (cupless)': 'woman', 'Quarter-cup bra': 'woman', 'Open-cup bra': 'woman',
+  'Unbuttoned shirt': 'man', 'Cropped tank top': 'man', 'Sleeveless compression top': 'man', 'Leather chest harness': 'man', 'Mesh tank top': 'man',
 }
 const MORE_LINGERIE_BOTTOMS: Readonly<Record<string, For>> = {
   'Lace garter set': 'woman', 'Micro thong': 'woman', 'Cut-out thong': 'woman', 'High-leg thong': 'woman', 'Tanga briefs': 'woman',
@@ -178,6 +179,11 @@ export const GARMENT_DETAILS: Readonly<Record<string, string>> = {
   'Leather harness': 'leather harness strapped across the chest and waist',
   'Thigh harness': 'leather thigh harness buckled around one thigh',
   'Body chain': 'delicate body chain draped over the hips and waist',
+  'Unbuttoned shirt': 'shirt hanging fully unbuttoned and open over the bare chest',
+  'Cropped tank top': 'cropped tank top ending above the abs',
+  'Sleeveless compression top': 'skin-tight sleeveless compression top hugging the chest and arms',
+  'Leather chest harness': 'leather chest harness strapped across the bare chest',
+  'Mesh tank top': 'mesh tank top with the chest showing through',
 }
 
 export type IntimateSlot = 'lingerieTop' | 'lingerieBottom'
@@ -214,14 +220,16 @@ const SWIM_ITEMS: ReadonlySet<string> = new Set(Object.keys({ ...SWIM_TOPS, ...O
 export const isSwimwear = (item: string): boolean => SWIM_ITEMS.has(item)
 
 /**
- * A matching set for Surprise me: all lingerie or all swimwear, nothing under a one-piece, and only a bottom for a
- * man, since the tops are cut for women.
+ * A matching set for Surprise me: all lingerie or all swimwear, nothing under a one-piece, and for a man a spicy top
+ * about half the time (never at the beach, where he is bare-chested).
  */
 export function intimateSet(wearer: Wearer, mode: BuilderMode, seed: number): Pick<BuilderState['outfit'], IntimateSlot> {
   const swim = pick(['lingerie', 'swim'], seed, 'intimateKind') === 'swim'
   const ofKind = (slot: IntimateSlot) => intimateOptions(slot, wearer, mode).filter((item) => SWIM_ITEMS.has(item) === swim)
-  const tops = includesWoman(wearer.who) ? ofKind('lingerieTop') : []
-  const lingerieTop = tops.length ? pick(tops, seed, 'lingerieTop') : NOT_SET
+  const tops = ofKind('lingerieTop')
+  // A woman always has a top; a man goes bare-chested about half the time
+  const bareChested = !includesWoman(wearer.who) && pick(['bare', 'top'], seed, 'bareChested') === 'bare'
+  const lingerieTop = tops.length && !bareChested ? pick(tops, seed, 'lingerieTop') : NOT_SET
   const bottoms = ofKind('lingerieBottom')
   const lingerieBottom = lingerieTop in ONE_PIECES || !bottoms.length ? NOT_SET : pick(bottoms, seed, 'lingerieBottom')
   return { lingerieTop, lingerieBottom }
