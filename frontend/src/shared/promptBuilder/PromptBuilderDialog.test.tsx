@@ -252,3 +252,23 @@ it('wears one top from one menu of clothes, lingerie and swimwear', async () => 
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent('She is wearing a blouse.')
   expect(screen.getByLabelText('Built prompt')).not.toHaveTextContent('lace bra')
 })
+
+it('locks a step against Surprise me, remembers the lock, and Reset all clears it', async () => {
+  const { unmount } = render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={null} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await step('Outfit')
+  await chooseOption(screen.getByLabelText('Top'), 'Blouse')
+  await userEvent.click(screen.getByRole('button', { name: 'Lock Outfit against Surprise me' }))
+  expect(screen.getByRole('button', { name: 'Surprise me: Outfit' })).toBeDisabled()
+  expect(screen.getByRole('navigation', { name: 'Builder steps' })).toHaveTextContent('Outfit (locked)')
+
+  for (let click = 0; click < 5; click++) await userEvent.click(screen.getByRole('button', { name: 'Surprise me' }))
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/wearing a blouse\./)
+
+  unmount()
+  render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={null} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  await step('Outfit')
+  expect(screen.getByRole('button', { name: 'Unlock Outfit' })).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(screen.getByRole('button', { name: 'Reset all' }))
+  expect(screen.getByRole('button', { name: 'Lock Outfit against Surprise me' })).toHaveAttribute('aria-pressed', 'false')
+})

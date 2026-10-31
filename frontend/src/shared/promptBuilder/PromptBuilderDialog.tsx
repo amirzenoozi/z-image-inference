@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
-import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, surpriseStep, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
+import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, surpriseStep, switchMode, toggleLock, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
 import { modeLabel, modesForCharacter, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
 import { specFromState, type PromptSpec } from '../../lib/promptBuilder/spec'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
@@ -13,7 +13,7 @@ import { ModePicker } from './ModePicker'
 import { AppearanceStep, BodyStep, CameraStep, FinishStep, ImageBodyChoices, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
 import { t, type MessageKey } from '../../i18n'
 import { IconButton } from '../ui/IconButton'
-import { Dices } from 'lucide-react'
+import { Dices, Lock, LockOpen } from 'lucide-react'
 
 export type InsertMode = 'replace' | 'append'
 
@@ -97,9 +97,15 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
     >
       <ModePicker modes={modes} current={mode.id} problems={problems} onSelect={(next) => setState((current) => switchMode(current, next))} />
       <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
-        <StepNav steps={steps} current={step.id} onSelect={setStepId} />
+        <StepNav steps={steps} current={step.id} locked={state.lockedSteps} onSelect={setStepId} />
         <section aria-label={t(step.label)} className="min-h-0 overflow-y-auto pr-1">
-          <StepHeading step={step} canSurprise={!(character && step.id === 'subject')} onSurprise={() => setState((current) => surpriseStep(current, step.id, newSeed(), mode))} />
+          <StepHeading
+            step={step}
+            canSurprise={!(character && step.id === 'subject')}
+            locked={state.lockedSteps.includes(step.id)}
+            onSurprise={() => setState((current) => surpriseStep(current, step.id, newSeed(), mode))}
+            onToggleLock={() => setState((current) => toggleLock(current, step.id))}
+          />
           <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={state} mode={mode} set={set} setOutfit={setOutfit} />
         </section>
         <PreviewPane
@@ -150,7 +156,7 @@ function styleNote(model: ModelInfo, mode: BuilderMode): string {
   return t('builder.styleTagsWeighted', { model: model.label, purpose: modeLabel(mode) })
 }
 
-function StepNav({ steps, current, onSelect }: { steps: Step[]; current: StepId; onSelect: (id: StepId) => void }) {
+function StepNav({ steps, current, locked, onSelect }: { steps: Step[]; current: StepId; locked: readonly StepId[]; onSelect: (id: StepId) => void }) {
   return (
     // On phones the steps stay at the top while a long step scrolls under them
     <nav aria-label={t('builder.stepsLabel')} className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto bg-white px-1 py-1 lg:static lg:flex-col lg:overflow-visible lg:bg-transparent lg:py-0 dark:bg-zinc-900 lg:dark:bg-transparent">
@@ -168,6 +174,7 @@ function StepNav({ steps, current, onSelect }: { steps: Step[]; current: StepId;
         >
           <span className="flex size-5 items-center justify-center rounded-full bg-zinc-200 text-[10px] tabular-nums dark:bg-zinc-700">{index + 1}</span>
           {t(step.label)}
+          {locked.includes(step.id) && <LockedMark />}
         </button>
       ))}
     </nav>
@@ -269,25 +276,43 @@ function DialogActions({ ready, hasExistingPrompt, onCancel, onConfirm }: Action
 
 interface StepHeadingProps {
   step: Step
-  /** A chosen character's look is fixed, so its step has nothing of its own to pick again. */
+  /** A chosen character's look is fixed, so its step has nothing of its own to pick again or lock. */
   canSurprise: boolean
+  /** Surprise me leaves the step as it is, and its own Surprise me is off. */
+  locked: boolean
   onSurprise: () => void
+  onToggleLock: () => void
 }
 
-/** The step's title, and its own Surprise me, which picks again only this step's choices. */
-function StepHeading({ step, canSurprise, onSurprise }: StepHeadingProps) {
+const headingButtonClass =
+  'flex size-8 items-center justify-center rounded-full text-violet-600 hover:bg-violet-50 disabled:opacity-40 disabled:hover:bg-transparent pointer-coarse:size-11 dark:text-violet-300 dark:hover:bg-violet-950/40'
+
+/** The step's title, its own Surprise me, which picks again only this step's choices, and the lock against Surprise me. */
+function StepHeading({ step, canSurprise, locked, onSurprise, onToggleLock }: StepHeadingProps) {
+  const name = t(step.label)
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t(step.label)}</h3>
+      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{name}</h3>
       {canSurprise && (
-        <IconButton
-          label={t('builder.surpriseStep', { step: t(step.label) })}
-          onClick={onSurprise}
-          className="flex size-8 items-center justify-center rounded-full text-violet-600 hover:bg-violet-50 pointer-coarse:size-11 dark:text-violet-300 dark:hover:bg-violet-950/40"
-        >
-          <Dices />
-        </IconButton>
+        <div className="flex items-center gap-1">
+          <IconButton label={t(locked ? 'builder.unlockStep' : 'builder.lockStep', { step: name })} aria-pressed={locked} onClick={onToggleLock} className={headingButtonClass}>
+            {locked ? <Lock /> : <LockOpen />}
+          </IconButton>
+          <IconButton label={t('builder.surpriseStep', { step: name })} onClick={onSurprise} disabled={locked} className={headingButtonClass}>
+            <Dices />
+          </IconButton>
+        </div>
       )}
     </div>
+  )
+}
+
+/** Shows in the step list that Surprise me leaves the step as it is. */
+function LockedMark() {
+  return (
+    <>
+      <Lock aria-hidden="true" className="size-3.5 text-violet-600 dark:text-violet-300" />
+      <span className="sr-only"> {t('builder.stepLockedNote')}</span>
+    </>
   )
 }
