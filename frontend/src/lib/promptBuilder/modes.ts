@@ -88,6 +88,11 @@ export function isSafeMode(mode: BuilderMode): boolean {
   return mode.content === 'safe' && !isAdultMode(mode)
 }
 
+/** An 18+ purpose that can't choose nudity (Faceless): every garment stays on, so none can be left off. */
+export function alwaysClothed(mode: BuilderMode): boolean {
+  return isAdultMode(mode) && !mode.steps.includes('intimacy')
+}
+
 export function showsStep(mode: BuilderMode, step: StepId): boolean {
   return mode.steps.includes(step)
 }

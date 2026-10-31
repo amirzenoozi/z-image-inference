@@ -7,14 +7,14 @@ import { CHOICE_OPTIONS, TEXT_CHOICES, type TextChoice } from './choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from './constants'
 import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from './data'
 import { fitnessClothing, isWorkoutFocused, outfitOptions } from './fitness'
-import { intimateSet } from './intimates'
+import { intimateOptions, intimateSet } from './intimates'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
-import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
+import { alwaysClothed, isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { negativePrompt } from './negatives'
 import { proseFrom } from './prose'
 import { pick, pickSome } from './random'
 import { resolveFacts } from './resolveFacts'
-import { choicesFor, explicitDetailOptions } from './rules'
+import { choicesFor, explicitDetailOptions, includesWoman } from './rules'
 import { clashesIn, fitsChoice, type Clash } from './conflicts'
 import { choicesInPrompt, pickFitting, settleChoices } from './settle'
 import { tagsFrom } from './tags'
@@ -283,8 +283,17 @@ function missingStart(state: BuilderState, mode: BuilderMode): BuildResult | nul
   return state.subject.trim() || state.who !== NOT_SET ? null : { status: 'incomplete', reason: t('builder.reasonNeedsSubject') }
 }
 
+/** A purpose that keeps everyone clothed (Faceless) needs a top for a woman, so the model never leaves her topless. */
+function missingTop(state: BuilderState, mode: BuilderMode): BuildResult | null {
+  const needsTop = alwaysClothed(mode) && showsStep(mode, 'outfit') && includesWoman(state.who)
+  const { top, lingerieTop } = state.outfit
+  // A lingerie top only counts while it is offered: a see-through one kept from another purpose is left out
+  const hasTop = (top !== NOT_SET && top !== REMOVE) || lingerieTop === RANDOM || intimateOptions('lingerieTop', state, mode).includes(lingerieTop)
+  return needsTop && !hasTop ? { status: 'incomplete', reason: t('builder.reasonNeedsTop') } : null
+}
+
 export function buildPrompt(state: BuilderState, mode: BuilderMode, style: PromptStyle = 'prose'): BuildResult {
-  const problem = missingStart(state, mode) ?? adultContentProblem(state, mode)
+  const problem = missingStart(state, mode) ?? adultContentProblem(state, mode) ?? missingTop(state, mode)
   if (problem) return problem
   const facts = resolveFacts(state, mode)
   const prompt = style === 'tags' ? tagsFrom(facts, mode) : proseFrom(facts, mode)

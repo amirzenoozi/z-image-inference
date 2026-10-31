@@ -1,13 +1,13 @@
 import { CLOTHING_COLORS, POSES } from '../../lib/promptBuilder/data'
 import { FACELESS_POSES } from '../../lib/promptBuilder/faceless'
-import { intimateOptions } from '../../lib/promptBuilder/intimates'
-import { ALL_ACCESSORIES, CARDIO_BOXING, GYM_WORKOUTS, PILATES_STRETCHES, SPICY_POSES, YOGA_POSES, outfitOptions } from '../../lib/promptBuilder/fitness'
+import { accessoryOptions, intimateOptions } from '../../lib/promptBuilder/intimates'
+import { CARDIO_BOXING, GYM_WORKOUTS, PILATES_STRETCHES, SPICY_POSES, YOGA_POSES, outfitOptions } from '../../lib/promptBuilder/fitness'
 import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
 import { explicitDetailOptions } from '../../lib/promptBuilder/rules'
 import { picksOf, withPicks } from '../../lib/promptBuilder/multiChoice'
 import type { ChoiceField } from '../../lib/promptBuilder/choices'
-import { isAdultMode, isSafeMode, type BuilderMode } from '../../lib/promptBuilder/modes'
+import { alwaysClothed, isAdultMode, isSafeMode, type BuilderMode } from '../../lib/promptBuilder/modes'
 import { t, type MessageKey } from '../../i18n'
 import { CheckboxGroup, ChoiceSelect, FieldGrid, MultiChoiceSelect, Segmented, StepIntro, TextField } from './fields'
 
@@ -107,12 +107,12 @@ export function OutfitStep({ state, mode, setOutfit }: StepProps) {
       <FieldGrid>
         {rows.map((row) => (
           <div key={row.item} className="contents">
-            <ChoiceSelect label={t(row.label)} value={outfit[row.item]} groups={one(row.options(state, mode))} allowRemove onChange={(value) => setOutfit({ [row.item]: value })} />
+            <ChoiceSelect label={t(row.label)} value={outfit[row.item]} groups={one(row.options(state, mode))} allowRemove={!alwaysClothed(mode)} onChange={(value) => setOutfit({ [row.item]: value })} />
             <ChoiceSelect label={t(row.colourLabel)} value={outfit[row.color]} groups={one(CLOTHING_COLORS)} onChange={(value) => setOutfit({ [row.color]: value })} />
           </div>
         ))}
         {outfit.accessories.map((value, index) => (
-          <ChoiceSelect key={index} label={t('builder.outfitAccessory', { number: index + 1 })} value={value} groups={one(ALL_ACCESSORIES)} onChange={(item) => setAccessory(index, item)} />
+          <ChoiceSelect key={index} label={t('builder.outfitAccessory', { number: index + 1 })} value={value} groups={one(accessoryOptions(mode))} onChange={(item) => setAccessory(index, item)} />
         ))}
         <TextField label={t('builder.fieldOutfitDetails')} value={outfit.details} placeholder={t('builder.placeholderOutfit')} onChange={(details) => setOutfit({ details })} wide />
       </FieldGrid>

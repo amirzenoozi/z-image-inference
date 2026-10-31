@@ -4,14 +4,14 @@ import { INHERIT_SCENE, NOT_SET, REMOVE } from './constants'
 import { CLOTHING_COLORS, EXPLICIT_PARTNER_ACTIONS, EXPLICIT_POSES, EXPLICIT_SOLO_ACTIONS, LIGHTING_EXPANSIONS } from './data'
 import { WHO_OPTIONS, type Nudity, type Who } from './extraData'
 import { pronounFor, withArticle, type Facts, type Labelled, type Pronoun } from './facts'
-import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
+import { alwaysClothed, isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { resolve } from './random'
 import { anatomyShows, choicesFor, explicitDetailOptions, includesMan, includesWoman } from './rules'
 import { picksOf, type MultiChoice } from './multiChoice'
 import { settleChoices } from './settle'
 import { FACELESS_POSES, FACELESS_SHOTS } from './faceless'
-import { ALL_ACCESSORIES, CONDITIONAL_CLOTHING, FITNESS_LIGHTING, FITNESS_SCENES, WORKOUTS, outfitOptions } from './fitness'
-import { CONDITIONAL_INTIMATES, GARMENT_DETAILS, intimateOptions } from './intimates'
+import { CONDITIONAL_CLOTHING, FITNESS_LIGHTING, FITNESS_SCENES, WORKOUTS, outfitOptions } from './fitness'
+import { CONDITIONAL_INTIMATES, EVERY_ACCESSORY, GARMENT_DETAILS, accessoryOptions, intimateOptions } from './intimates'
 
 const EXPLICIT_ACTIONS: Readonly<Record<string, string>> = { ...EXPLICIT_SOLO_ACTIONS, ...EXPLICIT_PARTNER_ACTIONS }
 const isSet = (value: string) => value !== NOT_SET
@@ -111,12 +111,19 @@ function outfitFacts(state: BuilderState, mode: BuilderMode, nudity: Nudity | nu
     const worn = nudity === null || WORN_WITH[nudity].has(slot.item)
     // Bare feet have no colour
     const coloured = isSet(color) && item !== BAREFOOT
-    if (item === REMOVE) removed.push(slot.label)
+    // A purpose that keeps every garment on never writes one as left off
+    if (item === REMOVE) removed.push(...(alwaysClothed(mode) ? [] : [slot.label]))
     else if (isSet(item) && worn) clothing.push(garment(item, coloured ? color : ''))
   }
-  const accessories = outfit.accessories.map((item, index) => resolve(item, ALL_ACCESSORIES, seed, `accessory${index}`).toLowerCase())
-  const worn = [...new Set(accessories.filter(isSet))].map((item) => ({ label: item, text: item }))
-  return { clothing: [...clothing, ...worn], removed }
+  return { clothing: [...clothing, ...accessoriesWorn(outfit, mode, seed)], removed }
+}
+
+/** The accessories, each once; a lingerie one kept from another purpose is left out where it isn't offered. */
+function accessoriesWorn(outfit: OutfitState, mode: BuilderMode, seed: number): Labelled[] {
+  const options = accessoryOptions(mode)
+  const items = outfit.accessories.map((item, index) => resolve(item, options, seed, `accessory${index}`))
+  const offered = items.filter((item) => isSet(item) && (options.includes(item) || !EVERY_ACCESSORY.includes(item)))
+  return [...new Set(offered)].map((item) => garment(item, ''))
 }
 
 const PREPOSITIONS = ['in ', 'at ', 'on ', 'near ', 'by ', 'inside ', 'outside ', 'under ', 'above ', 'along ', 'within ']
