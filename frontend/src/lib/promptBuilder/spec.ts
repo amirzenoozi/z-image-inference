@@ -9,8 +9,8 @@ import { CHOICE_OPTIONS, isChoiceField } from './choices'
 import { INHERIT_SCENE, NOT_SET, REMOVE } from './constants'
 import { CLOTHING_COLORS } from './data'
 import { EXPLICIT_DETAILS, EXPLICIT_PIERCINGS, FACIAL_HAIR, INTIMACY_CUES, MAKEUP, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from './extraData'
-import { ALL_ACCESSORIES, outfitOptions, type ClothingSlot } from './fitness'
-import { ALL_INTIMATES } from './intimates'
+import { outfitOptions, type ClothingSlot } from './fitness'
+import { ALL_INTIMATES, EVERY_ACCESSORY } from './intimates'
 import type { BuilderMode } from './modes'
 import { choicesInPrompt, settleChoices } from './settle'
 
@@ -212,7 +212,7 @@ function checkAccessories(value: unknown): void {
   const path = 'outfit.accessories'
   // The builder has three accessory slots
   if (!isStringList(value) || value.length > 3) throw new SpecProblem(t('create.jsonNeedsList', { field: path }))
-  checkOptions(value, ALL_ACCESSORIES, path)
+  checkOptions(value, EVERY_ACCESSORY, path)
 }
 
 /** An older JSON prompt brought up to SPEC_VERSION; there is only one version so far. */

@@ -1,10 +1,11 @@
 // Lingerie, underwear and swimwear: the Lingerie & swimwear rows, offered only outside the safe purposes. Each item
 // has a full description, so a paragraph prompt says how it is cut and how it fits, not just its name; a tag prompt
-// keeps the short name. See-through items are offered only where a purpose lets nudity be chosen.
+// keeps the short name. Items that leave bare or show through are offered only where a purpose lets nudity be chosen.
 import type { BuilderState } from './build'
 import { NOT_SET } from './constants'
 import { LINGERIE_BOTTOMS, LINGERIE_TOPS } from './data'
-import { isAdultMode, showsStep, type BuilderMode } from './modes'
+import { ALL_ACCESSORIES } from './fitness'
+import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
 import { pick } from './random'
 import { includesMan, includesWoman } from './rules'
 
@@ -13,22 +14,45 @@ type For = 'woman' | 'man'
 
 const SWIM_TOPS: Readonly<Record<string, For>> = {
   'String bikini top': 'woman', 'Triangle bikini top': 'woman', 'Bandeau bikini top': 'woman', 'Underwire bikini top': 'woman',
+  'Micro bikini top': 'woman', 'Ring bikini top': 'woman', 'Halter bikini top': 'woman', 'Push-up bikini top': 'woman', 'Crochet bikini top': 'woman',
+  'High-neck bikini top': 'woman', 'Wet-look bikini top': 'woman',
 }
 // They cover top and bottom, so Surprise me leaves the bottom off
 const ONE_PIECES: Readonly<Record<string, For>> = {
-  'Plunging one-piece swimsuit': 'woman', 'Cut-out one-piece swimsuit': 'woman', 'High-leg one-piece swimsuit': 'woman',
+  'Plunging one-piece swimsuit': 'woman', 'Cut-out one-piece swimsuit': 'woman', 'High-leg one-piece swimsuit': 'woman', 'Sling bikini': 'woman',
+  Monokini: 'woman', 'Thong one-piece swimsuit': 'woman', 'Backless one-piece swimsuit': 'woman', 'Lace-up one-piece swimsuit': 'woman',
 }
 const SWIM_BOTTOMS: Readonly<Record<string, For>> = {
   'String bikini bottoms': 'woman', 'Brazilian bikini bottoms': 'woman', 'High-cut bikini bottoms': 'woman', 'Thong bikini bottoms': 'woman',
-  'Side-tie bikini bottoms': 'woman', 'Swim briefs': 'man', 'Swim trunks': 'man',
+  'Side-tie bikini bottoms': 'woman', 'Micro bikini bottoms': 'woman', 'Tanga bikini bottoms': 'woman', 'G-string bikini bottoms': 'woman',
+  'Ring bikini bottoms': 'woman', 'Scrunch-butt bikini bottoms': 'woman', 'Cheeky bikini bottoms': 'woman', 'High-waisted bikini bottoms': 'woman',
+  'Swim briefs': 'man', 'Swim trunks': 'man', 'Micro swim briefs': 'man', 'Square-cut swim trunks': 'man', 'Swim thong': 'man',
 }
-const MORE_LINGERIE_TOPS: Readonly<Record<string, For>> = { 'Lace bodysuit': 'woman', 'Satin slip': 'woman' }
+const MORE_LINGERIE_TOPS: Readonly<Record<string, For>> = {
+  'Lace bodysuit': 'woman', 'Satin slip': 'woman', 'Waist cincher corset': 'woman', 'Underbust corset with garters': 'woman', 'Satin corset top': 'woman',
+  'Leather corset': 'woman', 'PVC corset': 'woman', 'Latex corset': 'woman', 'Lace-up corset bodysuit': 'woman', 'Moulded T-shirt bra': 'woman',
+  'Demi-cup bra': 'woman', 'Bandeau bra': 'woman', 'Lace bandeau': 'woman', 'Latex bra': 'woman', 'Bustier crop top': 'woman',
+  'Cut-out bodysuit': 'woman', 'Halter bodysuit': 'woman', 'Thong bodysuit': 'woman', 'Garter bodysuit': 'woman', 'Crop cami': 'woman',
+  'Mini tube top': 'woman', 'Bralette crop top': 'woman', Chemise: 'woman', 'Babydoll with a thigh slit': 'woman',
+  'Nipple pasties': 'woman', 'Shelf bra (cupless)': 'woman', 'Quarter-cup bra': 'woman', 'Open-cup bra': 'woman',
+}
 const MORE_LINGERIE_BOTTOMS: Readonly<Record<string, For>> = {
-  'Lace garter set': 'woman', 'Boxer briefs': 'man', 'Low-rise briefs': 'man', Trunks: 'man',
+  'Lace garter set': 'woman', 'Micro thong': 'woman', 'Cut-out thong': 'woman', 'High-leg thong': 'woman', 'Tanga briefs': 'woman',
+  'Ruffle panties': 'woman', 'Booty shorts': 'woman', 'Latex shorts': 'woman', 'Garter skirt': 'woman', 'Crotchless panties': 'woman',
+  'Boxer briefs': 'man', 'Low-rise briefs': 'man', Trunks: 'man', Jockstrap: 'man', 'Pouch briefs': 'man', 'Silk boxers': 'man',
 }
 
-/** Items that show what clothes would cover; left out wherever nudity can't be chosen. */
-const SEE_THROUGH: ReadonlySet<string> = new Set(['Sheer bra', 'Sheer panties', 'Bodystocking', 'Cage bra', 'Harness bra'])
+/** Worn over lingerie, so offered with the accessories only outside the safe purposes (a leather harness and a body chain are everyday ones). */
+export const LINGERIE_ACCESSORIES: readonly string[] = ['Thigh harness']
+
+/**
+ * Items that leave bare or show what clothes would cover (see-through, cupless, pasties, crotchless); offered only
+ * where a purpose lets nudity be chosen.
+ */
+const REVEALING: ReadonlySet<string> = new Set([
+  'Sheer bra', 'Sheer panties', 'Bodystocking', 'Cage bra', 'Harness bra', 'Nipple pasties', 'Shelf bra (cupless)', 'Quarter-cup bra', 'Open-cup bra',
+  'Crotchless panties',
+])
 
 export const GARMENT_DETAILS: Readonly<Record<string, string>> = {
   'Babydoll top': 'babydoll top with a fitted lace bust and a floaty chiffon hem',
@@ -89,6 +113,71 @@ export const GARMENT_DETAILS: Readonly<Record<string, string>> = {
   'Swim briefs': 'swim briefs cut low on the hips',
   'Swim trunks': 'swim trunks resting low on the hips',
   'Silk robe': 'silk robe left loosely belted',
+  'Waist cincher corset': 'waist cincher corset pulled tight under the bust to carve a tiny waist',
+  'Underbust corset with garters': 'underbust corset with garter straps hanging down the thighs, cinching the waist and framing the bust',
+  'Satin corset top': 'satin corset top with boning and a sweetheart neckline that pushes the bust up',
+  'Leather corset': 'leather corset laced tight to an hourglass waist that pushes the bust into deep cleavage',
+  'PVC corset': 'glossy PVC corset laced tight at the waist with a high shine',
+  'Latex corset': 'latex corset with a wet-look shine moulded tight to the waist and bust',
+  'Lace-up corset bodysuit': 'corset bodysuit laced up the front with high-cut legs and a thong back',
+  'Moulded T-shirt bra': 'moulded T-shirt bra with smooth seamless cups that round out the bust',
+  'Demi-cup bra': 'demi-cup bra cut low across the top of the bust',
+  'Bandeau bra': 'strapless bandeau bra stretched tight across the bust',
+  'Lace bandeau': 'lace bandeau wrapped low across the bust',
+  'Latex bra': 'latex bra with a glossy wet-look shine',
+  'Bustier crop top': 'bustier crop top with boning that lifts the bust and bares the midriff',
+  'Cut-out bodysuit': 'bodysuit with bold cut-outs at the waist and under the bust',
+  'Halter bodysuit': 'halter bodysuit with an open back and high-cut legs',
+  'Thong bodysuit': 'thong bodysuit with a plunging neckline and a thong back',
+  'Garter bodysuit': 'lace bodysuit with garter straps clipped to stockings',
+  'Crop cami': 'silky crop cami with thin straps ending above the navel',
+  'Mini tube top': 'mini tube top stretched tight across the bust with the midriff bare',
+  'Bralette crop top': 'bralette crop top with a plunging neckline',
+  Chemise: 'short satin chemise with lace trim skimming the upper thighs',
+  'Babydoll with a thigh slit': 'babydoll with a fitted bust and a hem slit high up the thigh',
+  'Nipple pasties': 'nipple pasties as the only cover on the bust',
+  'Shelf bra (cupless)': 'cupless shelf bra framing and lifting the bare bust',
+  'Quarter-cup bra': 'quarter-cup bra lifting the bust from below and leaving the nipples bare',
+  'Open-cup bra': 'open-cup bra with strappy frames around the bare bust',
+  'Micro thong': 'micro thong with a tiny front triangle and a string back',
+  'Cut-out thong': 'thong with strappy cut-outs over the hips',
+  'High-leg thong': 'high-leg thong cut high over the hip bones',
+  'Tanga briefs': 'tanga briefs with narrow sides and a cheeky back',
+  'Ruffle panties': 'ruffle panties with frilled lace across the buttocks',
+  'Booty shorts': 'tiny booty shorts riding up to show the curve of the buttocks',
+  'Latex shorts': 'glossy latex hot pants moulded to the hips',
+  'Garter skirt': 'short lace garter skirt with straps clipped to stockings',
+  'Crotchless panties': 'crotchless lace panties open at the front',
+  Jockstrap: 'jockstrap with a snug pouch and straps framing the bare buttocks',
+  'Pouch briefs': 'low-cut briefs with a contoured pouch',
+  'Silk boxers': 'loose silk boxers sitting low on the hips',
+  'Micro bikini top': 'micro bikini top with tiny triangle cups barely covering the bust',
+  'Ring bikini top': 'bikini top joined by a metal ring at the centre of the bust',
+  'Halter bikini top': 'halter bikini top tied behind the neck',
+  'Push-up bikini top': 'push-up bikini top with padded cups that lift the bust',
+  'Crochet bikini top': 'lined crochet bikini top in an open knit',
+  'High-neck bikini top': 'high-neck bikini top with a keyhole cut-out over the cleavage',
+  'Wet-look bikini top': 'metallic bikini top with a liquid wet-look shine',
+  'Sling bikini': 'sling bikini of two thin straps running from the shoulders down to a tiny bottom',
+  Monokini: 'monokini with wide cut-outs at the sides joined by a ring at the front',
+  'Thong one-piece swimsuit': 'one-piece swimsuit with a thong back and a plunging front',
+  'Backless one-piece swimsuit': 'one-piece swimsuit open down to the small of the back',
+  'Lace-up one-piece swimsuit': 'one-piece swimsuit laced up the front to a deep neckline',
+  'Micro bikini bottoms': 'micro bikini bottoms with a tiny front and a string back',
+  'Tanga bikini bottoms': 'tanga bikini bottoms with narrow sides and a cheeky cut',
+  'G-string bikini bottoms': 'G-string bikini bottoms with a thin string at the back',
+  'Ring bikini bottoms': 'bikini bottoms with metal rings at the hips',
+  'Scrunch-butt bikini bottoms': 'scrunch-butt bikini bottoms ruched to lift and shape the buttocks',
+  'Cheeky bikini bottoms': 'cheeky bikini bottoms that show the lower curve of the buttocks',
+  'High-waisted bikini bottoms': 'high-waisted bikini bottoms cut high on the legs',
+  'Micro swim briefs': 'micro swim briefs cut very low and tight',
+  'Square-cut swim trunks': 'square-cut swim trunks hugging the thighs',
+  'Swim thong': 'swim thong with a snug pouch and a thong back',
+  Sarong: 'sarong knotted low on the hips',
+  'Crochet cover-up': 'crochet beach cover-up over the swimwear',
+  'Leather harness': 'leather harness strapped across the chest and waist',
+  'Thigh harness': 'leather thigh harness buckled around one thigh',
+  'Body chain': 'delicate body chain draped over the hips and waist',
 }
 
 export type IntimateSlot = 'lingerieTop' | 'lingerieBottom'
@@ -106,7 +195,7 @@ export function intimateOptions(slot: IntimateSlot, wearer: Wearer, mode: Builde
   const classic = includesWoman(wearer.who) ? (top ? LINGERIE_TOPS : LINGERIE_BOTTOMS) : []
   const added = top ? { ...MORE_LINGERIE_TOPS, ...SWIM_TOPS, ...ONE_PIECES } : { ...MORE_LINGERIE_BOTTOMS, ...SWIM_BOTTOMS }
   const all = [...classic, ...offered(added, wearer)]
-  return nudityPossible(mode) ? all : all.filter((item) => !SEE_THROUGH.has(item))
+  return nudityPossible(mode) ? all : all.filter((item) => !REVEALING.has(item))
 }
 
 /** Every lingerie and swimwear item, for translations and for checking a JSON prompt. */
@@ -117,7 +206,7 @@ export const ALL_INTIMATES: Readonly<Record<IntimateSlot, readonly string[]>> = 
 
 /** Items offered only to some subjects or purposes, so a kept choice may no longer fit and is left out of the prompt. */
 export const CONDITIONAL_INTIMATES: ReadonlySet<string> = new Set([
-  ...SEE_THROUGH, ...Object.keys({ ...MORE_LINGERIE_TOPS, ...SWIM_TOPS, ...ONE_PIECES, ...MORE_LINGERIE_BOTTOMS, ...SWIM_BOTTOMS }),
+  ...REVEALING, ...Object.keys({ ...MORE_LINGERIE_TOPS, ...SWIM_TOPS, ...ONE_PIECES, ...MORE_LINGERIE_BOTTOMS, ...SWIM_BOTTOMS }),
 ])
 
 const SWIM_ITEMS: ReadonlySet<string> = new Set(Object.keys({ ...SWIM_TOPS, ...ONE_PIECES, ...SWIM_BOTTOMS }))
@@ -135,3 +224,11 @@ export function intimateSet(wearer: Wearer, mode: BuilderMode, seed: number): Pi
   const lingerieBottom = lingerieTop in ONE_PIECES || !bottoms.length ? NOT_SET : pick(bottoms, seed, 'lingerieBottom')
   return { lingerieTop, lingerieBottom }
 }
+
+/** The accessories under this purpose: the lingerie ones (harnesses, a body chain) only outside the safe purposes. */
+export function accessoryOptions(mode: BuilderMode): readonly string[] {
+  return isSafeMode(mode) ? ALL_ACCESSORIES : [...ALL_ACCESSORIES, ...LINGERIE_ACCESSORIES]
+}
+
+/** Every accessory any purpose offers, for translations and for checking a JSON prompt. */
+export const EVERY_ACCESSORY: readonly string[] = [...ALL_ACCESSORIES, ...LINGERIE_ACCESSORIES]

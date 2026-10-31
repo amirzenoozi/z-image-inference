@@ -38,19 +38,32 @@ describe('the Faceless purpose', () => {
     expect(built(outfit, 'tags').prompt).toContain('black balconette bra')
   })
 
-  it('never shows nudity: nothing see-through is offered, and covering is in the negative prompt', () => {
-    const offered = intimateOptions('lingerieTop', state({}), faceless)
-    expect(offered).toEqual(expect.arrayContaining(['Lace bra', 'String bikini top', 'Plunging one-piece swimsuit']))
-    expect(offered).not.toContain('Sheer bra')
-    expect(intimateOptions('lingerieTop', state({}), glamour)).toContain('Sheer bra')
-    expect(built(wearing({ lingerieTop: 'Sheer bra' })).prompt).not.toMatch(/sheer/i)
-    expect(built({}).negativePrompt).toContain('exposed nipples')
+  it('never shows nudity: nothing see-through or bare is offered, and covering is in the negative prompt', () => {
+    const offered = [...intimateOptions('lingerieTop', state({}), faceless), ...intimateOptions('lingerieBottom', state({}), faceless)]
+    expect(offered).toEqual(expect.arrayContaining(['Lace bra', 'Latex corset', 'Micro bikini top', 'Sling bikini', 'G-string bikini bottoms', 'Micro thong']))
+    for (const bare of ['Sheer bra', 'Nipple pasties', 'Shelf bra (cupless)', 'Quarter-cup bra', 'Open-cup bra', 'Crotchless panties']) {
+      expect(offered).not.toContain(bare)
+      expect(intimateOptions(bare === 'Crotchless panties' ? 'lingerieBottom' : 'lingerieTop', state({}), glamour)).toContain(bare)
+    }
+    expect(built(wearing({ lingerieTop: 'Lace bra', lingerieBottom: 'Sheer panties' })).prompt).not.toMatch(/sheer/i)
+    expect(built(wearing({ lingerieTop: 'Lace bra' })).negativePrompt).toContain('exposed nipples')
+  })
+
+  it('always keeps her clothed: a top is needed, and nothing can be left off', () => {
+    expect(buildPrompt(state({}), faceless)).toMatchObject({ status: 'incomplete', reason: 'Choose a top: this purpose always shows her clothed.' })
+    expect(buildPrompt(state(wearing({ lingerieTop: 'Nipple pasties' })), faceless).status).toBe('incomplete')
+    expect(buildPrompt(state({ who: 'man', ...wearing({ lingerieBottom: 'Jockstrap' }) }), faceless).status).toBe('ready')
+    const removed = built(wearing({ lingerieTop: 'Latex corset', lingerieBottom: 'remove', top: 'remove' })).prompt
+    expect(removed).toContain('wearing a latex corset with a wet-look shine moulded tight to the waist and bust.')
+    expect(removed).not.toMatch(/\bno (top|lingerie)/)
   })
 
   it('offers each subject what is cut for them', () => {
     const man = { who: 'man' }
     expect(intimateOptions('lingerieTop', man, faceless)).toEqual([])
-    expect(intimateOptions('lingerieBottom', man, faceless)).toEqual(['Boxer briefs', 'Low-rise briefs', 'Trunks', 'Swim briefs', 'Swim trunks'])
+    expect(intimateOptions('lingerieBottom', man, faceless)).toEqual([
+      'Boxer briefs', 'Low-rise briefs', 'Trunks', 'Jockstrap', 'Pouch briefs', 'Silk boxers', 'Swim briefs', 'Swim trunks', 'Micro swim briefs', 'Square-cut swim trunks', 'Swim thong',
+    ])
     expect(intimateOptions('lingerieBottom', { who: 'woman' }, faceless)).not.toContain('Boxer briefs')
   })
 
@@ -59,6 +72,7 @@ describe('the Faceless purpose', () => {
       const surprised = surprise(state({ who: seed % 3 ? 'woman' : 'man' }), seed, faceless)
       const { lingerieTop, lingerieBottom } = surprised.outfit
       expect(lingerieTop !== NOT_SET || lingerieBottom !== NOT_SET).toBe(true)
+      if (seed % 3) expect(lingerieTop).not.toBe(NOT_SET)
       const swim = [lingerieTop, lingerieBottom].filter((item) => item !== NOT_SET).map((item) => /bikini (top|bottoms)|swim/i.test(item))
       expect(new Set(swim).size).toBe(1)
       if (/one-piece/.test(lingerieTop)) expect(lingerieBottom).toBe(NOT_SET)

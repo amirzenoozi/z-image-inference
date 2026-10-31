@@ -1,7 +1,7 @@
 import type { BuilderState } from './build'
 import { TEXT_CHOICES, type TextChoice } from './choices'
 import { NOT_SET, RANDOM } from './constants'
-import { ALL_ACCESSORIES } from './fitness'
+import { accessoryOptions } from './intimates'
 import { fitsChoice } from './conflicts'
 import { showsStep, type BuilderMode, type StepId } from './modes'
 import { pick } from './random'
@@ -28,7 +28,8 @@ export function pickFitting(field: TextChoice, state: BuilderState, mode: Builde
   return pick(fitting.length ? fitting : options, seed, field)
 }
 
-function settleAccessories(state: BuilderState, seed: number): BuilderState {
+function settleAccessories(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+  const options = accessoryOptions(mode)
   let settled = state
   state.outfit.accessories.forEach((item, index) => {
     if (item !== RANDOM) return
@@ -36,8 +37,8 @@ function settleAccessories(state: BuilderState, seed: number): BuilderState {
       const accessories = settled.outfit.accessories.map((current, i) => (i === index ? value : current)) as BuilderState['outfit']['accessories']
       return fitsChoice(settled, { outfit: { ...settled.outfit, accessories } }, value)
     }
-    const fitting = ALL_ACCESSORIES.filter(fits)
-    const value = pick(fitting.length ? fitting : ALL_ACCESSORIES, seed, `accessory${index}`)
+    const fitting = options.filter(fits)
+    const value = pick(fitting.length ? fitting : options, seed, `accessory${index}`)
     const accessories = settled.outfit.accessories.map((current, i) => (i === index ? value : current)) as BuilderState['outfit']['accessories']
     settled = { ...settled, outfit: { ...settled.outfit, accessories } }
   })
@@ -50,7 +51,7 @@ export function settleChoices(state: BuilderState, mode: BuilderMode): BuilderSt
   for (const field of ORDERED) {
     if (settled[field] === RANDOM) settled = { ...settled, [field]: pickFitting(field, settled, mode, state.rollSeed) }
   }
-  return settleAccessories(settled, state.rollSeed)
+  return settleAccessories(settled, mode, state.rollSeed)
 }
 
 // The choices each step holds that can take part in a clash

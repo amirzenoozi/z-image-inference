@@ -26,5 +26,5 @@ export const FACELESS_SHOTS: Readonly<Record<string, string>> = {
 
 export const FACELESS_PHOTO_STYLES: readonly string[] = ['boudoir', 'swimwear editorial']
 
-/** Worn over lingerie; offered with the other outerwear. */
-export const LOUNGE_OUTERWEAR: readonly string[] = ['Silk robe']
+/** Worn over lingerie or swimwear; offered with the other outerwear. */
+export const LOUNGE_OUTERWEAR: readonly string[] = ['Silk robe', 'Sarong', 'Crochet cover-up']
