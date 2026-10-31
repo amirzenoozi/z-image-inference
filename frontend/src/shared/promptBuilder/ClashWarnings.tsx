@@ -4,7 +4,7 @@ import { TriangleAlert } from 'lucide-react'
 
 const MESSAGES: Record<ClashKind, MessageKey> = {
   hands: 'builder.clashHands', position: 'builder.clashPosition', mouth: 'builder.clashMouth', facing: 'builder.clashFacing',
-  framing: 'builder.clashFraming', hair: 'builder.clashHair', light: 'builder.clashLight', weather: 'builder.clashWeather',
+  framing: 'builder.clashFraming', hair: 'builder.clashHair', light: 'builder.clashLight', place: 'builder.clashPlace', weather: 'builder.clashWeather',
   accessories: 'builder.clashAccessories', build: 'builder.clashBuild',
 }
 
