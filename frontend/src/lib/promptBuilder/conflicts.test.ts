@@ -24,6 +24,11 @@ describe('finds choices that contradict each other', () => {
     ['hair', { hairLength: 'buzzed', hairstyle: 'low ponytail' }],
     ['light', { timeOfDay: 'midnight', lightingSetup: 'harsh midday sun' }],
     ['weather', { sceneType: 'bedroom', weather: 'heavy rain' }],
+    ['place', { sceneType: 'park', lightingSetup: 'candlelight' }],
+    ['place', { sceneType: 'beach', lightingSetup: 'softbox beauty' }],
+    ['place', { sceneType: 'bathroom', lightingSetup: 'harsh midday sun' }],
+    ['place', { sceneType: 'bedroom', lightingSetup: 'gym overhead light' }],
+    ['place', { sceneType: 'park', lightingSetup: 'neon/artificial' }],
     ['build', { bodyType: 'slim build', muscles: 'huge bodybuilder' }],
     ['build', { bodyType: 'plus-size figure', abs: 'six-pack' }],
     ['build', { chest: 'smooth chest', bodyHair: 'hairy' }],
@@ -99,5 +104,26 @@ describe('warnings for clashes in your own choices', () => {
   it('ignores choices a step the purpose hides keeps from the prompt', () => {
     const leftOver = adult({ mode: 'portrait', who: 'woman', pose: 'legs spread lying back', shotType: 'headshot' })
     expect(ready(leftOver, 'portrait').clashes).toEqual([])
+  })
+})
+
+describe('lights and places', () => {
+  it.each([
+    { sceneType: 'bedroom', lightingSetup: 'candlelight' },
+    { sceneType: 'balcony', lightingSetup: 'candlelight' },
+    { sceneType: 'car', lightingSetup: 'harsh midday sun' },
+    { sceneType: 'car', lightingSetup: 'screen/monitor glow' },
+    { sceneType: 'home gym', lightingSetup: 'gym overhead light' },
+    { sceneType: 'beach', lightingSetup: 'golden hour' },
+  ])('lets a light be where it can be: %j', (patch) => {
+    expect(kinds(adult(patch))).not.toContain('place')
+  })
+
+  it.each(modes.map((mode) => mode.id))('never puts a light where it can\'t be with Surprise me, in %s', (id) => {
+    const mode = modes.find((candidate) => candidate.id === id)!
+    for (let seed = 1; seed <= 150; seed++) {
+      const state = surprise({ ...emptyBuilderState(), who: 'woman', age: 'late 20s', mode: id }, seed, mode)
+      expect(kinds(state), `seed ${seed}`).not.toContain('place')
+    }
   })
 })

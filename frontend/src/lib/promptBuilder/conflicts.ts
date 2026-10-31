@@ -159,6 +159,32 @@ const INDOOR = new Set([
   'bedroom', 'bathroom', 'living room', 'kitchen', 'hotel room', 'cafe', 'bar/club', 'gym', 'studio', 'stairwell', 'hallway/corridor',
   'yoga studio', 'pilates studio', 'home gym', 'boxing gym', 'crossfit box',
 ])
+/** Where a light can be: indoors or outdoors (each with a few other places it also fits), only some places, or anywhere but some; a light not listed fits anywhere. */
+type LightPlace = { indoors: true; also?: readonly string[] } | { outdoors: true } | { only: readonly string[] } | { notIn: readonly string[] }
+
+const GYMS = ['gym', 'home gym', 'boxing gym', 'crossfit box']
+// Lit from inside: a car counts for screens and small lights, a balcony or rooftop for candles at night
+const WITH_A_CAR = { indoors: true, also: ['car'] } as const
+const LIGHT_PLACES: Readonly<Record<string, LightPlace>> = {
+  candlelight: { indoors: true, also: ['balcony', 'rooftop'] },
+  'natural window light': WITH_A_CAR, 'ring light': WITH_A_CAR, 'LED strip ambient': WITH_A_CAR, 'screen/monitor glow': WITH_A_CAR,
+  'softbox beauty': { indoors: true }, 'studio rim light': { indoors: true },
+  'soft studio daylight': { only: ['studio', 'yoga studio', 'pilates studio'] },
+  'gym overhead light': { only: GYMS },
+  // The sun reaches a car through its windows
+  'harsh midday sun': { outdoors: true }, 'backlit sun flare': { outdoors: true }, 'overcast soft': { outdoors: true }, 'blue hour': { outdoors: true },
+  'golden hour track light': { only: ['running track', 'outdoor workout park'] },
+  'neon/artificial': { notIn: ['park', 'beach', 'outdoor workout park'] },
+}
+
+function fitsPlace(light: string, scene: string): boolean {
+  const place = LIGHT_PLACES[light]
+  if (!place) return true
+  if ('indoors' in place) return INDOOR.has(scene) || (place.also ?? []).includes(scene)
+  if ('outdoors' in place) return !INDOOR.has(scene)
+  return 'only' in place ? place.only.includes(scene) : !place.notIn.includes(scene)
+}
+
 /** Weather that would be in the picture, so it can't happen indoors. */
 const OUTDOOR_WEATHER = new Set(['light rain', 'heavy rain', 'falling snow', 'fog', 'heat haze', 'stormy sky'])
 
@@ -166,7 +192,7 @@ const OUTDOOR_WEATHER = new Set(['light rain', 'heavy rain', 'falling snow', 'fo
 const SAME_PLACE = [['Baseball cap', 'Beanie'], ['Eyeglasses', 'Sunglasses'], ['Backpack', 'Clutch bag', 'Handbag', 'Tote bag'], ['Bow tie', 'Necktie'], ['Choker', 'Leather choker', 'Spiked choker'], ['Belt', 'Chain belt', 'Lifting belt'], ['Watch', 'Fitness tracker']]
 const HELD_ACCESSORIES = new Set(['Clutch bag', 'Water bottle'])
 
-export type ClashKind = 'hands' | 'position' | 'mouth' | 'facing' | 'framing' | 'hair' | 'light' | 'weather' | 'accessories' | 'build'
+export type ClashKind = 'hands' | 'position' | 'mouth' | 'facing' | 'framing' | 'hair' | 'light' | 'place' | 'weather' | 'accessories' | 'build'
 
 /** Two or more choices that contradict each other, named by their values (option labels show them). */
 export interface Clash {
@@ -250,6 +276,12 @@ function lightClash(choices: Choices): Clash[] {
   return wrong ? [{ kind: 'light', values: [wrong, choices.timeOfDay] }] : []
 }
 
+function placeClash(choices: Choices): Clash[] {
+  if (!chosen(choices.sceneType)) return []
+  const wrong = [choices.lightingSetup, ...choices.lightingMore].find((light) => chosen(light) && !fitsPlace(light, choices.sceneType))
+  return wrong ? [{ kind: 'place', values: [wrong, choices.sceneType] }] : []
+}
+
 function weatherClash(choices: Choices): Clash[] {
   return INDOOR.has(choices.sceneType) && OUTDOOR_WEATHER.has(choices.weather) ? [{ kind: 'weather', values: [choices.weather, choices.sceneType] }] : []
 }
@@ -278,7 +310,7 @@ function buildClash(choices: Choices): Clash[] {
   return pairs.filter((_, index) => clashing[index]).map((values) => ({ kind: 'build' as const, values }))
 }
 
-const RULES = [handsClash, positionClash, mouthClash, facingClash, framingClash, hairClash, lightClash, weatherClash, accessoryClash, buildClash]
+const RULES = [handsClash, positionClash, mouthClash, facingClash, framingClash, hairClash, lightClash, placeClash, weatherClash, accessoryClash, buildClash]
 
 function choicesOf(state: BuilderState): Choices {
   return { ...state, accessories: state.outfit.accessories.filter(chosen), intimacy: state.intimacy.filter(chosen) }
