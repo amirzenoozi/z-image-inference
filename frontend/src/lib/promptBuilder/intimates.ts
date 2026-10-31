@@ -211,6 +211,8 @@ export const CONDITIONAL_INTIMATES: ReadonlySet<string> = new Set([
 
 const SWIM_ITEMS: ReadonlySet<string> = new Set(Object.keys({ ...SWIM_TOPS, ...ONE_PIECES, ...SWIM_BOTTOMS }))
 
+export const isSwimwear = (item: string): boolean => SWIM_ITEMS.has(item)
+
 /**
  * A matching set for Surprise me: all lingerie or all swimwear, nothing under a one-piece, and only a bottom for a
  * man, since the tops are cut for women.
