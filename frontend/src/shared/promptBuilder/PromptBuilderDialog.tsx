@@ -4,7 +4,7 @@ import { modeLabel, modesForCharacter, parseModes, type BuilderMode, type StepId
 import { specFromState, type PromptSpec } from '../../lib/promptBuilder/spec'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../lib/styles'
-import { withTraits } from '../../lib/promptBuilder/character'
+import { withOwnTraits, withTraits } from '../../lib/promptBuilder/character'
 import type { BuilderModeData, Character, ModelInfo } from '../../types'
 import { CharacterSummary, SaveAsCharacter } from './CharacterParts'
 import { ClashWarnings } from './ClashWarnings'
@@ -79,6 +79,9 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
   const steps = stepsFor(mode, character)
   const step = steps.find((candidate) => candidate.id === stepId) ?? steps[0]
   const set = (patch: Partial<BuilderState>) => setState((current) => ({ ...current, ...patch }))
+  // Surprise me picks for who the character is, then the builder keeps its own look choices
+  const surpriseWithLook = (change: (looked: BuilderState) => BuilderState) =>
+    setState((current) => (character ? withOwnTraits(change(withTraits(current, character.traits)), current) : change(current)))
   const setOutfit = (patch: Partial<OutfitState>) => setState((current) => ({ ...current, outfit: { ...current.outfit, ...patch } }))
   const confirm = (insert: InsertMode) => {
     if (result.status !== 'ready') return
@@ -103,17 +106,18 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
             step={step}
             canSurprise={!(character && step.id === 'subject')}
             locked={state.lockedSteps.includes(step.id)}
-            onSurprise={() => setState((current) => surpriseStep(current, step.id, newSeed(), mode))}
+            onSurprise={() => surpriseWithLook((looked) => surpriseStep(looked, step.id, newSeed(), mode))}
             onToggleLock={() => setState((current) => toggleLock(current, step.id))}
           />
-          <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={state} mode={mode} set={set} setOutfit={setOutfit} />
+          {/* The steps offer what fits the character, so a woman's Outfit has bras and dresses her with a top */}
+          <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={withLook} mode={mode} set={set} setOutfit={setOutfit} />
         </section>
         <PreviewPane
           result={result}
           styleNote={styleNote(model, mode)}
           maxPromptLength={maxPromptLength}
           canReroll={hasRandomChoice(state)}
-          onSurprise={() => setState((current) => surprise(current, newSeed(), mode))}
+          onSurprise={() => surpriseWithLook((looked) => surprise(looked, newSeed(), mode))}
           onReroll={() => set({ rollSeed: newSeed() })}
           onReset={() => setState(switchMode(emptyBuilderState(), mode))}
         />
@@ -134,7 +138,7 @@ function StepContent({ step, character, onCharacterSaved, ...props }: StepConten
     return (
       <>
         <CharacterSummary character={character} />
-        <ImageBodyChoices state={withTraits(props.state, character.traits)} mode={props.mode} set={props.set} />
+        <ImageBodyChoices state={props.state} mode={props.mode} set={props.set} />
       </>
     )
   }
