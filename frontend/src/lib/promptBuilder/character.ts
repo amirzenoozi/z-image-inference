@@ -40,6 +40,14 @@ export function withTraits(state: BuilderState, traits: CharacterTraits): Builde
   return { ...state, ...choices, ...texts, ...lists }
 }
 
+/**
+ * Choices made with a character's look (Surprise me, which dresses and poses the subject for who the character is),
+ * with the builder's own look choices put back, so the character's look is never saved into the builder.
+ */
+export function withOwnTraits(changed: BuilderState, own: BuilderState): BuilderState {
+  return { ...changed, ...traitsOf(own) }
+}
+
 /** Why the character can't be saved, or null. A character can be used in the 18+ purposes, so it must be an adult. */
 export function characterProblem(name: string, traits: CharacterTraits): string | null {
   if (!name.trim()) return t('characters.problemNoName')

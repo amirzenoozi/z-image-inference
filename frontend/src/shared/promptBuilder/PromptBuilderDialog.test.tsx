@@ -272,3 +272,28 @@ it('locks a step against Surprise me, remembers the lock, and Reset all clears i
   await userEvent.click(screen.getByRole('button', { name: 'Reset all' }))
   expect(screen.getByRole('button', { name: 'Lock Outfit against Surprise me' })).toHaveAttribute('aria-pressed', 'false')
 })
+
+it("dresses a chosen character for who she is, whatever the builder's own Who was, and keeps that Who", async () => {
+  const dialog = (chosen: ReturnType<typeof character> | null) => (
+    <PromptBuilderDialog model={fastModel} modes={builderModes} character={chosen} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />
+  )
+  const first = render(dialog(null))
+  await chooseOption(screen.getByLabelText('Who'), 'Man')
+  first.unmount()
+
+  const mei = character({ name: 'Mei', traits: { ...character().traits, who: 'woman', age: 'late 20s' } })
+  const withMei = render(dialog(mei))
+  await userEvent.click(screen.getByRole('radio', { name: 'Faceless (18+)' }))
+  await step('Outfit')
+  for (let click = 0; click < 6; click++) {
+    await userEvent.click(screen.getByRole('button', { name: 'Surprise me' }))
+    expect(screen.getByLabelText('Top')).not.toHaveTextContent('Not set')
+    expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeEnabled()
+  }
+  await chooseOption(screen.getByLabelText('Top'), 'Latex bra')
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('latex bra with a glossy wet-look shine')
+  withMei.unmount()
+
+  render(dialog(null))
+  expect(screen.getByLabelText('Who')).toHaveTextContent('Man')
+})
