@@ -54,7 +54,7 @@ it('offers appending when the editor already has a prompt', async () => {
 
 it('surprise me fills the choices with something ready to use', async () => {
   renderDialog()
-  await userEvent.click(screen.getByRole('button', { name: /Surprise me/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Surprise me' }))
   expect(screen.getByLabelText('Built prompt')).toHaveTextContent(/^an? .*photograph of (two adult|an adult)/i)
   expect(screen.getByRole('button', { name: 'Use this prompt' })).toBeEnabled()
 })
@@ -219,4 +219,21 @@ it('takes several makeup picks from one select, keeping the list open, with labe
 
   await userEvent.click(screen.getByRole('option', { name: 'No makeup' }))
   expect(screen.getByLabelText('Makeup')).toHaveTextContent(/^No makeup$/)
+})
+
+it("picks again only the open step's choices with that step's own Surprise me", async () => {
+  renderDialog()
+  await chooseOption(screen.getByLabelText('Who'), 'Man')
+  await step('Outfit')
+  await userEvent.click(screen.getByRole('button', { name: 'Surprise me: Outfit' }))
+
+  const preview = screen.getByLabelText('Built prompt').textContent ?? ''
+  expect(preview).toMatch(/^A photograph of an adult man\. He is wearing /)
+  await step('Subject')
+  expect(screen.getByLabelText('Who')).toHaveTextContent('Man')
+})
+
+it('has no Surprise me of its own on the Character step, whose look is fixed', () => {
+  render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={character()} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
+  expect(screen.queryByRole('button', { name: /^Surprise me: / })).not.toBeInTheDocument()
 })

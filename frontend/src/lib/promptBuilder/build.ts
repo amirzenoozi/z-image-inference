@@ -9,7 +9,7 @@ import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from './data'
 import { fitnessClothing, isWorkoutFocused, outfitOptions } from './fitness'
 import { intimateOptions, intimateSet } from './intimates'
 import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
-import { alwaysClothed, isAdultMode, isSafeMode, showsStep, type BuilderMode } from './modes'
+import { alwaysClothed, isAdultMode, isSafeMode, showsStep, type BuilderMode, type StepId } from './modes'
 import { negativePrompt } from './negatives'
 import { proseFrom } from './prose'
 import { pick, pickSome } from './random'
@@ -205,34 +205,40 @@ function pickChips(state: BuilderState, field: 'intimacy' | 'explicitDetails', o
   }, [])
 }
 
-function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
-  const p = (options: readonly string[], field: string) => pick(options, seed, field)
-  const nudity = p(choicesFor('nudity', state, mode), 'nudity') as Nudity
-  const withAct = pickInOrder({ ...state, nudity }, ['explicitAction', 'penis', 'nipples', 'pubicHair', 'chest', 'bodyHair', 'bulge'], mode, seed)
-  const intimacy = pickChips(withAct, 'intimacy', INTIMACY_CUES, 2, seed)
-  return {
-    ...withAct,
-    intimacy,
-    explicitDetails: pickChips({ ...withAct, intimacy }, 'explicitDetails', explicitDetailOptions(withAct, mode), 2, seed),
-    bust: p(choicesFor('bust', state, mode), 'bust'),
-    outfit: {
-      ...state.outfit,
-      ...intimateSet(state, mode, seed), lingerieTopColor: p(CLOTHING_COLORS, 'lingerieColor'), lingerieBottomColor: p(CLOTHING_COLORS, 'lingerieColor'),
-    },
-  }
+const pickNudity = (state: BuilderState, mode: BuilderMode, seed: number) => pick(choicesFor('nudity', state, mode), seed, 'nudity') as Nudity
+
+/** The intimacy cues and the explicit details, each fitting the pose, the act and the nudity level. */
+function withChips(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+  const intimacy = pickChips(state, 'intimacy', INTIMACY_CUES, 2, seed)
+  return { ...state, intimacy, explicitDetails: pickChips({ ...state, intimacy }, 'explicitDetails', explicitDetailOptions(state, mode), 2, seed) }
 }
 
-/** Everyday clothes, or gym clothes for a purpose about working out. */
-function surpriseClothed(state: BuilderState, seed: number, mode: BuilderMode): BuilderState {
-  const p = (options: readonly string[], field: string) => pick(options, seed, field)
-  const workout = isWorkoutFocused(mode.options.pose)
-  const clothes = (slot: 'top' | 'bottom' | 'shoes') => (workout ? fitnessClothing(slot, state) : outfitOptions(slot, state))
-  return {
-    ...state,
-    outfit: {
-      ...state.outfit, top: p(clothes('top'), 'top'), topColor: p(CLOTHING_COLORS, 'topColor'), bottom: p(clothes('bottom'), 'bottom'), shoes: p(clothes('shoes'), 'shoes'),
-    },
+/** The Intimacy step: the nudity level and its chips. */
+function surpriseIntimacy(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+  return withChips({ ...state, nudity: pickNudity(state, mode, seed) }, mode, seed)
+}
+
+function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+  // The nudity level comes first, since the acts and anatomy offered depend on it
+  const withNudity = { ...state, nudity: pickNudity(state, mode, seed) }
+  const withAct = pickInOrder(withNudity, ['explicitAction', 'penis', 'nipples', 'pubicHair', 'chest', 'bodyHair', 'bulge'], mode, seed)
+  return { ...withChips(withAct, mode, seed), bust: pick(choicesFor('bust', state, mode), seed, 'bust') }
+}
+
+/**
+ * A whole new outfit for the purpose: every garment and accessory chosen before is cleared first, so nothing old is
+ * mixed in, then the subject is dressed as the purpose dresses: a matching lingerie or swimwear set in an 18+ purpose
+ * (with a top for a woman), gym clothes for a workout purpose, everyday clothes otherwise. Typed details are kept.
+ */
+function surpriseOutfit(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+  const colour = (field: string) => pick(CLOTHING_COLORS, seed, field)
+  const bare: OutfitState = { ...emptyOutfit(), details: state.outfit.details }
+  if (isAdultMode(mode)) {
+    return { ...state, outfit: { ...bare, ...intimateSet(state, mode, seed), lingerieTopColor: colour('lingerieColor'), lingerieBottomColor: colour('lingerieColor') } }
   }
+  const workout = isWorkoutFocused(mode.options.pose)
+  const clothes = (slot: 'top' | 'bottom' | 'shoes') => pick(workout ? fitnessClothing(slot, state) : outfitOptions(slot, state), seed, slot)
+  return { ...state, outfit: { ...bare, top: clothes('top'), topColor: colour('topColor'), bottom: clothes('bottom'), shoes: clothes('shoes') } }
 }
 
 /** Fills the main choices with concrete random values the user can then adjust, none contradicting another; free text is kept. */
@@ -246,8 +252,44 @@ export function surprise(state: BuilderState, seed: number, mode: BuilderMode): 
     realism: pickSome(REALISM_DETAILS, 2, seed, 'realism'),
   }
   const looked = pickInOrder(start, SURPRISE_BEFORE_ACTS, mode, seed)
-  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed) : surpriseClothed(looked, seed, mode)
-  return pickInOrder(acted, ['expression'], mode, seed)
+  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed) : looked
+  return pickInOrder(surpriseOutfit(acted, mode, seed), ['expression'], mode, seed)
+}
+
+// What each step's own Surprise me picks again, in an order that keeps each pick fitting the ones before it
+const STEP_CHOICES: Readonly<Partial<Record<StepId, readonly TextChoice[]>>> = {
+  appearance: ['hairLength', 'hairstyle', 'hairColor', 'eyeColor', 'makeup', 'skinTone', 'facialHair', 'expression'],
+  body: ['bodyType', 'muscles', 'abs', 'chest', 'bodyHair', 'bust', 'hips', 'height', 'penis', 'nipples', 'pubicHair', 'bulge'],
+  pose: ['pose', 'explicitAction', 'expression'],
+  scene: ['sceneType', 'timeOfDay', 'weather', 'lightingSetup'],
+  camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField'],
+  finish: ['colorGrading'],
+}
+
+/** "Who" is kept once chosen, since the body, the outfit and the acts are chosen for it. */
+function surpriseSubject(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+  const who = state.who === NOT_SET ? pick(['woman', 'man'], seed, 'who') : state.who
+  return pickInOrder({ ...state, who }, ['age', 'ethnicity'], mode, seed)
+}
+
+/** Further picks of the step's multi-choices are dropped, so only the new pick is left. */
+function withoutFurtherPicks(state: BuilderState, step: StepId): BuilderState {
+  if (step === 'appearance') return { ...state, makeupMore: [], facialHairMore: [] }
+  if (step === 'scene') return { ...state, lightingMore: [] }
+  if (step === 'finish') return { ...state, realism: [] }
+  return state
+}
+
+/**
+ * Picks again only the choices of one step, each fitting everything else, which stays as it is; typed text is kept.
+ * The Outfit step is dressed afresh, as Surprise me dresses it.
+ */
+export function surpriseStep(state: BuilderState, step: StepId, seed: number, mode: BuilderMode): BuilderState {
+  if (step === 'subject') return surpriseSubject(state, mode, seed)
+  if (step === 'outfit') return surpriseOutfit(state, mode, seed)
+  if (step === 'intimacy') return surpriseIntimacy(state, mode, seed)
+  const picked = pickInOrder(withoutFurtherPicks(state, step), STEP_CHOICES[step] ?? [], mode, seed)
+  return step === 'finish' ? { ...picked, realism: pickSome(REALISM_DETAILS, 2, seed, 'realism') } : picked
 }
 
 // ── Modes ────────────────────────────────────────────────────────────────────

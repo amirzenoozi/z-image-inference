@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
-import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
+import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, surpriseStep, switchMode, type BuilderState, type BuildResult, type OutfitState } from '../../lib/promptBuilder/build'
 import { modeLabel, modesForCharacter, parseModes, type BuilderMode, type StepId } from '../../lib/promptBuilder/modes'
 import { specFromState, type PromptSpec } from '../../lib/promptBuilder/spec'
 import { loadBuilderState, saveBuilderState } from '../../lib/promptBuilder/storage'
@@ -12,6 +12,7 @@ import { Modal } from '../ui/Modal'
 import { ModePicker } from './ModePicker'
 import { AppearanceStep, BodyStep, CameraStep, FinishStep, ImageBodyChoices, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from './steps'
 import { t, type MessageKey } from '../../i18n'
+import { IconButton } from '../ui/IconButton'
 import { Dices } from 'lucide-react'
 
 export type InsertMode = 'replace' | 'append'
@@ -98,7 +99,7 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
       <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
         <StepNav steps={steps} current={step.id} onSelect={setStepId} />
         <section aria-label={t(step.label)} className="min-h-0 overflow-y-auto pr-1">
-          <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t(step.label)}</h3>
+          <StepHeading step={step} canSurprise={!(character && step.id === 'subject')} onSurprise={() => setState((current) => surpriseStep(current, step.id, newSeed(), mode))} />
           <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={state} mode={mode} set={set} setOutfit={setOutfit} />
         </section>
         <PreviewPane
@@ -263,5 +264,30 @@ function DialogActions({ ready, hasExistingPrompt, onCancel, onConfirm }: Action
         {t('builder.useThis')}
       </button>
     </>
+  )
+}
+
+interface StepHeadingProps {
+  step: Step
+  /** A chosen character's look is fixed, so its step has nothing of its own to pick again. */
+  canSurprise: boolean
+  onSurprise: () => void
+}
+
+/** The step's title, and its own Surprise me, which picks again only this step's choices. */
+function StepHeading({ step, canSurprise, onSurprise }: StepHeadingProps) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t(step.label)}</h3>
+      {canSurprise && (
+        <IconButton
+          label={t('builder.surpriseStep', { step: t(step.label) })}
+          onClick={onSurprise}
+          className="flex size-8 items-center justify-center rounded-full text-violet-600 hover:bg-violet-50 pointer-coarse:size-11 dark:text-violet-300 dark:hover:bg-violet-950/40"
+        >
+          <Dices />
+        </IconButton>
+      )}
+    </div>
   )
 }
