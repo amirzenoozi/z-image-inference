@@ -173,5 +173,6 @@
   "groupFaceless": "Senza volto",
   "modeLabel_faceless": "Senza volto (18+)",
   "modeDescription_faceless": "Dal collo in giù, con il volto fuori dall'inquadratura: lingerie, intimo e costumi descritti nei dettagli, senza nudità. Richiede «Chi» e una fascia d'età adulta.",
-  "reasonNeedsTop": "Scegli un capo sopra: questo scopo la mostra sempre vestita."
+  "reasonNeedsTop": "Scegli un capo sopra: questo scopo la mostra sempre vestita.",
+  "surpriseStep": "Sorprendimi: {step}"
 }

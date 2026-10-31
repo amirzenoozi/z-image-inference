@@ -173,5 +173,6 @@
   "groupFaceless": "Sans visage",
   "modeLabel_faceless": "Sans visage (18+)",
   "modeDescription_faceless": "À partir du cou, visage hors cadre : lingerie, sous-vêtements et maillots de bain décrits en détail, sans nudité. Nécessite « Qui » et une tranche d’âge adulte.",
-  "reasonNeedsTop": "Choisissez un haut : cet usage la montre toujours habillée."
+  "reasonNeedsTop": "Choisissez un haut : cet usage la montre toujours habillée.",
+  "surpriseStep": "Surprenez-moi : {step}"
 }
