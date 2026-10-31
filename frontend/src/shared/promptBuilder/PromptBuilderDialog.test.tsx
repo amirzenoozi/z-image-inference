@@ -237,3 +237,18 @@ it('has no Surprise me of its own on the Character step, whose look is fixed', (
   render(<PromptBuilderDialog model={fastModel} modes={builderModes} character={character()} onCharacterSaved={vi.fn()} hasExistingPrompt={false} maxPromptLength={4000} onClose={vi.fn()} onConfirm={vi.fn()} />)
   expect(screen.queryByRole('button', { name: /^Surprise me: / })).not.toBeInTheDocument()
 })
+
+it('wears one top from one menu of clothes, lingerie and swimwear', async () => {
+  renderDialog()
+  await userEvent.click(screen.getByRole('radio', { name: 'Faceless (18+)' }))
+  await chooseOption(screen.getByLabelText('Who'), 'Woman')
+  await chooseOption(screen.getByLabelText('Age'), 'Late 20s')
+  await step('Outfit')
+  expect(screen.queryByLabelText(/Lingerie/)).not.toBeInTheDocument()
+
+  await chooseOption(screen.getByLabelText('Top'), 'Lace bra')
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('She is wearing a lace bra with scalloped edges')
+  await chooseOption(screen.getByLabelText('Top'), 'Blouse')
+  expect(screen.getByLabelText('Built prompt')).toHaveTextContent('She is wearing a blouse.')
+  expect(screen.getByLabelText('Built prompt')).not.toHaveTextContent('lace bra')
+})

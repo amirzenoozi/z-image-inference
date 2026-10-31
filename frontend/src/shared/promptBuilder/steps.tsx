@@ -1,6 +1,7 @@
 import { CLOTHING_COLORS, POSES } from '../../lib/promptBuilder/data'
 import { FACELESS_POSES } from '../../lib/promptBuilder/faceless'
-import { accessoryOptions, intimateOptions } from '../../lib/promptBuilder/intimates'
+import { accessoryOptions } from '../../lib/promptBuilder/intimates'
+import { areaChoice, areaGroups, colourItem, wearItem, type BodyArea } from '../../lib/promptBuilder/outfitMenu'
 import { CARDIO_BOXING, GYM_WORKOUTS, PILATES_STRETCHES, SPICY_POSES, YOGA_POSES, outfitOptions } from '../../lib/promptBuilder/fitness'
 import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
@@ -81,33 +82,46 @@ interface OutfitRow {
   colourLabel: MessageKey
   item: OutfitChoice
   color: OutfitChoice
-  /** What this subject may wear in the slot under the purpose (spicy fitness cuts only for a chosen adult). */
-  options: (state: BuilderState, mode: BuilderMode) => readonly string[]
-  lingerie?: boolean
+  /** What this subject may wear in the slot. */
+  options: (state: BuilderState) => readonly string[]
 }
 
 const OUTFIT_ROWS: OutfitRow[] = [
-  { label: 'builder.outfitTop', colourLabel: 'builder.outfitTopColour', item: 'top', color: 'topColor', options: (state) => outfitOptions('top', state) },
-  { label: 'builder.outfitBottom', colourLabel: 'builder.outfitBottomColour', item: 'bottom', color: 'bottomColor', options: (state) => outfitOptions('bottom', state) },
-  { label: 'builder.outfitLingerieTop', colourLabel: 'builder.outfitLingerieTopColour', item: 'lingerieTop', color: 'lingerieTopColor', options: (state, mode) => intimateOptions('lingerieTop', state, mode), lingerie: true },
-  { label: 'builder.outfitLingerieBottom', colourLabel: 'builder.outfitLingerieBottomColour', item: 'lingerieBottom', color: 'lingerieBottomColor', options: (state, mode) => intimateOptions('lingerieBottom', state, mode), lingerie: true },
   { label: 'builder.outfitOuterwear', colourLabel: 'builder.outfitOuterwearColour', item: 'outerwear', color: 'outerwearColor', options: (state) => outfitOptions('outerwear', state) },
   { label: 'builder.outfitShoes', colourLabel: 'builder.outfitShoesColour', item: 'shoes', color: 'shoesColor', options: (state) => outfitOptions('shoes', state) },
 ]
 
+const AREA_LABELS: Readonly<Record<BodyArea, { item: MessageKey; colour: MessageKey }>> = {
+  top: { item: 'builder.outfitTop', colour: 'builder.outfitTopColour' },
+  bottom: { item: 'builder.outfitBottom', colour: 'builder.outfitBottomColour' },
+}
+
+/** One menu for what is worn on top or below: clothes, gym wear, lingerie and swimwear, one item at a time. */
+function AreaRow({ area, state, mode, setOutfit }: { area: BodyArea } & Pick<StepProps, 'state' | 'mode' | 'setOutfit'>) {
+  const choice = areaChoice(area, state.outfit)
+  const groups = areaGroups(area, state, mode).map((group) => ({ label: t(group.label), options: group.options }))
+  return (
+    <div className="contents">
+      <ChoiceSelect label={t(AREA_LABELS[area].item)} value={choice.item} groups={groups} allowRemove={!alwaysClothed(mode)} onChange={(item) => setOutfit(wearItem(area, state.outfit, item, mode))} />
+      <ChoiceSelect label={t(AREA_LABELS[area].colour)} value={choice.color} groups={one(CLOTHING_COLORS)} onChange={(color) => setOutfit(colourItem(area, state.outfit, color))} />
+    </div>
+  )
+}
+
 export function OutfitStep({ state, mode, setOutfit }: StepProps) {
   const { outfit } = state
   const safe = isSafeMode(mode)
-  const rows = OUTFIT_ROWS.filter((row) => !safe || !row.lingerie)
   const setAccessory = (index: number, value: string) =>
     setOutfit({ accessories: outfit.accessories.map((item, i) => (i === index ? value : item)) as OutfitState['accessories'] })
   return (
     <>
       <StepIntro>{t(safe ? 'builder.introOutfitSafe' : 'builder.introOutfit')}</StepIntro>
       <FieldGrid>
-        {rows.map((row) => (
+        <AreaRow area="top" state={state} mode={mode} setOutfit={setOutfit} />
+        <AreaRow area="bottom" state={state} mode={mode} setOutfit={setOutfit} />
+        {OUTFIT_ROWS.map((row) => (
           <div key={row.item} className="contents">
-            <ChoiceSelect label={t(row.label)} value={outfit[row.item]} groups={one(row.options(state, mode))} allowRemove={!alwaysClothed(mode)} onChange={(value) => setOutfit({ [row.item]: value })} />
+            <ChoiceSelect label={t(row.label)} value={outfit[row.item]} groups={one(row.options(state))} allowRemove={!alwaysClothed(mode)} onChange={(value) => setOutfit({ [row.item]: value })} />
             <ChoiceSelect label={t(row.colourLabel)} value={outfit[row.color]} groups={one(CLOTHING_COLORS)} onChange={(value) => setOutfit({ [row.color]: value })} />
           </div>
         ))}
