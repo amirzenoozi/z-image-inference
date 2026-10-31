@@ -23,7 +23,7 @@
   "pose": { "pose": "deadlift", "action": "exhaling hard" },
   "scene": { "type": "gym", "environment": "a quiet gym before opening", "time": "morning" },
   "lighting": { "setup": "gym overhead light", "more": ["natural window light"], "custom": "a soft rim light" },
-  "camera": { "style": "sports editorial", "shot": "full body", "angle": "slightly low angle", "lens": "35mm", "depth_of_field": "shallow f/2.8" },
+  "camera": { "style": "sports editorial", "shot": "full body", "angle": "slightly low angle", "lens": "35mm", "depth_of_field": "shallow f/2.8", "filter": "Kodak Portra 400", "date_stamp": "OCT 29 26" },
   "finish": { "mood": "determined", "grading": "natural", "realism": ["subtle film grain"] },
   "details": { "extra": "chalk dust in the air", "negative": "blurry" }
 }

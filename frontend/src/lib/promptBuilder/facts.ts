@@ -80,6 +80,9 @@ export interface Facts {
   mood: string
   grading: string
   realism: string[]
+  /** The image filter: its full wording and its tags. */
+  filter: Labelled
+  dateStamp: string
 }
 
 export const capitalise = (text: string) => (text ? text[0].toUpperCase() + text.slice(1) : text)

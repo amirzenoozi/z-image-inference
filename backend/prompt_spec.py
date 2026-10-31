@@ -92,6 +92,8 @@ class Camera(Section):
     angle: Text | None = None
     lens: Text | None = None
     depth_of_field: Text | None = None
+    filter: Text | None = None
+    date_stamp: Annotated[str, StringConstraints(max_length=40)] | None = None
 
 
 class Finish(Section):

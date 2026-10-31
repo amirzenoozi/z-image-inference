@@ -161,7 +161,7 @@ const BLOCKS: Record<ProseBlock, (f: Facts) => string[]> = {
   scene: (f) => [scene(f)],
   details: (f) => [f.extraDetails],
   light: (f) => [light(f)],
-  camera: (f) => [camera(f)],
+  camera: (f) => [camera(f), [f.filter.text, f.dateStamp].filter(Boolean).join(', ')],
   mood: (f) => [mood(f)],
   realism: (f) => [joinPieces(f.realism)],
 }

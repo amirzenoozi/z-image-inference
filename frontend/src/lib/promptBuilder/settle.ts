@@ -10,11 +10,14 @@ import { choicesFor, explicitDetailOptions } from './rules'
 
 /**
  * The order random choices are settled in: each one is picked to fit those before it, so the place sets the time,
- * the time the light, the hair length the style, the build the muscles and body hair, and the pose the act and the expression.
+ * the time the light, the hair length the style, the build the muscles and body hair, the pose the act and the expression,
+ * and the filter the colour grading.
  */
 const SETTLE_ORDER: readonly TextChoice[] = [
   'who', 'hairLength', 'hairstyle', 'bodyType', 'muscles', 'abs', 'chest', 'bodyHair', 'sceneType', 'timeOfDay', 'weather', 'lightingSetup', 'photoStyle', 'shotType', 'cameraAngle',
   'pose', 'explicitAction', 'expression',
+  // A filter brings its own colours, so the colour grading is picked to fit it
+  'imageFilter',
 ]
 const ORDERED: readonly TextChoice[] = [...SETTLE_ORDER, ...TEXT_CHOICES.filter((field) => !SETTLE_ORDER.includes(field))]
 

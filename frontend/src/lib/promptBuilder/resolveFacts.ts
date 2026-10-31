@@ -1,3 +1,4 @@
+import { IMAGE_FILTERS, dateStampText } from './filters'
 import type { BuilderState, OutfitState } from './build'
 import type { ChoiceField } from './choices'
 import { INHERIT_SCENE, NOT_SET, REMOVE } from './constants'
@@ -142,6 +143,11 @@ function lightingOf(setup: string, sceneType: string): Labelled {
 
 const shotText = (shot: string) => FACELESS_SHOTS[shot] ?? shot
 
+function filterOf(name: string): Labelled {
+  const filter = IMAGE_FILTERS[name]
+  return filter ? { label: filter.tags, text: filter.text } : NOTHING
+}
+
 /** "razor thin f/1.4" → "razor thin depth of field at f/1.4". */
 function depthOfField(value: string): string {
   if (!isSet(value)) return ''
@@ -219,6 +225,8 @@ function settingFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
     mood: state.mood.trim(),
     grading: choose('colorGrading', state.colorGrading),
     realism: state.realism,
+    filter: filterOf(choose('imageFilter', state.imageFilter)),
+    dateStamp: dateStampText(state.dateStamp),
   }
 }
 
@@ -262,7 +270,7 @@ function withoutHiddenSteps(facts: Facts, mode: BuilderMode): Facts {
     ...(show('intimacy') ? {} : { explicitDetails: [] }),
     ...(show('pose') ? {} : { pose: { ...NOTHING, explicit: false }, action: NOTHING, freeAction: '' }),
     ...(show('scene') ? {} : { place: '', time: '', weather: '', lighting: [], lightingCustom: '' }),
-    ...(show('camera') ? {} : { photoStyle: '', shot: '', angle: '', lens: '', depthOfField: '' }),
+    ...(show('camera') ? {} : { photoStyle: '', shot: '', angle: '', lens: '', depthOfField: '', filter: NOTHING, dateStamp: '' }),
     ...(show('finish') ? {} : { mood: '', grading: '', realism: [], extraDetails: '' }),
   }
 }

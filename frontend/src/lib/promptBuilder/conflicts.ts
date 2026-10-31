@@ -3,6 +3,7 @@
 // them (fitsChoice); clashes in choices the user made are shown as warnings (clashesIn), not blocked.
 import type { BuilderState } from './build'
 import { NOT_SET, RANDOM, REMOVE } from './constants'
+import { SHARP_REALISM } from './filters'
 
 type Position = 'standing' | 'sitting' | 'kneeling' | 'allFours' | 'lying' | 'squatting' | 'onTop' | 'carried'
 
@@ -192,7 +193,7 @@ const OUTDOOR_WEATHER = new Set(['light rain', 'heavy rain', 'falling snow', 'fo
 const SAME_PLACE = [['Baseball cap', 'Beanie'], ['Eyeglasses', 'Sunglasses'], ['Backpack', 'Clutch bag', 'Handbag', 'Tote bag'], ['Bow tie', 'Necktie'], ['Choker', 'Leather choker', 'Spiked choker'], ['Belt', 'Chain belt', 'Lifting belt'], ['Watch', 'Fitness tracker']]
 const HELD_ACCESSORIES = new Set(['Clutch bag', 'Water bottle'])
 
-export type ClashKind = 'hands' | 'position' | 'mouth' | 'facing' | 'framing' | 'hair' | 'light' | 'place' | 'weather' | 'accessories' | 'build'
+export type ClashKind = 'hands' | 'position' | 'mouth' | 'facing' | 'framing' | 'hair' | 'light' | 'place' | 'weather' | 'accessories' | 'build' | 'filter'
 
 /** Two or more choices that contradict each other, named by their values (option labels show them). */
 export interface Clash {
@@ -201,7 +202,7 @@ export interface Clash {
 }
 
 /** The choices a clash can involve, already settled: a value still Random or not set takes part in nothing. */
-type Choices = Pick<BuilderState, 'pose' | 'explicitAction' | 'expression' | 'intimacy' | 'explicitDetails' | 'photoStyle' | 'shotType' | 'cameraAngle' | 'hairLength' | 'hairstyle' | 'sceneType' | 'timeOfDay' | 'weather' | 'lightingSetup' | 'lightingMore' | 'bodyType' | 'muscles' | 'abs' | 'chest' | 'bodyHair'> & {
+type Choices = Pick<BuilderState, 'pose' | 'explicitAction' | 'expression' | 'intimacy' | 'explicitDetails' | 'photoStyle' | 'shotType' | 'cameraAngle' | 'hairLength' | 'hairstyle' | 'sceneType' | 'timeOfDay' | 'weather' | 'lightingSetup' | 'lightingMore' | 'bodyType' | 'muscles' | 'abs' | 'chest' | 'bodyHair' | 'imageFilter' | 'colorGrading' | 'realism'> & {
   accessories: readonly string[]
 }
 
@@ -282,6 +283,14 @@ function placeClash(choices: Choices): Clash[] {
   return wrong ? [{ kind: 'place', values: [wrong, choices.sceneType] }] : []
 }
 
+/** A filter brings its own colours and focus, so a colour grading or a sharp-focus detail works against it. */
+function filterClash(choices: Choices): Clash[] {
+  if (!chosen(choices.imageFilter)) return []
+  const grading = chosen(choices.colorGrading) && choices.colorGrading !== 'natural' ? [choices.colorGrading] : []
+  const against = [...grading, ...choices.realism.filter((detail) => SHARP_REALISM.has(detail))][0]
+  return against ? [{ kind: 'filter', values: [choices.imageFilter, against] }] : []
+}
+
 function weatherClash(choices: Choices): Clash[] {
   return INDOOR.has(choices.sceneType) && OUTDOOR_WEATHER.has(choices.weather) ? [{ kind: 'weather', values: [choices.weather, choices.sceneType] }] : []
 }
@@ -310,7 +319,7 @@ function buildClash(choices: Choices): Clash[] {
   return pairs.filter((_, index) => clashing[index]).map((values) => ({ kind: 'build' as const, values }))
 }
 
-const RULES = [handsClash, positionClash, mouthClash, facingClash, framingClash, hairClash, lightClash, placeClash, weatherClash, accessoryClash, buildClash]
+const RULES = [handsClash, positionClash, mouthClash, facingClash, framingClash, hairClash, lightClash, placeClash, weatherClash, accessoryClash, buildClash, filterClash]
 
 function choicesOf(state: BuilderState): Choices {
   return { ...state, accessories: state.outfit.accessories.filter(chosen), intimacy: state.intimacy.filter(chosen) }

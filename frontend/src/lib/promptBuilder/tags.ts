@@ -69,7 +69,7 @@ function personTags(f: Facts, weights: Weights): string[] {
 
 function settingTags(f: Facts, weights: Weights): string[] {
   const scene = [f.place ? f.sceneType || f.place : '', f.time, f.weather].map(weighed(weights, 'scene'))
-  return [...scene, ...f.lighting.map((setup) => weighed(weights, 'light')(setup.label)), f.lightingCustom, f.shot, f.angle, f.mood]
+  return [...scene, ...f.lighting.map((setup) => weighed(weights, 'light')(setup.label)), f.lightingCustom, f.shot, f.angle, f.filter.label, f.dateStamp, f.mood]
 }
 
 /**
