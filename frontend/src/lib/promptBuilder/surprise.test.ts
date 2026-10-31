@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { builderModes } from '../../test/fixtures'
-import { buildPrompt, emptyBuilderState, emptyOutfit, surprise, surpriseStep, switchMode, type BuilderState } from './build'
+import { buildPrompt, emptyBuilderState, emptyOutfit, surprise, surpriseStep, switchMode, toggleLock, type BuilderState } from './build'
 import { NOT_SET } from './constants'
 import { clashesIn } from './conflicts'
 import { parseModes, type BuilderMode, type StepId } from './modes'
@@ -76,5 +76,29 @@ describe("each step's own Surprise me", () => {
       expect(state.outfit.lingerieTop).not.toBe(NOT_SET)
       expect(buildPrompt(state, faceless).status).toBe('ready')
     }
+  })
+})
+
+// A lock holds what the step shows; the expression is on Face & hair, though a new pose may pick it again
+const HELD_FIELDS: Readonly<Record<StepId, readonly (keyof BuilderState)[]>> = { ...STEP_FIELDS, pose: ['pose', 'explicitAction'] }
+
+describe('a locked step', () => {
+  it.each(modes.map((mode) => mode.id))('is left as it is by Surprise me, which fits the rest around it, in %s', (id) => {
+    const mode = modeOf(id)
+    for (const step of mode.steps) {
+      for (let seed = 1; seed <= 10; seed++) {
+        const before = toggleLock(surprised(mode, seed), step)
+        const after = surprise(before, seed * 104729, mode)
+        expect(changedFields(before, after).filter((field) => HELD_FIELDS[step].includes(field)), `${step}, seed ${seed}`).toEqual([])
+        expect(clashesIn(choicesInPrompt(after, mode)), `${step}, seed ${seed}`).toEqual([])
+      }
+    }
+  })
+
+  it('is not picked again by its own Surprise me, and unlocks again', () => {
+    const mode = modeOf('faceless')
+    const locked = toggleLock(surprised(mode, 4), 'outfit')
+    expect(surpriseStep(locked, 'outfit', 99, mode)).toBe(locked)
+    expect(toggleLock(locked, 'outfit').lockedSteps).toEqual([])
   })
 })

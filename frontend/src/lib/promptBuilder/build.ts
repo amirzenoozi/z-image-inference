@@ -109,6 +109,8 @@ export interface BuilderState {
   negativePrompt: string
   /** Seeds every "Random" choice, so the preview stays stable until the user re-rolls. */
   rollSeed: number
+  /** Steps Surprise me leaves as they are, so the rest can be tried around them. */
+  lockedSteps: StepId[]
 }
 
 export type BuildResult =
@@ -136,7 +138,7 @@ export function emptyBuilderState(): BuilderState {
     pose: NOT_SET, explicitAction: NOT_SET, action: '',
     sceneType: NOT_SET, environment: '', timeOfDay: NOT_SET, weather: NOT_SET, lightingSetup: NOT_SET, lightingMore: [], lightingCustom: '',
     photoStyle: NOT_SET, shotType: NOT_SET, cameraAngle: NOT_SET, lens: NOT_SET, depthOfField: NOT_SET,
-    mood: '', colorGrading: NOT_SET, realism: [], extraDetails: '', negativePrompt: '', rollSeed: 1,
+    mood: '', colorGrading: NOT_SET, realism: [], extraDetails: '', negativePrompt: '', rollSeed: 1, lockedSteps: [],
   }
 }
 
@@ -218,11 +220,30 @@ function surpriseIntimacy(state: BuilderState, mode: BuilderMode, seed: number):
   return withChips({ ...state, nudity: pickNudity(state, mode, seed) }, mode, seed)
 }
 
-function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number): BuilderState {
+/** The builder fields each step holds, so a locked step's choices are left as they are. */
+const STEP_FIELDS: Readonly<Record<StepId, readonly (keyof BuilderState)[]>> = {
+  subject: ['who', 'age', 'ethnicity'],
+  appearance: ['hairLength', 'hairstyle', 'hairColor', 'eyeColor', 'makeup', 'makeupMore', 'skinTone', 'facialHair', 'facialHairMore', 'expression'],
+  body: ['bodyType', 'muscles', 'abs', 'chest', 'bodyHair', 'bust', 'hips', 'height', 'penis', 'nipples', 'pubicHair', 'bulge'],
+  outfit: ['outfit'],
+  pose: ['pose', 'explicitAction'],
+  intimacy: ['nudity', 'intimacy', 'explicitDetails'],
+  scene: ['sceneType', 'timeOfDay', 'weather', 'lightingSetup', 'lightingMore'],
+  camera: ['photoStyle', 'shotType', 'cameraAngle', 'lens', 'depthOfField'],
+  finish: ['colorGrading', 'realism'],
+}
+
+type Locked = ReadonlySet<keyof BuilderState>
+
+const lockedFields = (state: BuilderState): Locked => new Set(state.lockedSteps.flatMap((step) => STEP_FIELDS[step]))
+const unlocked = <T extends keyof BuilderState>(locked: Locked, fields: readonly T[]): T[] => fields.filter((field) => !locked.has(field))
+
+function surpriseAdult(state: BuilderState, mode: BuilderMode, seed: number, locked: Locked): BuilderState {
   // The nudity level comes first, since the acts and anatomy offered depend on it
-  const withNudity = { ...state, nudity: pickNudity(state, mode, seed) }
-  const withAct = pickInOrder(withNudity, ['explicitAction', 'penis', 'nipples', 'pubicHair', 'chest', 'bodyHair', 'bulge'], mode, seed)
-  return { ...withChips(withAct, mode, seed), bust: pick(choicesFor('bust', state, mode), seed, 'bust') }
+  const withNudity = locked.has('nudity') ? state : { ...state, nudity: pickNudity(state, mode, seed) }
+  const withAct = pickInOrder(withNudity, unlocked(locked, ['explicitAction', 'penis', 'nipples', 'pubicHair', 'chest', 'bodyHair', 'bulge'] as const), mode, seed)
+  const withIntimacy = locked.has('intimacy') ? withAct : withChips(withAct, mode, seed)
+  return locked.has('bust') ? withIntimacy : { ...withIntimacy, bust: pick(choicesFor('bust', state, mode), seed, 'bust') }
 }
 
 /**
@@ -241,19 +262,24 @@ function surpriseOutfit(state: BuilderState, mode: BuilderMode, seed: number): B
   return { ...state, outfit: { ...bare, top: clothes('top'), topColor: colour('topColor'), bottom: clothes('bottom'), shoes: clothes('shoes') } }
 }
 
-/** Fills the main choices with concrete random values the user can then adjust, none contradicting another; free text is kept. */
+/**
+ * Fills the main choices with concrete random values the user can then adjust, none contradicting another; free text
+ * is kept, and so are locked steps, whose choices the new ones are picked to fit.
+ */
 export function surprise(state: BuilderState, seed: number, mode: BuilderMode): BuilderState {
-  const needsPerson = showsStep(mode, 'subject')
+  const locked = lockedFields(state)
+  const needsPerson = showsStep(mode, 'subject') && !locked.has('who')
   const who = state.who === NOT_SET && needsPerson ? pick(['woman', 'man'], seed, 'who') : state.who
   const start: BuilderState = {
     ...state,
     who,
     age: state.age === NOT_SET && needsPerson ? pick(CHOICE_OPTIONS.age, seed, 'age') : state.age,
-    realism: pickSome(REALISM_DETAILS, 2, seed, 'realism'),
+    realism: locked.has('realism') ? state.realism : pickSome(REALISM_DETAILS, 2, seed, 'realism'),
   }
-  const looked = pickInOrder(start, SURPRISE_BEFORE_ACTS, mode, seed)
-  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed) : looked
-  return pickInOrder(surpriseOutfit(acted, mode, seed), ['expression'], mode, seed)
+  const looked = pickInOrder(start, unlocked(locked, SURPRISE_BEFORE_ACTS), mode, seed)
+  const acted = isAdultMode(mode) ? surpriseAdult(looked, mode, seed, locked) : looked
+  const dressed = locked.has('outfit') ? acted : surpriseOutfit(acted, mode, seed)
+  return pickInOrder(dressed, unlocked(locked, ['expression'] as const), mode, seed)
 }
 
 // What each step's own Surprise me picks again, in an order that keeps each pick fitting the ones before it
@@ -285,6 +311,7 @@ function withoutFurtherPicks(state: BuilderState, step: StepId): BuilderState {
  * The Outfit step is dressed afresh, as Surprise me dresses it.
  */
 export function surpriseStep(state: BuilderState, step: StepId, seed: number, mode: BuilderMode): BuilderState {
+  if (state.lockedSteps.includes(step)) return state
   if (step === 'subject') return surpriseSubject(state, mode, seed)
   if (step === 'outfit') return surpriseOutfit(state, mode, seed)
   if (step === 'intimacy') return surpriseIntimacy(state, mode, seed)
@@ -342,4 +369,10 @@ export function buildPrompt(state: BuilderState, mode: BuilderMode, style: Promp
   // Random picks never clash, so what is left comes from the user's own choices, shown as a warning
   const clashes = clashesIn(choicesInPrompt(settleChoices(state, mode), mode))
   return { status: 'ready', prompt, negativePrompt: negativePrompt(state, mode, facts), explicit: isAdultMode(mode), clashes }
+}
+
+/** Locks a step against Surprise me, or unlocks it. */
+export function toggleLock(state: BuilderState, step: StepId): BuilderState {
+  const lockedSteps = state.lockedSteps.includes(step) ? state.lockedSteps.filter((locked) => locked !== step) : [...state.lockedSteps, step]
+  return { ...state, lockedSteps }
 }
