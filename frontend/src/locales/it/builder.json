@@ -177,5 +177,11 @@
   "lockStep": "Blocca {step} per Sorprendimi",
   "unlockStep": "Sblocca {step}",
   "stepLockedNote": "(bloccato)",
-  "clashPlace": "{a} non si adatta a una scena {b}."
+  "clashPlace": "{a} non si adatta a una scena {b}.",
+  "clashFilter": "{a} porta colori e messa a fuoco propri, a cui {b} si oppone.",
+  "sectionImageFilter": "Filtro immagine",
+  "fieldImageFilter": "Filtro",
+  "fieldDateStamp": "Data stampata",
+  "placeholderDateStamp": "es. OCT 29 26",
+  "introImageFilter": "Una pellicola, una vecchia fotocamera o una stampa, con colori, grana e messa a fuoco propri. Lascia vuota la color correction se ne scegli uno."
 }

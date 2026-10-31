@@ -177,5 +177,11 @@
   "lockStep": "{step} vergrendelen voor Verras me",
   "unlockStep": "{step} ontgrendelen",
   "stepLockedNote": "(vergrendeld)",
-  "clashPlace": "{a} past niet bij een scène als {b}."
+  "clashPlace": "{a} past niet bij een scène als {b}.",
+  "clashFilter": "{a} brengt eigen kleuren en scherpte mee, waar {b} tegenin werkt.",
+  "sectionImageFilter": "Beeldfilter",
+  "fieldImageFilter": "Filter",
+  "fieldDateStamp": "Datumstempel",
+  "placeholderDateStamp": "bijv. OCT 29 26",
+  "introImageFilter": "Een filmsoort, oude camera of afdruk, met eigen kleuren, korrel en scherpte. Laat de kleurcorrectie leeg als je er een kiest."
 }

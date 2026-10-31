@@ -177,5 +177,11 @@
   "lockStep": "Verrouiller {step} pour Surprenez-moi",
   "unlockStep": "Déverrouiller {step}",
   "stepLockedNote": "(verrouillé)",
-  "clashPlace": "{a} ne convient pas à une scène {b}."
+  "clashPlace": "{a} ne convient pas à une scène {b}.",
+  "clashFilter": "{a} apporte ses propres couleurs et sa netteté, que {b} contrarie.",
+  "sectionImageFilter": "Filtre d’image",
+  "fieldImageFilter": "Filtre",
+  "fieldDateStamp": "Date imprimée",
+  "placeholderDateStamp": "ex. OCT 29 26",
+  "introImageFilter": "Une pellicule, un vieil appareil ou un tirage, avec ses couleurs, son grain et sa netteté. Laissez l’étalonnage vide si vous en choisissez un."
 }
