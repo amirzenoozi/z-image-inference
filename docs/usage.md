@@ -131,6 +131,15 @@ The **Faceless (18+)** purpose makes pictures from the neck down: the face is ne
 - **Always clothed, never nude**: Faceless has no Intimacy step, so nudity can't be chosen. No garment can be set to "Remove", a woman needs a top before the prompt is ready, and anatomy such as nipples never reaches the prompt. Items that leave the body bare or show through (nipple pasties, cupless shelf, quarter-cup and open-cup bras, crotchless panties, sheer bra and panties, bodystocking, cage and harness bras) are offered only in Glamour and Explicit. The negative prompt keeps breasts and the groin covered. Like every 18+ purpose it needs "Who" and an adult age, and is hidden for characters with an uploaded face.
 - **Surprise me** dresses the subject in a matching set: all lingerie or all swimwear, nothing under a one-piece, a top for a woman always, and for a man one of the men's tops about half the time (bare-chested otherwise, and always with swimwear).
 
+### Image filter
+
+The Camera step has its own **Image filter** section: a film stock, an old camera or a print look, each written out in full after the camera details (and as a few tags for the SDXL models). There are 14: 90s disposable camera, Polaroid instant, Kodak Portra 400, Fujifilm Superia 400, Cinestill 800T, black-and-white Tri-X, Kodachrome 60s slide, faded 70s print, antique sepia, expired 35mm film, Lomography cross-process, Super 8 film still, 2000s digicam flash and VHS camcorder still. For example the 90s disposable camera writes "shot on a 90s disposable 35mm film camera, heavy coarse film grain, high ISO noise, slightly soft out-of-focus lens blur, warm faded analog colour grading, an orange-red light leak on the left edge, dark vignette".
+
+- **Date stamp**: type a date such as `OCT 29 26` to add "an orange digital date stamp "OCT 29 26" in the bottom right corner". Z-Image draws short text well; the SDXL models often garble it.
+- A filter brings its own colours, grain and focus, so with a colour grading (other than natural) or a sharp-focus realism detail ("sharp focus on the eyes", "natural skin texture with visible pores", "true-to-life colours") the preview warns of a clash.
+- **Surprise me** adds a filter about one time in three, then leaves out the colour grading and the sharp-focus details; with Mood & finish locked it keeps your grading and adds no filter. The Camera step's dice picks a filter only when nothing in Mood & finish fights it. A filter set to Random is picked before the colour grading, so a Random grading fits it.
+- The JSON prompt keeps them as `camera.filter` and `camera.date_stamp`.
+
 ### JSON prompt
 
 **Use this prompt** puts the builder's choices into the prompt box as a **JSON prompt** rather than finished text. It has a `version`, the `purpose`, and one section per part of the picture (`subject`, `appearance`, `hair`, `body`, `anatomy`, `outfit`, `content`, `pose`, `scene`, `lighting`, `camera`, `finish`, `details`); a choice you left unset is left out, and Random choices are already settled. For example:
