@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { builderModes } from '../../test/fixtures'
 import { buildPrompt, emptyBuilderState, emptyOutfit, surprise, switchMode, type BuilderState, type OutfitState } from './build'
 import { NOT_SET } from './constants'
-import { intimateOptions } from './intimates'
+import { intimateOptions, intimateSet } from './intimates'
 import { parseModes } from './modes'
 
 const { modes } = parseModes(builderModes)
@@ -60,7 +60,8 @@ describe('the Faceless purpose', () => {
 
   it('offers each subject what is cut for them', () => {
     const man = { who: 'man' }
-    expect(intimateOptions('lingerieTop', man, faceless)).toEqual([])
+    expect(intimateOptions('lingerieTop', man, faceless)).toEqual(['Unbuttoned shirt', 'Cropped tank top', 'Sleeveless compression top', 'Leather chest harness', 'Mesh tank top'])
+    expect(intimateOptions('lingerieTop', { who: 'woman' }, faceless)).not.toContain('Unbuttoned shirt')
     expect(intimateOptions('lingerieBottom', man, faceless)).toEqual([
       'Boxer briefs', 'Low-rise briefs', 'Trunks', 'Jockstrap', 'Pouch briefs', 'Silk boxers', 'Swim briefs', 'Swim trunks', 'Micro swim briefs', 'Square-cut swim trunks', 'Swim thong',
     ])
@@ -79,5 +80,23 @@ describe('the Faceless purpose', () => {
       const result = buildPrompt(surprised, faceless)
       expect(result.status === 'ready' ? result.prompt : result.reason).not.toMatch(NUDITY)
     }
+  })
+})
+
+describe('Surprise me for a man in an 18+ purpose', () => {
+  it('gives him a spicy top about half the time, and none with swimwear', () => {
+    let withTop = 0
+    for (let seed = 1; seed <= 200; seed++) {
+      const { lingerieTop, lingerieBottom } = intimateSet({ who: 'man' }, faceless, seed)
+      if (lingerieTop !== NOT_SET) withTop++
+      if (/swim/i.test(lingerieBottom)) expect(lingerieTop).toBe(NOT_SET)
+    }
+    expect(withTop).toBeGreaterThan(30)
+    expect(withTop).toBeLessThan(100)
+  })
+
+  it('writes his top in full', () => {
+    const prompt = built({ who: 'man', ...wearing({ lingerieTop: 'Unbuttoned shirt', lingerieBottom: 'Boxer briefs' }) }).prompt
+    expect(prompt).toContain('He is wearing a shirt hanging fully unbuttoned and open over the bare chest and fitted boxer briefs that hug the thighs.')
   })
 })

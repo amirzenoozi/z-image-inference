@@ -15,8 +15,8 @@ describe('the Top and Bottom menus', () => {
     expect(labels('general')).toEqual(['builder.groupEveryday', 'builder.groupGym', 'builder.groupLingerie', 'builder.groupSwimwear'])
     expect(labels('fitness')).toEqual(['builder.groupEveryday', 'builder.groupGym'])
     expect(labels('faceless')).toEqual(['builder.groupLingerie', 'builder.groupSwimwear', 'builder.groupEveryday', 'builder.groupGym'])
-    // The lingerie and swimwear tops are cut for women
-    expect(labels('faceless', { who: 'man', age: 'late 20s' })).toEqual(['builder.groupEveryday', 'builder.groupGym'])
+    // A man's lingerie group holds the men's tops; the swimwear tops are cut for women
+    expect(labels('faceless', { who: 'man', age: 'late 20s' })).toEqual(['builder.groupLingerie', 'builder.groupEveryday', 'builder.groupGym'])
   })
 
   it('wear one item at a time, keeping the colour chosen', () => {
