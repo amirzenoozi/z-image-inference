@@ -125,11 +125,11 @@ The **Faceless (18+)** purpose makes pictures from the neck down: the face is ne
   - **Bodysuits and short tops**: lace, cut-out, halter, thong and garter bodysuits, teddy, satin slip, chemise, babydolls, crop cami, mini tube top, bralette crop top.
   - **Bottoms**: panties, briefs, thongs (micro, cut-out, high-leg), G-string, tanga briefs, ruffle panties, booty shorts, latex shorts, stockings, garters, garter skirt and set.
   - **Swimwear**: string, triangle, bandeau, underwire, micro, ring, halter, push-up, crochet, high-neck and wet-look bikini tops; string, Brazilian, high-cut, thong, side-tie, micro, tanga, G-string, ring, scrunch-butt, cheeky and high-waisted bikini bottoms; plunging, cut-out, high-leg, thong, backless and lace-up one-pieces, a sling bikini and a monokini.
-  - **Men**: boxer briefs, low-rise and pouch briefs, trunks, a jockstrap, silk boxers, swim briefs, micro swim briefs, swim trunks, square-cut trunks and a swim thong.
+  - **Men**: on top an unbuttoned shirt, a cropped tank top, a sleeveless compression top, a leather chest harness or a mesh tank top; below boxer briefs, low-rise and pouch briefs, trunks, a jockstrap, silk boxers, swim briefs, micro swim briefs, swim trunks, square-cut trunks and a swim thong.
 
   Outerwear adds a silk robe, a sarong and a crochet cover-up; accessories add a thigh harness (outside the safe purposes). Each item is written out in full in a sentence prompt, in every purpose ("a latex corset with a wet-look shine moulded tight to the waist and bust"); tag prompts keep the short name.
 - **Always clothed, never nude**: Faceless has no Intimacy step, so nudity can't be chosen. No garment can be set to "Remove", a woman needs a top before the prompt is ready, and anatomy such as nipples never reaches the prompt. Items that leave the body bare or show through (nipple pasties, cupless shelf, quarter-cup and open-cup bras, crotchless panties, sheer bra and panties, bodystocking, cage and harness bras) are offered only in Glamour and Explicit. The negative prompt keeps breasts and the groin covered. Like every 18+ purpose it needs "Who" and an adult age, and is hidden for characters with an uploaded face.
-- **Surprise me** dresses the subject in a matching set: all lingerie or all swimwear, nothing under a one-piece, and only bottoms for a man.
+- **Surprise me** dresses the subject in a matching set: all lingerie or all swimwear, nothing under a one-piece, a top for a woman always, and for a man one of the men's tops about half the time (bare-chested otherwise, and always with swimwear).
 
 ### JSON prompt
 
