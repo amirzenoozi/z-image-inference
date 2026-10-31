@@ -176,5 +176,6 @@
   "groupSwimwear": "Costumi da bagno",
   "lockStep": "Blocca {step} per Sorprendimi",
   "unlockStep": "Sblocca {step}",
-  "stepLockedNote": "(bloccato)"
+  "stepLockedNote": "(bloccato)",
+  "clashPlace": "{a} non si adatta a una scena {b}."
 }

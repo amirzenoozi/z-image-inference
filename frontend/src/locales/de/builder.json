@@ -176,5 +176,6 @@
   "groupSwimwear": "Bademode",
   "lockStep": "{step} für Überrasch mich sperren",
   "unlockStep": "{step} entsperren",
-  "stepLockedNote": "(gesperrt)"
+  "stepLockedNote": "(gesperrt)",
+  "clashPlace": "{a} passt nicht zu einer Szene wie {b}."
 }

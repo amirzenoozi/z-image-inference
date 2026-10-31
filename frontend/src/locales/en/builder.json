@@ -176,5 +176,6 @@
   "groupSwimwear": "Swimwear",
   "lockStep": "Lock {step} against Surprise me",
   "unlockStep": "Unlock {step}",
-  "stepLockedNote": "(locked)"
+  "stepLockedNote": "(locked)",
+  "clashPlace": "{a} doesn't fit a {b} scene."
 }

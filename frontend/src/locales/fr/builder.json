@@ -176,5 +176,6 @@
   "groupSwimwear": "Maillots de bain",
   "lockStep": "Verrouiller {step} pour Surprenez-moi",
   "unlockStep": "Déverrouiller {step}",
-  "stepLockedNote": "(verrouillé)"
+  "stepLockedNote": "(verrouillé)",
+  "clashPlace": "{a} ne convient pas à une scène {b}."
 }
