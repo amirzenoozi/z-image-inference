@@ -24,5 +24,11 @@
   "pages": "Pages",
   "dialogActions": "Dialog actions",
   "prompt": "Prompt",
-  "negativePrompt": "Negative prompt"
+  "negativePrompt": "Negative prompt",
+  "adultShown": "Adult content shown",
+  "adultHidden": "Adult content hidden",
+  "unlockTitle": "Enter the word",
+  "unlockLabel": "Word",
+  "unlockConfirm": "OK",
+  "unlockWrong": "That isn't the word."
 }

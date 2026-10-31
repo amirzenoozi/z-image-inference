@@ -24,5 +24,11 @@
   "pages": "Seiten",
   "dialogActions": "Dialogaktionen",
   "prompt": "Prompt",
-  "negativePrompt": "Negativer Prompt"
+  "negativePrompt": "Negativer Prompt",
+  "adultShown": "Inhalte für Erwachsene sichtbar",
+  "adultHidden": "Inhalte für Erwachsene ausgeblendet",
+  "unlockTitle": "Wort eingeben",
+  "unlockLabel": "Wort",
+  "unlockConfirm": "OK",
+  "unlockWrong": "Das ist nicht das Wort."
 }

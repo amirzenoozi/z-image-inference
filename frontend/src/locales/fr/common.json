@@ -24,5 +24,11 @@
   "pages": "Pages",
   "dialogActions": "Actions de la boîte de dialogue",
   "prompt": "Prompt",
-  "negativePrompt": "Prompt négatif"
+  "negativePrompt": "Prompt négatif",
+  "adultShown": "Contenu pour adultes affiché",
+  "adultHidden": "Contenu pour adultes masqué",
+  "unlockTitle": "Saisissez le mot",
+  "unlockLabel": "Mot",
+  "unlockConfirm": "OK",
+  "unlockWrong": "Ce n’est pas le bon mot."
 }

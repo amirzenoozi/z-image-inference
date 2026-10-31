@@ -49,5 +49,10 @@
   "videoNeedsTools": "Os vídeos precisam de {tools} neste Mac. Instale-os com o Homebrew (brew install {tools}) e tente de novo.",
   "videoNeedsImage": "Um vídeo precisa da imagem de partida.",
   "videoFailed": "Não foi possível criar o vídeo: {detail}",
-  "videoNotFound": "Vídeo não encontrado."
+  "videoNotFound": "Vídeo não encontrado.",
+  "lockedPrompt": "O conteúdo adulto está bloqueado, por isso este prompt não pode ser usado. Remova “{word}”.",
+  "lockedStartImage": "O conteúdo adulto está bloqueado, por isso não é possível criar uma variação de uma imagem sensível.",
+  "lockedCheckNotReady": "A verificação de imagens ainda está iniciando e, enquanto o conteúdo adulto estiver bloqueado, nenhuma imagem pode ser salva sem ela. Tente de novo em instantes.",
+  "lockedDiscarded": "A imagem saiu com nudez e foi descartada: o conteúdo adulto está bloqueado.",
+  "lockedModel": "{model} é para conteúdo adulto, que está bloqueado."
 }

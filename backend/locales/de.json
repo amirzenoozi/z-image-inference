@@ -49,5 +49,10 @@
   "videoNeedsTools": "Videos brauchen {tools} auf diesem Mac. Installieren Sie sie mit Homebrew (brew install {tools}) und versuchen Sie es erneut.",
   "videoNeedsImage": "Ein Video braucht das Bild, mit dem es beginnt.",
   "videoFailed": "Das Video konnte nicht erstellt werden: {detail}",
-  "videoNotFound": "Video nicht gefunden."
+  "videoNotFound": "Video nicht gefunden.",
+  "lockedPrompt": "Inhalte für Erwachsene sind gesperrt, daher kann dieser Prompt nicht verwendet werden. Entferne „{word}“ daraus.",
+  "lockedStartImage": "Inhalte für Erwachsene sind gesperrt, daher kann keine Variante eines sensiblen Bildes erstellt werden.",
+  "lockedCheckNotReady": "Die Bildprüfung startet noch, und solange Inhalte für Erwachsene gesperrt sind, kann ohne sie kein Bild gespeichert werden. Versuch es gleich noch einmal.",
+  "lockedDiscarded": "Das Bild enthielt Nacktheit und wurde verworfen: Inhalte für Erwachsene sind gesperrt.",
+  "lockedModel": "{model} ist für Inhalte für Erwachsene, und die sind gesperrt."
 }
