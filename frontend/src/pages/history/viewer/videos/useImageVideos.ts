@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { ApiError, CANCELLED_STATUS, cancelJob, fetchVideos, makeVideo } from '../../../../api'
 import { errorMessage, useLoadable } from '../../../../lib/hooks'
 import { newJobId } from '../../../../lib/jobId'
+import { useAdultContent } from '../../../../lib/adultContent'
 import type { Loadable, VideoItem } from '../../../../types'
 
 export interface VideoRequestFields {
@@ -32,12 +33,13 @@ export function useImageVideos(imageId: number | null, onMade: (video: VideoItem
   const load = useCallback((signal: AbortSignal) => (imageId === null ? Promise.resolve([]) : fetchVideos(imageId, signal)), [imageId])
   const [videos, reload] = useLoadable(load)
   const [render, setRender] = useState<VideoRender>({ status: 'idle' })
+  const safeOnly = !useAdultContent().shown
 
   const make = (request: VideoRequestFields) => {
     if (imageId === null) return
     const jobId = newJobId()
     setRender({ status: 'pending', jobId, request, startedAt: Date.now(), cancelling: false })
-    makeVideo(imageId, request.prompt, request.seconds, jobId).then(
+    makeVideo(imageId, request.prompt, request.seconds, jobId, safeOnly).then(
       (video) => {
         setRender({ status: 'idle' })
         reload()

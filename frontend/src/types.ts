@@ -13,6 +13,8 @@ export interface AddonInfo {
   download_gb: number
   page_url: string
   source_name: string
+  /** It adds nudity or sex, so it is hidden while adult content is locked. */
+  adult: boolean
 }
 
 export interface ModelInfo {
@@ -43,6 +45,8 @@ export interface ModelInfo {
   supports_face_lock: boolean
   examples: string[]
   addons: AddonInfo[]
+  /** Made for adult content, so it is hidden while adult content is locked. */
+  adult: boolean
 }
 
 export interface ResolutionInfo {
@@ -101,6 +105,15 @@ export interface Catalog {
   builder_modes: BuilderModeData[]
   /** The UI's language code, from APP_LANGUAGE in .env. */
   language: string
+  adult_content: AdultContentInfo
+}
+
+/** The .env lock on adult content (lib/adultContent.ts has the browser's own). */
+export interface AdultContentInfo {
+  /** ADULT_CONTENT is on; off, the catalog has nothing adult at all. */
+  available: boolean
+  /** A hidden word is set, so this browser stays locked until it is typed. */
+  word_lock: boolean
 }
 
 /** A prompt builder mode as prompt_modes.json writes it; the builder checks it against its own steps and options. */
@@ -288,6 +301,8 @@ export type PromptFormat = 'text' | 'json'
 /** What Generate sends: the prompt as text, and the JSON prompt it was written from, if any. */
 export interface SentSettings extends GenerationSettings {
   promptSpec?: PromptSpec
+  /** Adult content is locked in this browser, so the server keeps the render safe for work. */
+  safeOnly?: boolean
 }
 
 export interface StartImage {

@@ -94,6 +94,7 @@ export async function generateImage(settings: SentSettings, jobId: string, signa
       character_id: settings.characterId,
       addons: settings.addons,
       prompt_spec: settings.promptSpec ?? null,
+      safe_only: settings.safeOnly ?? false,
     },
     signal,
   )
@@ -111,8 +112,10 @@ export async function cancelJob(jobId: string): Promise<void> {
   await request(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })
 }
 
-function filterParams(filters: HistoryFilters): URLSearchParams {
+/** `hideSensitive`: adult content is locked in this browser, so sensitive images are left out. */
+function filterParams(filters: HistoryFilters, hideSensitive: boolean): URLSearchParams {
   const params = new URLSearchParams()
+  if (hideSensitive) params.set('hide_sensitive', 'true')
   if (filters.model) params.set('model', filters.model)
   if (filters.search) params.set('q', filters.search)
   if (filters.favouritesOnly) params.set('favourites', 'true')
@@ -121,8 +124,8 @@ function filterParams(filters: HistoryFilters): URLSearchParams {
   return params
 }
 
-export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, signal?: AbortSignal): Promise<HistoryPageData> {
-  const params = filterParams(filters)
+export async function fetchHistory(offset: number, limit: number, filters: HistoryFilters, hideSensitive: boolean, signal?: AbortSignal): Promise<HistoryPageData> {
+  const params = filterParams(filters, hideSensitive)
   params.set('offset', String(offset))
   params.set('limit', String(limit))
   const resp = await request(`/api/history?${params}`, { signal })
@@ -130,8 +133,8 @@ export async function fetchHistory(offset: number, limit: number, filters: Histo
 }
 
 /** A zip of the images matching the filters, each with its prompts and settings; the browser downloads it. */
-export function historyExportUrl(filters: HistoryFilters): string {
-  const query = filterParams(filters).toString()
+export function historyExportUrl(filters: HistoryFilters, hideSensitive: boolean): string {
+  const query = filterParams(filters, hideSensitive).toString()
   return `/api/history/export${query ? `?${query}` : ''}`
 }
 
@@ -163,8 +166,15 @@ export async function fetchVideos(imageId: number, signal?: AbortSignal): Promis
 }
 
 /** `jobId` lets the caller follow the render with fetchJobProgress and stop it with cancelJob, as for images. */
-export async function makeVideo(imageId: number, prompt: string, seconds: number, jobId: string): Promise<VideoItem> {
-  return (await postJson(`/api/history/${imageId}/videos`, { prompt, seconds, job_id: jobId })).json() as Promise<VideoItem>
+/** `safeOnly`: adult content is locked in this browser, so the server keeps the clip safe for work. */
+export async function makeVideo(imageId: number, prompt: string, seconds: number, jobId: string, safeOnly: boolean): Promise<VideoItem> {
+  return (await postJson(`/api/history/${imageId}/videos`, { prompt, seconds, job_id: jobId, safe_only: safeOnly })).json() as Promise<VideoItem>
+}
+
+/** Whether the keys typed end with the hidden word; the word itself stays on the server. */
+export async function checkUnlockWord(typed: string): Promise<boolean> {
+  const resp = await postJson('/api/adult-content/word', { typed })
+  return ((await resp.json()) as { match: boolean }).match
 }
 
 export async function deleteVideo(id: number): Promise<void> {

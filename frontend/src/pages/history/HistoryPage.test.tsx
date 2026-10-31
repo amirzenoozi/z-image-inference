@@ -99,7 +99,7 @@ it('moves between pages, showing a placeholder while the next one loads', async 
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
   await userEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
   expect(screen.getByLabelText('Loading history')).toBeInTheDocument()
   expect(screen.queryByText(/No images/)).not.toBeInTheDocument()
 
@@ -131,7 +131,7 @@ it('collapses long runs of pages into a gap', async () => {
   await userEvent.click(await screen.findByRole('button', { name: 'Page 10' }))
   await screen.findByRole('button', { name: 'Page 9' })
   expect(pages()).toEqual(['1', '9', '10', '11', '12'])
-  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE * 9, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE * 9, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
 })
 
 it('starts from the first page again when a filter changes', async () => {
@@ -142,7 +142,7 @@ it('starts from the first page again when a filter changes', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: 'Favourites' }))
 
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, favouritesOnly: true }, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, favouritesOnly: true }, false, expect.any(AbortSignal))
   expect(await screen.findByRole('button', { name: 'Page 1', current: 'page' })).toBeInTheDocument()
 })
 
@@ -174,7 +174,7 @@ it('shows an error with a retry when a page fails to load, not an empty page', a
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
   expect(await screen.findByRole('button', { name: 'Open: image 99' })).toBeInTheDocument()
-  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
 })
 
 it('opens an image to reuse its settings or delete it, then shows the next one', async () => {
@@ -296,7 +296,7 @@ it('searches once typing pauses, not on every key', async () => {
 
   await act(() => vi.advanceTimersByTimeAsync(SEARCH_DELAY_MS))
   expect(fetchHistory).toHaveBeenCalledTimes(2)
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, search: 'fox' }, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, search: 'fox' }, false, expect.any(AbortSignal))
 })
 
 it('keeps the newest filter results when an older request answers late', async () => {
@@ -333,7 +333,7 @@ it('tells "no matches" apart from an empty History, and clears the filters', asy
   await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
   expect(await screen.findByText('2 images')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Favourites' })).toHaveAttribute('aria-pressed', 'false')
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
 })
 
 it('stars an image once, and leaves the star as it was when saving fails', async () => {
@@ -402,10 +402,10 @@ it('filters by ratio, and back to all ratios', async () => {
   await screen.findByText('2 images')
 
   await chooseOption(screen.getByLabelText('Ratio'), 'Portrait')
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, ratio: 'portrait' }, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, ratio: 'portrait' }, false, expect.any(AbortSignal))
 
   await chooseOption(screen.getByLabelText('Ratio'), 'All ratios')
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
 })
 
 it('shows the colour palette when an image is opened: placeholder, then swatches that copy their colour', async () => {
@@ -448,7 +448,7 @@ it('opens the page and filters named in the address, and fills the controls', as
 
   await screen.findByRole('button', { name: 'Page 2', current: 'page' })
   expect(fetchHistory).toHaveBeenCalledOnce()
-  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE, { model: 'wai-illustrious', search: 'fox', favouritesOnly: true, ratio: 'portrait', character: 3 }, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE, { model: 'wai-illustrious', search: 'fox', favouritesOnly: true, ratio: 'portrait', character: 3 }, false, expect.any(AbortSignal))
   expect(screen.getByLabelText('Search prompts')).toHaveValue('fox')
   expect(screen.getByLabelText('Character')).toHaveTextContent('Ava')
   expect(screen.getByLabelText('Model')).toHaveTextContent('WAI-Illustrious')
@@ -483,14 +483,14 @@ it('follows Back and Forward, refilling the search box', async () => {
   await act(async () => window.history.back())
 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Favourites' })).toHaveAttribute('aria-pressed', 'false'))
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
 
   await act(async () => {
     window.history.pushState(null, '', '/?q=dog')
     window.dispatchEvent(new PopStateEvent('popstate'))
   })
   expect(screen.getByLabelText('Search prompts')).toHaveValue('dog')
-  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, search: 'dog' }, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(0, PAGE_SIZE, { ...NO_FILTERS, search: 'dog' }, false, expect.any(AbortSignal))
 })
 
 it('tidies an address with values that make no sense', async () => {
@@ -499,7 +499,7 @@ it('tidies an address with values that make no sense', async () => {
   renderHistory()
 
   await screen.findByText('2 images')
-  expect(fetchHistory).toHaveBeenCalledWith(0, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenCalledWith(0, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
   expect(window.location.search).toBe('')
 })
 
@@ -509,7 +509,7 @@ it('shows the last page for a page past the end', async () => {
   renderHistory()
 
   expect(await screen.findByRole('button', { name: 'Open: image 99' })).toBeInTheDocument()
-  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE, NO_FILTERS, false, expect.any(AbortSignal))
   expect(window.location.search).toBe('?page=2')
 })
 
@@ -565,14 +565,14 @@ it('crosses into the next page, showing a placeholder while that image loads, an
 
   const serve = fetchHistory.getMockImplementation()!
   // Only the viewer's own one-image request waits; the page list behind it answers as usual
-  fetchHistory.mockImplementation((offset: number, limit: number, filters: HistoryFilters) =>
-    limit === 1 && offset === PAGE_SIZE ? next.promise : serve(offset, limit, filters),
+  fetchHistory.mockImplementation((offset: number, limit: number, filters: HistoryFilters, hideSensitive: boolean) =>
+    limit === 1 && offset === PAGE_SIZE ? next.promise : serve(offset, limit, filters, hideSensitive),
   )
   await userEvent.keyboard('{ArrowRight}')
 
-  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, 1, NO_FILTERS, expect.any(AbortSignal))
+  expect(fetchHistory).toHaveBeenCalledWith(PAGE_SIZE, 1, NO_FILTERS, false, expect.any(AbortSignal))
   expect(within(viewer()).queryByRole('img')).not.toBeInTheDocument()
-  await act(async () => next.resolve(await serve(PAGE_SIZE, 1, NO_FILTERS)))
+  await act(async () => next.resolve(await serve(PAGE_SIZE, 1, NO_FILTERS, false)))
   expect(shownImage()).toHaveAccessibleName('image 2')
   expect(window.location.search).toBe('?page=2')
 
@@ -869,7 +869,7 @@ it('makes a video from the open image, shows it rendering, then plays it in plac
   await waitFor(() => expect(within(make).getByRole('button', { name: 'Generate video' })).toBeEnabled())
   await userEvent.click(within(make).getByRole('button', { name: 'Generate video' }))
 
-  expect(api.makeVideo).toHaveBeenCalledExactlyOnceWith(2, 'Subtle, natural movement; the camera stays still.', 4, expect.stringMatching(/^[0-9a-f-]{36}$/))
+  expect(api.makeVideo).toHaveBeenCalledExactlyOnceWith(2, 'Subtle, natural movement; the camera stays still.', 4, expect.stringMatching(/^[0-9a-f-]{36}$/), false)
   expect(within(dialog()).getByRole('status')).toHaveTextContent('Making a 4 s video')
 
   const made = video({ id: 9, image_id: 2, seconds: 4 })

@@ -106,6 +106,8 @@ class HistoryFilter:
     # The image's shape, as the resolution picker groups sizes
     category: Category | None = None
     character_id: int | None = None
+    # Sensitive images left out, while adult content is locked
+    hide_sensitive: bool = False
 
     def where(self) -> tuple[str, list[str | int]]:
         conditions: list[str] = []
@@ -121,6 +123,8 @@ class HistoryFilter:
             params.append(f"%{escape_like(self.search)}%")
         if self.favourites_only:
             conditions.append("favourite = 1")
+        if self.hide_sensitive:
+            conditions.append("COALESCE(sensitive, 0) = 0")
         if self.category:
             conditions.append(f"({CATEGORY_CONDITIONS[self.category]})")
         return (f" WHERE {' AND '.join(conditions)}" if conditions else ""), params

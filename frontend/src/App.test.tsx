@@ -397,7 +397,7 @@ it('opens History filtered to a character from the Characters page', async () =>
   await userEvent.click(await screen.findByRole('button', { name: 'Show images' }))
 
   expect(window.location.pathname + window.location.search).toBe('/history?character=3')
-  await waitFor(() => expect(api.fetchHistory).toHaveBeenCalledWith(0, 30, expect.objectContaining({ character: 3 }), expect.any(AbortSignal)))
+  await waitFor(() => expect(api.fetchHistory).toHaveBeenCalledWith(0, 30, expect.objectContaining({ character: 3 }), false, expect.any(AbortSignal)))
 })
 
 it('adds the chosen character’s look to a typed prompt, and says so', async () => {
