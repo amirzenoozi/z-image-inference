@@ -173,5 +173,6 @@
   "groupFaceless": "Sem rosto",
   "modeLabel_faceless": "Sem rosto (18+)",
   "modeDescription_faceless": "Do pescoço para baixo, com o rosto fora do enquadramento: lingerie, roupa íntima e moda praia descritas em detalhe, sem nudez. Precisa de “Quem” e de uma faixa etária adulta.",
-  "reasonNeedsTop": "Escolha uma peça de cima: este propósito sempre a mostra vestida."
+  "reasonNeedsTop": "Escolha uma peça de cima: este propósito sempre a mostra vestida.",
+  "surpriseStep": "Surpreenda-me: {step}"
 }

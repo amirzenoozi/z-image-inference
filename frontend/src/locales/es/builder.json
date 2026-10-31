@@ -173,5 +173,6 @@
   "groupFaceless": "Sin rostro",
   "modeLabel_faceless": "Sin rostro (18+)",
   "modeDescription_faceless": "Del cuello hacia abajo, con la cara fuera del encuadre: lencería, ropa interior y bañadores descritos con detalle, sin desnudez. Necesita «Quién» y una edad adulta.",
-  "reasonNeedsTop": "Elige una prenda de arriba: este propósito siempre la muestra vestida."
+  "reasonNeedsTop": "Elige una prenda de arriba: este propósito siempre la muestra vestida.",
+  "surpriseStep": "Sorpréndeme: {step}"
 }
