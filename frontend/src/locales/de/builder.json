@@ -59,10 +59,6 @@
   "outfitTopColour": "Farbe des Oberteils",
   "outfitBottom": "Unterteil",
   "outfitBottomColour": "Farbe des Unterteils",
-  "outfitLingerieTop": "Dessous & Bademode oben",
-  "outfitLingerieTopColour": "Farbe Dessous & Bademode oben",
-  "outfitLingerieBottom": "Dessous & Bademode unten",
-  "outfitLingerieBottomColour": "Farbe Dessous & Bademode unten",
   "outfitOuterwear": "Oberbekleidung",
   "outfitOuterwearColour": "Farbe der Oberbekleidung",
   "outfitShoes": "Schuhe",
@@ -174,5 +170,8 @@
   "modeLabel_faceless": "Ohne Gesicht (18+)",
   "modeDescription_faceless": "Ab dem Hals, das Gesicht außerhalb des Bildes: Dessous, Unterwäsche und Bademode detailliert beschrieben, ohne Nacktheit. Braucht „Wer“ und eine erwachsene Altersgruppe.",
   "reasonNeedsTop": "Wähle ein Oberteil: Dieser Zweck zeigt sie immer bekleidet.",
-  "surpriseStep": "Überrasch mich: {step}"
+  "surpriseStep": "Überrasch mich: {step}",
+  "groupEveryday": "Alltag",
+  "groupLingerie": "Dessous",
+  "groupSwimwear": "Bademode"
 }

@@ -59,10 +59,6 @@
   "outfitTopColour": "Couleur du haut",
   "outfitBottom": "Bas",
   "outfitBottomColour": "Couleur du bas",
-  "outfitLingerieTop": "Haut de lingerie et maillot",
-  "outfitLingerieTopColour": "Couleur du haut de lingerie et maillot",
-  "outfitLingerieBottom": "Bas de lingerie et maillot",
-  "outfitLingerieBottomColour": "Couleur du bas de lingerie et maillot",
   "outfitOuterwear": "Veste ou manteau",
   "outfitOuterwearColour": "Couleur de la veste ou du manteau",
   "outfitShoes": "Chaussures",
@@ -174,5 +170,8 @@
   "modeLabel_faceless": "Sans visage (18+)",
   "modeDescription_faceless": "À partir du cou, visage hors cadre : lingerie, sous-vêtements et maillots de bain décrits en détail, sans nudité. Nécessite « Qui » et une tranche d’âge adulte.",
   "reasonNeedsTop": "Choisissez un haut : cet usage la montre toujours habillée.",
-  "surpriseStep": "Surprenez-moi : {step}"
+  "surpriseStep": "Surprenez-moi : {step}",
+  "groupEveryday": "Tous les jours",
+  "groupLingerie": "Lingerie",
+  "groupSwimwear": "Maillots de bain"
 }

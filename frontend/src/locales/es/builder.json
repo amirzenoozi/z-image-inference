@@ -59,10 +59,6 @@
   "outfitTopColour": "Color de la parte de arriba",
   "outfitBottom": "Parte de abajo",
   "outfitBottomColour": "Color de la parte de abajo",
-  "outfitLingerieTop": "Lencería y baño (parte de arriba)",
-  "outfitLingerieTopColour": "Color de lencería y baño (arriba)",
-  "outfitLingerieBottom": "Lencería y baño (parte de abajo)",
-  "outfitLingerieBottomColour": "Color de lencería y baño (abajo)",
   "outfitOuterwear": "Prenda exterior",
   "outfitOuterwearColour": "Color de la prenda exterior",
   "outfitShoes": "Calzado",
@@ -174,5 +170,8 @@
   "modeLabel_faceless": "Sin rostro (18+)",
   "modeDescription_faceless": "Del cuello hacia abajo, con la cara fuera del encuadre: lencería, ropa interior y bañadores descritos con detalle, sin desnudez. Necesita «Quién» y una edad adulta.",
   "reasonNeedsTop": "Elige una prenda de arriba: este propósito siempre la muestra vestida.",
-  "surpriseStep": "Sorpréndeme: {step}"
+  "surpriseStep": "Sorpréndeme: {step}",
+  "groupEveryday": "Diario",
+  "groupLingerie": "Lencería",
+  "groupSwimwear": "Ropa de baño"
 }

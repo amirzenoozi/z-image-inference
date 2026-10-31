@@ -59,10 +59,6 @@
   "outfitTopColour": "Kleur bovenstuk",
   "outfitBottom": "Onderstuk",
   "outfitBottomColour": "Kleur onderstuk",
-  "outfitLingerieTop": "Lingerie & badmode boven",
-  "outfitLingerieTopColour": "Kleur lingerie & badmode boven",
-  "outfitLingerieBottom": "Lingerie & badmode onder",
-  "outfitLingerieBottomColour": "Kleur lingerie & badmode onder",
   "outfitOuterwear": "Bovenkleding",
   "outfitOuterwearColour": "Kleur bovenkleding",
   "outfitShoes": "Schoenen",
@@ -174,5 +170,8 @@
   "modeLabel_faceless": "Zonder gezicht (18+)",
   "modeDescription_faceless": "Vanaf de nek, met het gezicht buiten beeld: lingerie, ondergoed en badmode tot in detail beschreven, zonder naakt. Vereist “Wie” en een volwassen leeftijd.",
   "reasonNeedsTop": "Kies een bovenstuk: dit doel toont haar altijd gekleed.",
-  "surpriseStep": "Verras me: {step}"
+  "surpriseStep": "Verras me: {step}",
+  "groupEveryday": "Dagelijks",
+  "groupLingerie": "Lingerie",
+  "groupSwimwear": "Badmode"
 }
