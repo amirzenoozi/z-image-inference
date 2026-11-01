@@ -1,9 +1,9 @@
 import { CLOTHING_COLORS, POSES } from '../../lib/promptBuilder/data'
-import { FACELESS_POSES } from '../../lib/promptBuilder/faceless'
+import { FACELESS_POSES, realismOptions } from '../../lib/promptBuilder/faceless'
 import { accessoryOptions } from '../../lib/promptBuilder/intimates'
 import { areaChoice, areaGroups, colourItem, wearItem, type BodyArea } from '../../lib/promptBuilder/outfitMenu'
 import { CARDIO_BOXING, GYM_WORKOUTS, PILATES_STRETCHES, SPICY_POSES, YOGA_POSES, outfitOptions } from '../../lib/promptBuilder/fitness'
-import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
+import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, SKIN_DETAILS, TATTOOS } from '../../lib/promptBuilder/extraData'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../lib/promptBuilder/build'
 import { explicitDetailOptions } from '../../lib/promptBuilder/rules'
 import { picksOf, withPicks } from '../../lib/promptBuilder/multiChoice'
@@ -298,7 +298,7 @@ export function FinishStep({ state, mode, set }: StepProps) {
     <FieldGrid>
       <TextField label={t('builder.fieldMood')} value={state.mood} placeholder={t('builder.placeholderMood')} onChange={(mood) => set({ mood })} />
       <ChoiceSelect label={t('builder.fieldColourGrading')} value={state.colorGrading} groups={options('colorGrading')} onChange={(colorGrading) => set({ colorGrading })} />
-      <CheckboxGroup label={t('builder.fieldRealism')} options={REALISM_DETAILS} value={state.realism} onChange={(realism) => set({ realism })} />
+      <CheckboxGroup label={t('builder.fieldRealism')} options={realismOptions(mode)} value={state.realism} onChange={(realism) => set({ realism })} />
       <TextField label={t('builder.fieldExtraDetails')} value={state.extraDetails} placeholder={t('builder.placeholderExtraDetails')} onChange={(extraDetails) => set({ extraDetails })} wide />
       <TextField label={t('builder.fieldExtraNegative')} value={state.negativePrompt} placeholder={t('builder.placeholderNegative')} onChange={(negativePrompt) => set({ negativePrompt })} wide />
     </FieldGrid>

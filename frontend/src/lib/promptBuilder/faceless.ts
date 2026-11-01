@@ -1,5 +1,7 @@
 // Poses and framings for the Faceless purpose: the picture starts below the chin, so each one is written out to keep
 // the face out of frame and the body, the curves and the clothes in it.
+import { REALISM_DETAILS } from './extraData'
+import type { BuilderMode } from './modes'
 
 /** Body-led poses, offered in the 18+ purposes. */
 export const FACELESS_POSES: Readonly<Record<string, string>> = {
@@ -28,3 +30,23 @@ export const FACELESS_PHOTO_STYLES: readonly string[] = ['boudoir', 'swimwear ed
 
 /** Worn over lingerie or swimwear; offered with the other outerwear. */
 export const LOUNGE_OUTERWEAR: readonly string[] = ['Silk robe', 'Sarong', 'Crochet cover-up']
+
+/** A purpose whose framings all keep the face out (Faceless), so nothing in its prompt points to the face. */
+export function hidesFace(mode: Pick<BuilderMode, 'options'>): boolean {
+  const shots = mode.options.shotType
+  return shots !== undefined && shots.length > 0 && shots.every((shot) => shot in FACELESS_SHOTS)
+}
+
+/** Realism details about the face, left out where it isn't shown. */
+const FACE_REALISM: ReadonlySet<string> = new Set(['sharp focus on the eyes'])
+
+/** The realism details the purpose offers. */
+export function realismOptions(mode: Pick<BuilderMode, 'options'>): readonly string[] {
+  return hidesFace(mode) ? REALISM_DETAILS.filter((detail) => !FACE_REALISM.has(detail)) : REALISM_DETAILS
+}
+
+/** Lights whose wording is about the face, written without it where the face isn't shown. */
+export const FACE_FREE_LIGHT: Readonly<Record<string, string>> = {
+  'ring light': 'even ring light illumination with minimal shadows',
+  'screen/monitor glow': 'cool screen glow casting soft bluish-white light across the skin in a dim room',
+}

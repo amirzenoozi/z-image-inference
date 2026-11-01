@@ -9,7 +9,8 @@ import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from './data'
 import { fitnessClothing, isWorkoutFocused, outfitOptions } from './fitness'
 import { SHARP_REALISM } from './filters'
 import { intimateOptions, intimateSet } from './intimates'
-import { INTIMACY_CUES, REALISM_DETAILS, type Nudity } from './extraData'
+import { INTIMACY_CUES, type Nudity } from './extraData'
+import { realismOptions } from './faceless'
 import { alwaysClothed, isAdultMode, isSafeMode, showsStep, type BuilderMode, type StepId } from './modes'
 import { negativePrompt } from './negatives'
 import { proseFrom } from './prose'
@@ -278,7 +279,7 @@ export function surprise(state: BuilderState, seed: number, mode: BuilderMode): 
     ...state,
     who,
     age: state.age === NOT_SET && needsPerson ? pick(CHOICE_OPTIONS.age, seed, 'age') : state.age,
-    realism: locked.has('realism') ? state.realism : pickSome(REALISM_DETAILS, 2, seed, 'realism'),
+    realism: locked.has('realism') ? state.realism : pickSome(realismOptions(mode), 2, seed, 'realism'),
   }
   const picked = pickInOrder(start, unlocked(locked, SURPRISE_BEFORE_ACTS), mode, seed)
   const looked = locked.has('imageFilter') ? picked : surpriseFilter(picked, mode, seed, !locked.has('colorGrading') && !locked.has('realism'))
@@ -339,7 +340,7 @@ export function surpriseStep(state: BuilderState, step: StepId, seed: number, mo
   // The Camera step's filter is picked to fit the colour grading and realism details, which belong to another step
   if (step === 'camera') return surpriseFilter(picked, mode, seed, false)
   // A new colour grading or realism detail that would fight the filter is not picked
-  return step === 'finish' ? withoutFilterClash({ ...picked, realism: pickSome(REALISM_DETAILS, 2, seed, 'realism') }, state) : picked
+  return step === 'finish' ? withoutFilterClash({ ...picked, realism: pickSome(realismOptions(mode), 2, seed, 'realism') }, state) : picked
 }
 
 function withoutFilterClash(picked: BuilderState, before: BuilderState): BuilderState {

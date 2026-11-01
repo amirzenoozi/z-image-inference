@@ -81,7 +81,8 @@
     "defaults": { "shotType": "neck-down shot", "photoStyle": "boudoir", "sceneType": "bedroom", "lightingSetup": "natural window light" },
     "options": {
       "pose": ["standing", "standing hand on hip", "standing contrapposto", "standing one leg bent", "back to camera", "sitting on edge", "kneeling", "leaning against wall", "leaning in doorway", "lying on side", "lying on back", "lying on stomach elbows up", "reclining on sofa", "hand on chest", "stretch overhead", "kneeling on the bed, back arched", "lying on the side, hip curve", "hands at the waistband", "sitting on the bed edge, legs crossed", "leaning on a doorframe", "mirror selfie, phone hiding the face", "stepping out of the shower in a towel", "adjusting a strap", "lying on the stomach, legs up", "standing in profile, back arched"],
-      "shotType": ["neck-down shot", "collarbone-to-hips crop", "hips-and-legs crop", "back view from the shoulders down", "over-the-shoulder back view"]
+      "shotType": ["neck-down shot", "collarbone-to-hips crop", "hips-and-legs crop", "back view from the shoulders down", "over-the-shoulder back view"],
+      "cameraAngle": ["slightly low angle", "slightly high angle", "3/4 angle", "profile angle", "mirror selfie angle", "phone camera angle", "dutch angle", "low-angle hero shot", "from below", "rear 3/4 angle"]
     },
     "emphasis": ["outfit", "body"],
     "weights": { "outfit": 1.3, "body": 1.1 },

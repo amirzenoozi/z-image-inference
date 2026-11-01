@@ -10,7 +10,7 @@ import { resolve } from './random'
 import { anatomyShows, choicesFor, explicitDetailOptions, includesMan, includesWoman } from './rules'
 import { picksOf, type MultiChoice } from './multiChoice'
 import { settleChoices } from './settle'
-import { FACELESS_POSES, FACELESS_SHOTS } from './faceless'
+import { FACELESS_POSES, FACELESS_SHOTS, FACE_FREE_LIGHT, hidesFace, realismOptions } from './faceless'
 import { CONDITIONAL_CLOTHING, FITNESS_LIGHTING, FITNESS_SCENES, WORKOUTS, outfitOptions } from './fitness'
 import { CONDITIONAL_INTIMATES, EVERY_ACCESSORY, GARMENT_DETAILS, accessoryOptions, intimateOptions } from './intimates'
 
@@ -136,8 +136,9 @@ function placeOf(environment: string, sceneType: string): string {
   return FITNESS_SCENES[sceneType] ?? `in ${withArticle(sceneType)} setting`
 }
 
-function lightingOf(setup: string, sceneType: string): Labelled {
-  if (setup !== INHERIT_SCENE) return { label: setup, text: LIGHTING_EXPANSIONS[setup] ?? FITNESS_LIGHTING[setup] ?? '' }
+function lightingOf(setup: string, sceneType: string, faceShown: boolean): Labelled {
+  const faceFree = faceShown ? undefined : FACE_FREE_LIGHT[setup]
+  if (setup !== INHERIT_SCENE) return { label: setup, text: faceFree ?? LIGHTING_EXPANSIONS[setup] ?? FITNESS_LIGHTING[setup] ?? '' }
   return isSet(sceneType) ? { label: `${sceneType} lighting`, text: `the natural light of the ${sceneType} setting` } : NOTHING
 }
 
@@ -215,7 +216,7 @@ function settingFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
     time: choose('timeOfDay', state.timeOfDay),
     weather: choose('weather', state.weather),
     extraDetails: state.extraDetails.trim(),
-    lighting: chooseAll(state, mode, choose, 'lightingSetup').map((setup) => lightingOf(setup, sceneType)).filter((light) => light.text),
+    lighting: chooseAll(state, mode, choose, 'lightingSetup').map((setup) => lightingOf(setup, sceneType, !hidesFace(mode))).filter((light) => light.text),
     lightingCustom: state.lightingCustom.trim(),
     photoStyle: choose('photoStyle', state.photoStyle),
     shot: shotText(choose('shotType', state.shotType)),
@@ -224,7 +225,7 @@ function settingFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
     depthOfField: depthOfField(choose('depthOfField', state.depthOfField)),
     mood: state.mood.trim(),
     grading: choose('colorGrading', state.colorGrading),
-    realism: state.realism,
+    realism: state.realism.filter((detail) => realismOptions(mode).includes(detail)),
     filter: filterOf(choose('imageFilter', state.imageFilter)),
     dateStamp: dateStampText(state.dateStamp),
   }
