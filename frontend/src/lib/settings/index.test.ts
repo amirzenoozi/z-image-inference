@@ -1,0 +1,120 @@
+import { describe, expect, it } from 'vitest'
+import { animeModel, catalog, fastModel, historyItem } from '../../test/fixtures'
+import {
+  differsFromDefaults,
+  initialSettings,
+  loadSettings,
+  presetsFor,
+  saveSettings,
+  settingsFromItem,
+  switchModel,
+  variationSettings,
+  snapSide,
+  withModel,
+} from './.'
+
+describe('snapSide', () => {
+  it('rounds to the nearest multiple of 16 within the model limit', () => {
+    expect(snapSide(1000, catalog.limits, 1216)).toBe(1008)
+    expect(snapSide(5000, catalog.limits, 1216)).toBe(1216)
+    expect(snapSide(10, catalog.limits, 1216)).toBe(256)
+    expect(snapSide(Number.NaN, catalog.limits, 1216)).toBe(256)
+  })
+})
+
+describe('withModel', () => {
+  it('keeps values the new model allows and replaces the ones it does not', () => {
+    const settings = { ...initialSettings(catalog), width: 1280, height: 1280, steps: 40 }
+
+    const switched = withModel(settings, fastModel)
+    expect([switched.width, switched.height, switched.steps]).toEqual([1280, 1280, 20])
+
+    const anime = withModel(settings, animeModel)
+    expect([anime.width, anime.height, anime.steps]).toEqual([1024, 1024, 40])
+  })
+})
+
+it('switchModel resets sampling to the new model’s defaults and keeps the rest', () => {
+  const settings = { ...initialSettings(catalog), prompt: 'a fox', seed: 7, randomSeed: false, steps: 15, width: 512, height: 512, negativePrompt: 'mine' }
+  expect(switchModel(settings, animeModel)).toEqual({
+    ...settings, modelId: 'wai-illustrious', steps: 28, guidance: 7,
+  })
+  expect(switchModel({ ...settings, width: 1280, height: 1280 }, animeModel)).toMatchObject({ width: 1024, height: 1024 })
+})
+
+it('presetsFor drops sizes over the model limit', () => {
+  expect(presetsFor(animeModel, catalog.resolutions).map((r) => r.width)).not.toContain(1280)
+})
+
+it('differsFromDefaults compares only the model-specific settings', () => {
+  const settings = initialSettings(catalog)
+  expect(differsFromDefaults({ ...settings, prompt: 'changed', seed: 7 }, fastModel)).toBe(false)
+  expect(differsFromDefaults({ ...settings, steps: 3 }, fastModel)).toBe(true)
+})
+
+it('settingsFromItem switches on the add-ons the image was made with', () => {
+  expect(settingsFromItem(historyItem({ addons: ['tattoo'] }), catalog).addons).toEqual(['tattoo'])
+})
+
+it('settingsFromItem restores a history image with its seed fixed', () => {
+  const settings = settingsFromItem(historyItem({ model: 'wai-illustrious', guidance: null, seed: 99 }), catalog)
+  expect(settings).toMatchObject({ modelId: 'wai-illustrious', seed: 99, randomSeed: false, guidance: 7 })
+})
+
+describe('loadSettings', () => {
+  it('falls back to defaults when storage is empty or corrupt', () => {
+    expect(loadSettings(catalog)).toEqual(initialSettings(catalog))
+    localStorage.setItem('z-image-studio.settings.v1', '{not json')
+    expect(loadSettings(catalog)).toEqual(initialSettings(catalog))
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify({ modelId: 'x', steps: 'nine' }))
+    expect(loadSettings(catalog)).toEqual(initialSettings(catalog))
+  })
+
+  it('remembers the add-ons switched on, and starts with none when older settings have no list', () => {
+    saveSettings({ ...initialSettings(catalog), addons: ['tattoo'] })
+    expect(loadSettings(catalog).addons).toEqual(['tattoo'])
+    const { addons: _addons, ...older } = initialSettings(catalog)
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify(older))
+    expect(loadSettings(catalog).addons).toEqual([])
+  })
+
+  it('restores saved settings and maps an unknown model to the first one', () => {
+    const saved = { ...initialSettings(catalog), prompt: 'kept', modelId: 'removed-model' }
+    saveSettings(saved)
+    expect(loadSettings(catalog)).toMatchObject({ prompt: 'kept', modelId: 'z-image-turbo' })
+  })
+})
+
+describe('variations', () => {
+  it('start from the image with the default change and a new seed each time', () => {
+    const settings = variationSettings(historyItem({ id: 5, seed: 42 }), catalog)
+    expect(settings).toMatchObject({ startImage: { id: 5, change: 0.5 }, randomSeed: true, seed: 42 })
+  })
+
+  it('come back with their start image when their settings are reused', () => {
+    expect(settingsFromItem(historyItem({ varied_from: 5, change: 0.7 }), catalog).startImage).toEqual({ id: 5, change: 0.7 })
+    expect(settingsFromItem(historyItem(), catalog).startImage).toBeNull()
+  })
+
+  it('snap an edited image\'s size to what the model can make', () => {
+    const settings = settingsFromItem(historyItem({ width: 333, height: 1000 }), catalog)
+    expect([settings.width, settings.height]).toEqual([336, 1008])
+  })
+
+  it('are optional in settings saved before variations existed', () => {
+    const { startImage: _removed, ...older } = { ...initialSettings(catalog), prompt: 'kept' }
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify(older))
+    expect(loadSettings(catalog)).toMatchObject({ prompt: 'kept', startImage: null })
+    localStorage.setItem('z-image-studio.settings.v1', JSON.stringify({ ...older, startImage: { id: 5, change: 7 } }))
+    expect(loadSettings(catalog).startImage).toBeNull()
+  })
+})
+
+it('settingsFromItem brings back the JSON prompt an image was written from, or its text when there is none', () => {
+  const spec = { version: 1, purpose: 'general', subject: { who: 'man' } }
+  expect(settingsFromItem(historyItem({ prompt: 'A photograph of an adult man.', prompt_spec: JSON.stringify(spec) }), catalog)).toMatchObject({
+    prompt: JSON.stringify(spec, null, 2),
+    promptFormat: 'json',
+  })
+  expect(settingsFromItem(historyItem({ prompt: 'a cat', prompt_spec: null }), catalog)).toMatchObject({ prompt: 'a cat', promptFormat: 'text' })
+})
