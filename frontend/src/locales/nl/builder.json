@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filter",
   "fieldDateStamp": "Datumstempel",
   "placeholderDateStamp": "bijv. OCT 29 26",
-  "introImageFilter": "Een filmsoort, oude camera of afdruk, met eigen kleuren, korrel en scherpte. Laat de kleurcorrectie leeg als je er een kiest."
+  "introImageFilter": "Een filmsoort, oude camera of afdruk, met eigen kleuren, korrel en scherpte. Laat de kleurcorrectie leeg als je er een kiest.",
+  "customBuiltIn": "custom_clothes.json: “{value}” is al een ingebouwde optie en is weggelaten; geef het een eigen naam.",
+  "customMinor": "custom_clothes.json: “{value}” is weggelaten, omdat “{term}” op een minderjarige wijst."
 }

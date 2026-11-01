@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filter",
   "fieldDateStamp": "Datumsstempel",
   "placeholderDateStamp": "z. B. OCT 29 26",
-  "introImageFilter": "Ein Filmmaterial, eine alte Kamera oder ein Abzug, mit eigenen Farben, Korn und Schärfe. Lass die Farbkorrektur leer, wenn du einen wählst."
+  "introImageFilter": "Ein Filmmaterial, eine alte Kamera oder ein Abzug, mit eigenen Farben, Korn und Schärfe. Lass die Farbkorrektur leer, wenn du einen wählst.",
+  "customBuiltIn": "custom_clothes.json: „{value}“ ist bereits eine eingebaute Option und wurde weggelassen; gib ihm einen eigenen Namen.",
+  "customMinor": "custom_clothes.json: „{value}“ wurde weggelassen, da „{term}“ auf eine minderjährige Person hindeutet."
 }

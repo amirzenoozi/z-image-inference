@@ -54,5 +54,11 @@
   "lockedStartImage": "Adult content is locked, so a variation of a sensitive image can't be made.",
   "lockedCheckNotReady": "The image check is still starting, and while adult content is locked no image can be saved without it. Try again in a moment.",
   "lockedDiscarded": "The image came out with nudity, so it was discarded: adult content is locked.",
-  "lockedModel": "{model} is for adult content, which is locked."
+  "lockedModel": "{model} is for adult content, which is locked.",
+  "customCoversNeedsTop": "“covers”: “both” is only for an item in the top slot, such as a dress.",
+  "customAdultSlot": "Only a top, bottom or accessory can be adult.",
+  "customEntryProblem": "custom_clothes.json entry {number} ({value}) was left out: {reasons}",
+  "customFileUnreadable": "custom_clothes.json can't be read: {error}",
+  "customFileNotList": "custom_clothes.json must be a list of clothes.",
+  "customDuplicate": "custom_clothes.json has “{value}” more than once; only the first is used."
 }

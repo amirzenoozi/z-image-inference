@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filtro",
   "fieldDateStamp": "Data stampata",
   "placeholderDateStamp": "es. OCT 29 26",
-  "introImageFilter": "Una pellicola, una vecchia fotocamera o una stampa, con colori, grana e messa a fuoco propri. Lascia vuota la color correction se ne scegli uno."
+  "introImageFilter": "Una pellicola, una vecchia fotocamera o una stampa, con colori, grana e messa a fuoco propri. Lascia vuota la color correction se ne scegli uno.",
+  "customBuiltIn": "custom_clothes.json: «{value}» è già un'opzione integrata ed è stato escluso; dagli un nome proprio.",
+  "customMinor": "custom_clothes.json: «{value}» è stato escluso perché «{term}» fa pensare a una persona minorenne."
 }

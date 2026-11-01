@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filtre",
   "fieldDateStamp": "Date imprimée",
   "placeholderDateStamp": "ex. OCT 29 26",
-  "introImageFilter": "Une pellicule, un vieil appareil ou un tirage, avec ses couleurs, son grain et sa netteté. Laissez l’étalonnage vide si vous en choisissez un."
+  "introImageFilter": "Une pellicule, un vieil appareil ou un tirage, avec ses couleurs, son grain et sa netteté. Laissez l’étalonnage vide si vous en choisissez un.",
+  "customBuiltIn": "custom_clothes.json : « {value} » est déjà une option intégrée, il a été ignoré ; donnez-lui un nom à lui.",
+  "customMinor": "custom_clothes.json : « {value} » a été ignoré, car « {term} » évoque une personne mineure."
 }

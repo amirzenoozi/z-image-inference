@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filtro",
   "fieldDateStamp": "Fecha impresa",
   "placeholderDateStamp": "p. ej. OCT 29 26",
-  "introImageFilter": "Una película, una cámara antigua o una copia, con sus propios colores, grano y enfoque. Deja la gradación de color sin definir si eliges uno."
+  "introImageFilter": "Una película, una cámara antigua o una copia, con sus propios colores, grano y enfoque. Deja la gradación de color sin definir si eliges uno.",
+  "customBuiltIn": "custom_clothes.json: «{value}» ya es una opción integrada y se omitió; ponle un nombre propio.",
+  "customMinor": "custom_clothes.json: «{value}» se omitió porque «{term}» sugiere una persona menor."
 }

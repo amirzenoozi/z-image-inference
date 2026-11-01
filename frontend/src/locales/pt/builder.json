@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filtro",
   "fieldDateStamp": "Data impressa",
   "placeholderDateStamp": "ex.: OCT 29 26",
-  "introImageFilter": "Um filme, uma câmera antiga ou uma cópia impressa, com cores, grão e foco próprios. Deixe a correção de cor vazia ao escolher um."
+  "introImageFilter": "Um filme, uma câmera antiga ou uma cópia impressa, com cores, grão e foco próprios. Deixe a correção de cor vazia ao escolher um.",
+  "customBuiltIn": "custom_clothes.json: “{value}” já é uma opção integrada e foi deixado de fora; dê-lhe um nome próprio.",
+  "customMinor": "custom_clothes.json: “{value}” foi deixado de fora, pois “{term}” sugere uma pessoa menor."
 }

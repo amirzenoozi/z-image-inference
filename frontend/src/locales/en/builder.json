@@ -183,5 +183,7 @@
   "fieldImageFilter": "Filter",
   "fieldDateStamp": "Date stamp",
   "placeholderDateStamp": "e.g. OCT 29 26",
-  "introImageFilter": "A film stock, an old camera or a print look, with its own colours, grain and focus. Leave colour grading unset when you pick one."
+  "introImageFilter": "A film stock, an old camera or a print look, with its own colours, grain and focus. Leave colour grading unset when you pick one.",
+  "customBuiltIn": "custom_clothes.json: “{value}” is already a built-in option, so it was left out; give it a name of its own.",
+  "customMinor": "custom_clothes.json: “{value}” was left out, since “{term}” suggests a minor."
 }

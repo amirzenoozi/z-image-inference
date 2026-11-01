@@ -54,5 +54,11 @@
   "lockedStartImage": "I contenuti per adulti sono bloccati, quindi non si può creare una variante di un'immagine sensibile.",
   "lockedCheckNotReady": "Il controllo delle immagini si sta ancora avviando e, finché i contenuti per adulti sono bloccati, nessuna immagine può essere salvata senza. Riprova tra un momento.",
   "lockedDiscarded": "L'immagine conteneva nudità ed è stata scartata: i contenuti per adulti sono bloccati.",
-  "lockedModel": "{model} è per contenuti per adulti, che sono bloccati."
+  "lockedModel": "{model} è per contenuti per adulti, che sono bloccati.",
+  "customCoversNeedsTop": "«covers»: «both» vale solo per un capo sopra, come un abito.",
+  "customAdultSlot": "Solo un capo sopra, sotto o un accessorio può essere per adulti.",
+  "customEntryProblem": "La voce {number} di custom_clothes.json ({value}) è stata esclusa: {reasons}",
+  "customFileUnreadable": "Impossibile leggere custom_clothes.json: {error}",
+  "customFileNotList": "custom_clothes.json deve essere un elenco di capi.",
+  "customDuplicate": "custom_clothes.json contiene «{value}» più di una volta; si usa solo la prima."
 }

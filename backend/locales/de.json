@@ -54,5 +54,11 @@
   "lockedStartImage": "Inhalte für Erwachsene sind gesperrt, daher kann keine Variante eines sensiblen Bildes erstellt werden.",
   "lockedCheckNotReady": "Die Bildprüfung startet noch, und solange Inhalte für Erwachsene gesperrt sind, kann ohne sie kein Bild gespeichert werden. Versuch es gleich noch einmal.",
   "lockedDiscarded": "Das Bild enthielt Nacktheit und wurde verworfen: Inhalte für Erwachsene sind gesperrt.",
-  "lockedModel": "{model} ist für Inhalte für Erwachsene, und die sind gesperrt."
+  "lockedModel": "{model} ist für Inhalte für Erwachsene, und die sind gesperrt.",
+  "customCoversNeedsTop": "„covers“: „both“ gilt nur für ein Oberteil, etwa ein Kleid.",
+  "customAdultSlot": "Nur ein Oberteil, Unterteil oder Accessoire kann für Erwachsene sein.",
+  "customEntryProblem": "Eintrag {number} in custom_clothes.json ({value}) wurde weggelassen: {reasons}",
+  "customFileUnreadable": "custom_clothes.json kann nicht gelesen werden: {error}",
+  "customFileNotList": "custom_clothes.json muss eine Liste von Kleidungsstücken sein.",
+  "customDuplicate": "custom_clothes.json enthält „{value}“ mehrfach; nur der erste Eintrag wird verwendet."
 }
