@@ -185,5 +185,27 @@
     "group": "Lingerie",
     "for": "woman",
     "adult": true
+  },
+  {
+    "value": "Spider-themed bodysuit costume",
+    "title": "Costume - SpiderWoman",
+    "prompt": "skin-tight glossy red bodysuit costume with yellow side panels running from the underarms down to the hips, a large black spider emblem outlined in yellow spreading across the chest and stomach, long yellow gloves and thigh-high yellow boots, cut high on the hips with a plunging neckline",
+    "tags": "red bodysuit, spider emblem, yellow gloves, thigh-high yellow boots, superheroine costume",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": false
+  },
+  {
+    "value": "Spider-themed cut-out costume",
+    "title": "Costume - SpiderWoman Spicy",
+    "prompt": "glossy red spider-themed costume cut as a strappy high-cut bodysuit with a deep plunge to the navel and open sides held together by thin black web-pattern straps, a black spider emblem outlined in yellow across the lined bust, long yellow gloves, thigh-high yellow boots and a lined thong back",
+    "tags": "red cut-out bodysuit, spider emblem, web straps, high-cut, thong back, yellow gloves, thigh-high yellow boots",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": true
   }
 ]
