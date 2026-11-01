@@ -207,5 +207,27 @@
     "group": "Costumes",
     "for": "woman",
     "adult": true
+  },
+  {
+    "value": "Symbiote bodysuit costume",
+    "title": "Costume - Venom",
+    "prompt": "skin-tight glossy black symbiote bodysuit costume with a wet, liquid-latex sheen and subtle organic sinew texture flowing over the arms and legs, a large white spider emblem whose long legs wrap from the chest around the ribs to the back, matching black gloves and thigh-high black boots fused seamlessly into the suit with a high neck",
+    "tags": "black symbiote bodysuit, glossy latex, white spider emblem, organic texture, superheroine costume",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": false
+  },
+  {
+    "value": "Symbiote cut-out costume",
+    "title": "Costume - Venom Spicy",
+    "prompt": "glossy black symbiote costume cut as a high-cut bodysuit with a deep plunge to the navel and wide open sides, held together by thin liquid black tendrils that stretch across the bare skin, a white spider emblem spreading over the lined bust, black gloves, thigh-high black boots and a lined thong back",
+    "tags": "black symbiote cut-out bodysuit, tendrils, white spider emblem, high-cut, thong back, thigh-high black boots",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": true
   }
 ]
