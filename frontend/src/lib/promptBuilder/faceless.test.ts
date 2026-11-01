@@ -100,3 +100,24 @@ describe('Surprise me for a man in an 18+ purpose', () => {
     expect(prompt).toContain('He is wearing a shirt hanging fully unbuttoned and open over the bare chest and fitted boxer briefs that hug the thighs.')
   })
 })
+
+describe('a faceless prompt never points to the face', () => {
+  const EYES = /\beyes?\b|catchlights?|illuminating the face/i
+
+  it('leaves out the eyes from the realism details and writes the lights without the face', () => {
+    const prompt = built({ realism: ['sharp focus on the eyes', 'subtle film grain'], lightingSetup: 'ring light', lightingMore: ['screen/monitor glow'], ...wearing({ lingerieTop: 'Lace bra' }) }).prompt
+    expect(prompt).toContain('even ring light illumination with minimal shadows')
+    expect(prompt).toContain('Subtle film grain.')
+    expect(prompt).not.toMatch(EYES)
+  })
+
+  it('never mentions the eyes over many Surprise me prompts, and other purposes keep them', () => {
+    for (let seed = 1; seed <= 150; seed++) {
+      const result = buildPrompt(surprise(state({}), seed, faceless), faceless)
+      expect(result.status === 'ready' ? result.prompt : '', `seed ${seed}`).not.toMatch(EYES)
+    }
+    const general = modes.find((mode) => mode.id === 'general')!
+    const portrait = buildPrompt({ ...emptyBuilderState(), who: 'woman', lightingSetup: 'ring light', realism: ['sharp focus on the eyes'] }, general)
+    expect(portrait.status === 'ready' && portrait.prompt).toMatch(/catchlights in the eyes.*sharp focus on the eyes/i)
+  })
+})
