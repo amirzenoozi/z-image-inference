@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, surpriseStep, switchMode, toggleLock, type BuilderState, type BuildResult, type OutfitState } from '../../../lib/promptBuilder/build'
 import { modeLabel, modesForCharacter, parseModes, type BuilderMode, type StepId } from '../../../lib/promptBuilder/modes'
+import { customClothesProblems } from '../../../lib/promptBuilder/customClothes'
 import { specFromState, type PromptSpec } from '../../../lib/promptBuilder/spec'
 import { loadBuilderState, saveBuilderState } from '../../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../../lib/styles'
@@ -98,7 +99,7 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
       actionsNote={actionsNote(tooLong, hasExistingPrompt)}
       actions={<DialogActions ready={result.status === 'ready' && !tooLong} hasExistingPrompt={hasExistingPrompt} onCancel={onClose} onConfirm={confirm} />}
     >
-      <ModePicker modes={modes} current={mode.id} problems={problems} onSelect={(next) => setState((current) => switchMode(current, next))} />
+      <ModePicker modes={modes} current={mode.id} problems={[...problems, ...customClothesProblems()]} onSelect={(next) => setState((current) => switchMode(current, next))} />
       <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
         <StepNav steps={steps} current={step.id} locked={state.lockedSteps} onSelect={setStepId} />
         <section aria-label={t(step.label)} className="min-h-0 overflow-y-auto pr-1">

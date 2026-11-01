@@ -10,7 +10,7 @@ import { INHERIT_SCENE, NOT_SET, REMOVE } from '../constants'
 import { CLOTHING_COLORS } from '../data'
 import { EXPLICIT_DETAILS, EXPLICIT_PIERCINGS, FACIAL_HAIR, INTIMACY_CUES, MAKEUP, PIERCINGS, REALISM_DETAILS, SKIN_DETAILS, TATTOOS } from '../extraData'
 import { outfitOptions, type ClothingSlot } from '../fitness'
-import { ALL_INTIMATES, EVERY_ACCESSORY } from '../intimates'
+import { allIntimates, everyAccessory } from '../intimates'
 import type { BuilderMode } from '../modes'
 import { choicesInPrompt, settleChoices } from '../settle'
 
@@ -183,8 +183,8 @@ function checkSection(value: unknown, fields: Readonly<Record<string, Field>>, n
 }
 
 const wearable = (slot: GarmentSlot): readonly string[] => {
-  if (slot === 'lingerie_top') return ALL_INTIMATES.lingerieTop
-  if (slot === 'lingerie_bottom') return ALL_INTIMATES.lingerieBottom
+  if (slot === 'lingerie_top') return allIntimates('lingerieTop')
+  if (slot === 'lingerie_bottom') return allIntimates('lingerieBottom')
   // Everything any subject may wear; what this subject may not is left out when the prompt is written
   return outfitOptions(slot as ClothingSlot, { who: 'couple', age: CHOICE_OPTIONS.age[0] })
 }
@@ -212,7 +212,7 @@ function checkAccessories(value: unknown): void {
   const path = 'outfit.accessories'
   // The builder has three accessory slots
   if (!isStringList(value) || value.length > 3) throw new SpecProblem(t('create.jsonNeedsList', { field: path }))
-  checkOptions(value, EVERY_ACCESSORY, path)
+  checkOptions(value, everyAccessory(), path)
 }
 
 /** An older JSON prompt brought up to SPEC_VERSION; there is only one version so far. */

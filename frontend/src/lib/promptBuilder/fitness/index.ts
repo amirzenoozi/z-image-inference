@@ -6,6 +6,7 @@ import { NOT_SET, RANDOM } from '../constants'
 import { ACCESSORIES, BOTTOMS, OUTERWEAR, SHOES, TOPS } from '../data'
 import { includesMan, includesWoman } from '../rules'
 import { LOUNGE_OUTERWEAR } from '../faceless'
+import { customOptions } from '../customClothes'
 
 export const GYM_WORKOUTS: Readonly<Record<string, string>> = {
   'barbell back squat': 'performing a barbell back squat, the bar resting across the upper back, thighs parallel to the floor, core braced',
@@ -135,6 +136,10 @@ export type ClothingSlot = 'top' | 'bottom' | 'outerwear' | 'shoes'
  * adult and each for who it suits. The Outfit step, Random, Surprise me and the prompt all read it.
  */
 export function outfitOptions(slot: ClothingSlot, state: Pick<BuilderState, 'who' | 'age'>): string[] {
+  return [...builtInOptions(slot, state), ...customOptions(slot, state.who, false).map((garment) => garment.value)]
+}
+
+function builtInOptions(slot: ClothingSlot, state: Pick<BuilderState, 'who' | 'age'>): string[] {
   switch (slot) {
     case 'top':
       return [...TOPS, ...offered(FITNESS_TOPS, state)]

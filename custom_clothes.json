@@ -1,0 +1,13 @@
+[
+  {
+    "value": "Lace keyhole mini dress",
+    "title": "Holina Mini Dress - Revolve",
+    "prompt": "sleeveless lace mini dress with a high mock neck edged in scalloped lace and fastened with a single small button at the front of the collar, a wide, deep keyhole cut-out plunging from the collar down to between the breasts with lace covering the bust at either side, a fitted floral-lace bodice lined at the bust, a sheer floral-lace midriff that lets the skin of the waist show through, and a ruched, gathered bodycon mini skirt in textured lace that hugs the hips and ends at the upper thigh in a plain ruched hem with no lace trim",
+    "tags": "lace mini dress, mock neck, keyhole cutout, sheer lace midriff, ruched bodycon skirt",
+    "slot": "top",
+    "covers": "both",
+    "group": "Dresses",
+    "for": "woman",
+    "adult": false
+  }
+]

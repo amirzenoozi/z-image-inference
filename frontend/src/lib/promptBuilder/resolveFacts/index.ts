@@ -12,7 +12,8 @@ import { picksOf, type MultiChoice } from '../multiChoice'
 import { settleChoices } from '../settle'
 import { FACELESS_POSES, FACELESS_SHOTS, FACE_FREE_LIGHT, hidesFace, realismOptions } from '../faceless'
 import { CONDITIONAL_CLOTHING, FITNESS_LIGHTING, FITNESS_SCENES, WORKOUTS, outfitOptions } from '../fitness'
-import { CONDITIONAL_INTIMATES, EVERY_ACCESSORY, GARMENT_DETAILS, accessoryOptions, intimateOptions } from '../intimates'
+import { customGarment, isCustom } from '../customClothes'
+import { CONDITIONAL_INTIMATES, GARMENT_DETAILS, accessoryOptions, everyAccessory, intimateOptions } from '../intimates'
 
 const EXPLICIT_ACTIONS: Readonly<Record<string, string>> = { ...EXPLICIT_SOLO_ACTIONS, ...EXPLICIT_PARTNER_ACTIONS }
 const isSet = (value: string) => value !== NOT_SET
@@ -83,7 +84,8 @@ const WORN_WITH: Record<Nudity, ReadonlySet<OutfitSlot>> = {
 
 const LINGERIE_SLOTS: ReadonlySet<OutfitSlot> = new Set(['lingerieTop', 'lingerieBottom'])
 
-const isConditional = (item: string) => CONDITIONAL_CLOTHING.has(item) || CONDITIONAL_INTIMATES.has(item)
+// The user's custom items are offered only to who they are for, and the adult ones outside the safe purposes
+const isConditional = (item: string) => CONDITIONAL_CLOTHING.has(item) || CONDITIONAL_INTIMATES.has(item) || isCustom(item)
 
 /**
  * A garment no longer offered (a spicy cut once "Who" or the age is cleared, swimwear for someone it isn't cut for,
@@ -98,7 +100,9 @@ function wornItem(outfit: OutfitState, slot: (typeof OUTFIT_SLOTS)[number], wear
 /** "black lace bra", and in full, "black lace bra with scalloped edges and delicate floral detail". */
 function garment(item: string, color: string): Labelled {
   const prefix = color ? `${color} ` : ''
-  return { label: `${prefix}${item.toLowerCase()}`, text: `${prefix}${GARMENT_DETAILS[item] ?? item.toLowerCase()}` }
+  const custom = customGarment(item)
+  const text = GARMENT_DETAILS[item] ?? custom?.prompt ?? item.toLowerCase()
+  return { label: `${prefix}${custom?.tags || item.toLowerCase()}`, text: `${prefix}${text}` }
 }
 
 function outfitFacts(state: BuilderState, mode: BuilderMode, nudity: Nudity | null, seed: number): { clothing: Labelled[]; removed: string[] } {
@@ -123,7 +127,7 @@ function outfitFacts(state: BuilderState, mode: BuilderMode, nudity: Nudity | nu
 function accessoriesWorn(outfit: OutfitState, mode: BuilderMode, seed: number): Labelled[] {
   const options = accessoryOptions(mode)
   const items = outfit.accessories.map((item, index) => resolve(item, options, seed, `accessory${index}`))
-  const offered = items.filter((item) => isSet(item) && (options.includes(item) || !EVERY_ACCESSORY.includes(item)))
+  const offered = items.filter((item) => isSet(item) && (options.includes(item) || !everyAccessory().includes(item)))
   return [...new Set(offered)].map((item) => garment(item, ''))
 }
 
