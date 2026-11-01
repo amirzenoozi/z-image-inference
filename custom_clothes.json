@@ -9,5 +9,181 @@
     "group": "Dresses",
     "for": "woman",
     "adult": false
+  },
+  {
+    "value": "Strappy body harness set",
+    "title": "Harness - Body Strappy",
+    "prompt": "strappy body harness lingerie set of thin elastic straps criss-crossing over the chest, ribs, waist and hips, joined by small metal rings, worn over a matching triangle bra and a thong so the bust and groin stay covered",
+    "tags": "strappy body harness, harness lingerie, criss-cross straps, o-rings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Guipure harness bodysuit",
+    "title": "Harness - Guipure Bodysuit",
+    "prompt": "bodysuit of open guipure lace in a bold floral pattern, lined at the bust and groin, wrapped by a strappy harness of thin straps and small metal rings over the chest and waist, with high-cut legs and a thong back",
+    "tags": "guipure lace bodysuit, strappy harness, o-rings, high-cut legs",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Tulle cage harness set",
+    "title": "Harness - Tulle Cage",
+    "prompt": "lingerie set of a soft tulle triangle bra and a tulle thong, both lined so the bust and groin stay covered, framed by a cage of thin straps crossing the ribs and the waist",
+    "tags": "tulle lingerie set, cage harness, strappy, triangle bra",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Guipure halter harness set",
+    "title": "Harness - Guipure Halter",
+    "prompt": "halter-neck guipure lace bra and high-waisted guipure briefs, lined at the bust and groin, joined by a waist harness with small gold rings and vertical straps down the stomach",
+    "tags": "guipure halter bra, high-waisted briefs, waist harness, gold rings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Tulle ruffle harness teddy",
+    "title": "Harness - Tulle Ruffle Teddy",
+    "prompt": "teddy of ruffled tulle with a plunging neckline and a thong back, lined at the bust and groin, wrapped by thin straps criss-crossing around the hips and the waist",
+    "tags": "tulle ruffle teddy, criss-cross harness, plunging neckline",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Guipure garter harness set",
+    "title": "Harness - Guipure Garter",
+    "prompt": "guipure lace balconette bra and thong, lined at the bust and groin, with a strappy harness around the waist and garter straps running down to the lace top of each stocking",
+    "tags": "guipure balconette bra, garter harness, lace-top stockings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Eyelash lace garter set",
+    "title": "Garter - Eyelash Lace",
+    "prompt": "eyelash-lace plunge bra with scalloped edges and fine adjustable straps, a high-waisted eyelash-lace garter belt with four garter straps, and a matching lace thong, all lined at the bust and groin, the garters clipped to sheer thigh-high stockings with a wide eyelash-lace top",
+    "tags": "eyelash lace plunge bra, lace garter belt, lace thong, thigh-high stockings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Longline guipure garter set",
+    "title": "Garter - Longline Guipure",
+    "prompt": "longline guipure lace bra that reaches down to the ribs, lined at the bust, with a strappy waist harness and gold hardware, a guipure garter belt, a lined guipure thong, and garter straps clipped to the wide lace top of each stocking",
+    "tags": "longline guipure bra, garter belt, guipure thong, lace-top stockings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Velvet ribbon garter set",
+    "title": "Garter - Velvet Ribbon",
+    "prompt": "guipure lace balconette bra and thong lined at the bust and groin, with velvet ribbon straps, a velvet garter belt tied with small bows at the hips, and velvet garter straps clipped to the lace top of each stocking",
+    "tags": "guipure balconette bra, velvet ribbon straps, velvet garter belt, bows",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Satin guipure garter set",
+    "title": "Garter - Satin Guipure",
+    "prompt": "balconette bra with glossy satin cups under a guipure lace overlay and a lined lace thong, with a wide satin garter belt and satin garter straps clipped to the lace top of each stocking",
+    "tags": "satin and guipure bra, satin garter belt, lace thong, stockings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Double strap garter harness set",
+    "title": "Garter - Double Strap Harness",
+    "prompt": "scalloped lace balconette bra with double straps crossing over the chest, a lined lace thong, and a double-strap waist harness with gold rings that runs into garter straps clipped to the lace top of each stocking",
+    "tags": "lace balconette bra, double strap harness, garter straps, gold rings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Underbust cage garter set",
+    "title": "Garter - Underbust Cage",
+    "prompt": "guipure lace bra lined at the bust with a cage of thin straps under it, a lined guipure thong, and a garter belt with strappy cut-outs whose garters are clipped to the lace top of each stocking",
+    "tags": "guipure bra, underbust cage, strappy garter belt, lace thong",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Gold chain garter set",
+    "title": "Garter - Gold Chain",
+    "prompt": "scalloped guipure lace bra and thong lined at the bust and groin, with fine gold chains draped from the bra down to a lace garter belt, and garter straps clipped to the wide lace top of each stocking",
+    "tags": "guipure lingerie set, gold body chain, garter belt, stockings",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "High-neck guipure garter set",
+    "title": "Garter - High-neck Guipure",
+    "prompt": "high-neck guipure lace halter bra with a small keyhole at the throat, lined at the bust, a lined guipure thong, and a lace garter belt with garter straps clipped to the lace top of each stocking",
+    "tags": "high-neck guipure bra, keyhole, garter belt, lace thong",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Waspie corset garter set",
+    "title": "Garter - Waspie Corset",
+    "prompt": "scalloped lace balconette bra and lined lace thong with a wide lace-up waspie corset cinching the waist, its garter straps clipped to the lace top of each stocking",
+    "tags": "lace balconette bra, waspie corset, garter straps, lace thong",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Satin bow garter set",
+    "title": "Garter - Satin Bow",
+    "prompt": "guipure lace balconette bra with small satin bows at the straps and a bow-back lace thong, both lined at the bust and groin, and a garter belt with satin bows whose garters are clipped to the lace top of each stocking",
+    "tags": "guipure balconette bra, satin bows, garter belt, bow-back thong",
+    "slot": "top",
+    "covers": "both",
+    "group": "Lingerie",
+    "for": "woman",
+    "adult": true
   }
 ]
