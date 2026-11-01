@@ -12,6 +12,7 @@ import { addonsToSend } from '../lib/addons'
 import { useGeneration } from '../lib/generation'
 import { useCatalog } from '../lib/hooks'
 import { catalogFor, useAdultContent } from '../lib/adultContent'
+import { applyCustomClothes } from '../lib/customClothes'
 import { AdultContentProvider } from '../shared/adultContent/AdultContentProvider'
 import { useUnlock } from '../shared/adultContent/useUnlock'
 import { useModelStatus } from '../lib/modelStatus'
@@ -77,6 +78,8 @@ function useForgetDeletedCharacter(characterId: number | null, forget: () => voi
 
 /** `fullCatalog`: everything .env allows; while this browser's lock is on, the app works from it without anything adult. */
 function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
+  // The custom clothes join the builder's options before anything is shown
+  useState(() => applyCustomClothes(fullCatalog))
   const { shown: adultShown } = useAdultContent()
   const catalog = useMemo(() => catalogFor(fullCatalog, adultShown), [fullCatalog, adultShown])
   const [settings, setSettings] = useState<GenerationSettings>(() => loadSettings(catalog))

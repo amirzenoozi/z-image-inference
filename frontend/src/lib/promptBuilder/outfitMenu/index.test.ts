@@ -12,11 +12,11 @@ const labels = (id: string, who = woman) => areaGroups('top', who, modeOf(id)).m
 
 describe('the Top and Bottom menus', () => {
   it('hold every kind of top, lingerie and swimwear only outside the safe purposes, and first in Faceless', () => {
-    expect(labels('general')).toEqual(['builder.groupEveryday', 'builder.groupGym', 'builder.groupLingerie', 'builder.groupSwimwear'])
-    expect(labels('fitness')).toEqual(['builder.groupEveryday', 'builder.groupGym'])
-    expect(labels('faceless')).toEqual(['builder.groupLingerie', 'builder.groupSwimwear', 'builder.groupEveryday', 'builder.groupGym'])
+    expect(labels('general')).toEqual(['Everyday', 'Gym', 'Lingerie', 'Swimwear'])
+    expect(labels('fitness')).toEqual(['Everyday', 'Gym'])
+    expect(labels('faceless')).toEqual(['Lingerie', 'Swimwear', 'Everyday', 'Gym'])
     // A man's lingerie group holds the men's tops; the swimwear tops are cut for women
-    expect(labels('faceless', { who: 'man', age: 'late 20s' })).toEqual(['builder.groupLingerie', 'builder.groupEveryday', 'builder.groupGym'])
+    expect(labels('faceless', { who: 'man', age: 'late 20s' })).toEqual(['Lingerie', 'Everyday', 'Gym'])
   })
 
   it('wear one item at a time, keeping the colour chosen', () => {

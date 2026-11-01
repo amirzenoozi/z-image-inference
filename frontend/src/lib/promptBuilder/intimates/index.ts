@@ -7,6 +7,7 @@ import { LINGERIE_BOTTOMS, LINGERIE_TOPS } from '../data'
 import { ALL_ACCESSORIES } from '../fitness'
 import { isAdultMode, isSafeMode, showsStep, type BuilderMode } from '../modes'
 import { pick } from '../random'
+import { coversBoth, customGarment, customOptions, customValues } from '../customClothes'
 import { includesMan, includesWoman } from '../rules'
 
 type Wearer = Pick<BuilderState, 'who'>
@@ -200,7 +201,8 @@ export function intimateOptions(slot: IntimateSlot, wearer: Wearer, mode: Builde
   // The original list is bras, panties and stockings
   const classic = includesWoman(wearer.who) ? (top ? LINGERIE_TOPS : LINGERIE_BOTTOMS) : []
   const added = top ? { ...MORE_LINGERIE_TOPS, ...SWIM_TOPS, ...ONE_PIECES } : { ...MORE_LINGERIE_BOTTOMS, ...SWIM_BOTTOMS }
-  const all = [...classic, ...offered(added, wearer)]
+  const custom = customOptions(top ? 'top' : 'bottom', wearer.who, true).map((garment) => garment.value)
+  const all = [...classic, ...offered(added, wearer), ...custom]
   return nudityPossible(mode) ? all : all.filter((item) => !REVEALING.has(item))
 }
 
@@ -210,6 +212,11 @@ export const ALL_INTIMATES: Readonly<Record<IntimateSlot, readonly string[]>> = 
   lingerieBottom: [...LINGERIE_BOTTOMS, ...Object.keys(MORE_LINGERIE_BOTTOMS), ...Object.keys(SWIM_BOTTOMS)],
 }
 
+/** Every lingerie and swimwear item of a slot, the user's adult custom ones too. */
+export function allIntimates(slot: IntimateSlot): readonly string[] {
+  return [...ALL_INTIMATES[slot], ...customValues(slot === 'lingerieTop' ? 'top' : 'bottom', true)]
+}
+
 /** Items offered only to some subjects or purposes, so a kept choice may no longer fit and is left out of the prompt. */
 export const CONDITIONAL_INTIMATES: ReadonlySet<string> = new Set([
   ...REVEALING, ...Object.keys({ ...MORE_LINGERIE_TOPS, ...SWIM_TOPS, ...ONE_PIECES, ...MORE_LINGERIE_BOTTOMS, ...SWIM_BOTTOMS }),
@@ -217,7 +224,7 @@ export const CONDITIONAL_INTIMATES: ReadonlySet<string> = new Set([
 
 const SWIM_ITEMS: ReadonlySet<string> = new Set(Object.keys({ ...SWIM_TOPS, ...ONE_PIECES, ...SWIM_BOTTOMS }))
 
-export const isSwimwear = (item: string): boolean => SWIM_ITEMS.has(item)
+export const isSwimwear = (item: string): boolean => SWIM_ITEMS.has(item) || customGarment(item)?.group.toLowerCase() === 'swimwear'
 
 /**
  * A matching set for Surprise me: all lingerie or all swimwear, nothing under a one-piece, and for a man a spicy top
@@ -225,20 +232,25 @@ export const isSwimwear = (item: string): boolean => SWIM_ITEMS.has(item)
  */
 export function intimateSet(wearer: Wearer, mode: BuilderMode, seed: number): Pick<BuilderState['outfit'], IntimateSlot> {
   const swim = pick(['lingerie', 'swim'], seed, 'intimateKind') === 'swim'
-  const ofKind = (slot: IntimateSlot) => intimateOptions(slot, wearer, mode).filter((item) => SWIM_ITEMS.has(item) === swim)
+  const ofKind = (slot: IntimateSlot) => intimateOptions(slot, wearer, mode).filter((item) => isSwimwear(item) === swim)
   const tops = ofKind('lingerieTop')
   // A woman always has a top; a man goes bare-chested about half the time
   const bareChested = !includesWoman(wearer.who) && pick(['bare', 'top'], seed, 'bareChested') === 'bare'
   const lingerieTop = tops.length && !bareChested ? pick(tops, seed, 'lingerieTop') : NOT_SET
   const bottoms = ofKind('lingerieBottom')
-  const lingerieBottom = lingerieTop in ONE_PIECES || !bottoms.length ? NOT_SET : pick(bottoms, seed, 'lingerieBottom')
+  const covered = lingerieTop in ONE_PIECES || coversBoth(lingerieTop)
+  const lingerieBottom = covered || !bottoms.length ? NOT_SET : pick(bottoms, seed, 'lingerieBottom')
   return { lingerieTop, lingerieBottom }
 }
 
 /** The accessories under this purpose: the lingerie ones (harnesses, a body chain) only outside the safe purposes. */
 export function accessoryOptions(mode: BuilderMode): readonly string[] {
-  return isSafeMode(mode) ? ALL_ACCESSORIES : [...ALL_ACCESSORIES, ...LINGERIE_ACCESSORIES]
+  const everyday = [...ALL_ACCESSORIES, ...customValues('accessory', false)]
+  return isSafeMode(mode) ? everyday : [...everyday, ...LINGERIE_ACCESSORIES, ...customValues('accessory', true)]
 }
 
 /** Every accessory any purpose offers, for translations and for checking a JSON prompt. */
 export const EVERY_ACCESSORY: readonly string[] = [...ALL_ACCESSORIES, ...LINGERIE_ACCESSORIES]
+
+/** Every accessory, the user's custom ones too. */
+export const everyAccessory = (): readonly string[] => [...EVERY_ACCESSORY, ...customValues('accessory', false), ...customValues('accessory', true)]

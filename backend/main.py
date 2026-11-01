@@ -38,6 +38,8 @@ from video_store import NewVideo, VideoItem
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest, VideoRequest
 from grok_client import GrokClient
 import adult_content
+import custom_clothes
+from custom_clothes import CustomGarment
 from palette import PaletteColour
 from prompt_spec import PromptSpec
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
@@ -207,6 +209,9 @@ class Catalog(BaseModel):
     # The UI's language, from APP_LANGUAGE in .env
     language: str
     adult_content: "AdultContentInfo"
+    # The user's own clothes from custom_clothes.json, and the entries left out with why
+    custom_clothes: list[CustomGarment]
+    custom_clothes_problems: list[str]
 
 
 class AdultContentInfo(BaseModel):
@@ -317,6 +322,7 @@ def prompt_modes() -> list[BuilderMode]:
 @app.get("/api/catalog")
 def catalog() -> Catalog:
     examples = example_prompts()
+    clothes = custom_clothes.load()
     return Catalog(
         models=[ModelInfo.from_spec(spec, examples.get(spec.id, [])) for spec in MODELS.values() if adult_content.enabled() or not spec.adult],
         video=VideoModelInfo(id=VIDEO_MODEL.id, label=VIDEO_MODEL.label, download_gb=VIDEO_MODEL.download_gb, lengths=list(VIDEO_MODEL.frames)),
@@ -328,6 +334,8 @@ def catalog() -> Catalog:
         builder_modes=[mode for mode in prompt_modes() if adult_content.enabled() or not mode.is_adult()],
         language=i18n.language(),
         adult_content=AdultContentInfo(available=adult_content.enabled(), word_lock=bool(adult_content.unlock_word())),
+        custom_clothes=clothes.items,
+        custom_clothes_problems=clothes.problems,
     )
 
 

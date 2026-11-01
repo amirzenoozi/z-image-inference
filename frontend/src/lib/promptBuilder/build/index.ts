@@ -8,6 +8,7 @@ import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../constants'
 import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from '../data'
 import { fitnessClothing, isWorkoutFocused, outfitOptions } from '../fitness'
 import { SHARP_REALISM } from '../filters'
+import { coversBoth } from '../customClothes'
 import { intimateOptions, intimateSet } from '../intimates'
 import { INTIMACY_CUES, type Nudity } from '../extraData'
 import { realismOptions } from '../faceless'
@@ -264,7 +265,10 @@ function surpriseOutfit(state: BuilderState, mode: BuilderMode, seed: number): B
   }
   const workout = isWorkoutFocused(mode.options.pose)
   const clothes = (slot: 'top' | 'bottom' | 'shoes') => pick(workout ? fitnessClothing(slot, state) : outfitOptions(slot, state), seed, slot)
-  return { ...state, outfit: { ...bare, top: clothes('top'), topColor: colour('topColor'), bottom: clothes('bottom'), shoes: clothes('shoes') } }
+  const top = clothes('top')
+  // A dress covers the bottom too
+  const bottom = coversBoth(top) ? NOT_SET : clothes('bottom')
+  return { ...state, outfit: { ...bare, top, topColor: colour('topColor'), bottom, shoes: clothes('shoes') } }
 }
 
 /**

@@ -77,6 +77,8 @@ export const catalog: Catalog = {
   builder_modes: builderModes,
   language: 'en',
   adult_content: { available: true, word_lock: false },
+  custom_clothes: [],
+  custom_clothes_problems: [],
   models: [fastModel, animeModel],
   video: { id: 'ltx-video', label: 'LTX-2.3 video (4-bit)', download_gb: 29, lengths: [2, 4] },
   model_categories: [

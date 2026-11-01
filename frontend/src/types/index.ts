@@ -106,6 +106,22 @@ export interface Catalog {
   /** The UI's language code, from APP_LANGUAGE in .env. */
   language: string
   adult_content: AdultContentInfo
+  /** The user's own clothes from custom_clothes.json, and the entries the server left out, with why. */
+  custom_clothes: CustomGarmentData[]
+  custom_clothes_problems: string[]
+}
+
+/** An item of custom_clothes.json; the prompt builder offers it like a built-in garment (lib/promptBuilder/customClothes). */
+export interface CustomGarmentData {
+  value: string
+  title: string | Record<string, string>
+  prompt: string
+  tags: string
+  slot: 'top' | 'bottom' | 'outerwear' | 'shoes' | 'accessory'
+  covers: 'both' | null
+  group: string
+  for: 'woman' | 'man' | 'anyone'
+  adult: boolean
 }
 
 /** The .env lock on adult content (lib/adultContent.ts has the browser's own). */

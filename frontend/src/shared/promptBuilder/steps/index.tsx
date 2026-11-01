@@ -99,7 +99,7 @@ const AREA_LABELS: Readonly<Record<BodyArea, { item: MessageKey; colour: Message
 /** One menu for what is worn on top or below: clothes, gym wear, lingerie and swimwear, one item at a time. */
 function AreaRow({ area, state, mode, setOutfit }: { area: BodyArea } & Pick<StepProps, 'state' | 'mode' | 'setOutfit'>) {
   const choice = areaChoice(area, state.outfit)
-  const groups = areaGroups(area, state, mode).map((group) => ({ label: t(group.label), options: group.options }))
+  const groups = areaGroups(area, state, mode)
   return (
     <div className="contents">
       <ChoiceSelect label={t(AREA_LABELS[area].item)} value={choice.item} groups={groups} allowRemove={!alwaysClothed(mode)} onChange={(item) => setOutfit(wearItem(area, state.outfit, item, mode))} />

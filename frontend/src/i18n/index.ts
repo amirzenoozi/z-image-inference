@@ -95,7 +95,20 @@ function lookupOptional(key: string): string | undefined {
  * are, since the models understand English best; only their label is translated.
  */
 export function optionLabel(value: string): string {
-  return current.options[value] ?? englishCatalogue.options[value] ?? value
+  return customLabel(value) ?? current.options[value] ?? englishCatalogue.options[value] ?? value
+}
+
+/** Titles of the user's own options (custom_clothes.json): one text, or one per language code. */
+let customLabels: Readonly<Record<string, string | Readonly<Record<string, string>>>> = {}
+
+export function setCustomLabels(labels: Readonly<Record<string, string | Readonly<Record<string, string>>>>): void {
+  customLabels = labels
+}
+
+function customLabel(value: string): string | undefined {
+  const title = customLabels[value]
+  if (title === undefined || typeof title === 'string') return title
+  return title[currentLanguage] ?? title.en ?? value
 }
 
 /** An option's label as a menu or checkbox shows it, starting with a capital; in a sentence use `optionLabel`. */
