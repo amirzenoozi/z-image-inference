@@ -54,5 +54,11 @@
   "lockedStartImage": "Le contenu pour adultes est verrouillé : impossible de créer une variante d’une image sensible.",
   "lockedCheckNotReady": "La vérification des images démarre encore, et tant que le contenu pour adultes est verrouillé, aucune image ne peut être enregistrée sans elle. Réessayez dans un instant.",
   "lockedDiscarded": "L’image contenait de la nudité, elle a donc été supprimée : le contenu pour adultes est verrouillé.",
-  "lockedModel": "{model} est destiné au contenu pour adultes, qui est verrouillé."
+  "lockedModel": "{model} est destiné au contenu pour adultes, qui est verrouillé.",
+  "customCoversNeedsTop": "« covers » : « both » ne vaut que pour un haut, comme une robe.",
+  "customAdultSlot": "Seuls un haut, un bas ou un accessoire peuvent être pour adultes.",
+  "customEntryProblem": "L’entrée {number} de custom_clothes.json ({value}) a été ignorée : {reasons}",
+  "customFileUnreadable": "custom_clothes.json est illisible : {error}",
+  "customFileNotList": "custom_clothes.json doit être une liste de vêtements.",
+  "customDuplicate": "custom_clothes.json contient « {value} » plusieurs fois ; seule la première est utilisée."
 }

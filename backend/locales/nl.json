@@ -54,5 +54,11 @@
   "lockedStartImage": "Volwassen inhoud is vergrendeld, dus er kan geen variatie van een gevoelige afbeelding worden gemaakt.",
   "lockedCheckNotReady": "De afbeeldingscontrole start nog, en zolang volwassen inhoud vergrendeld is, kan zonder die controle geen afbeelding worden opgeslagen. Probeer het zo opnieuw.",
   "lockedDiscarded": "De afbeelding bevatte naakt en is weggegooid: volwassen inhoud is vergrendeld.",
-  "lockedModel": "{model} is voor volwassen inhoud, en die is vergrendeld."
+  "lockedModel": "{model} is voor volwassen inhoud, en die is vergrendeld.",
+  "customCoversNeedsTop": "“covers”: “both” is alleen voor een item in het bovenstuk, zoals een jurk.",
+  "customAdultSlot": "Alleen een bovenstuk, onderstuk of accessoire kan voor volwassenen zijn.",
+  "customEntryProblem": "Item {number} in custom_clothes.json ({value}) is weggelaten: {reasons}",
+  "customFileUnreadable": "custom_clothes.json kan niet worden gelezen: {error}",
+  "customFileNotList": "custom_clothes.json moet een lijst met kleding zijn.",
+  "customDuplicate": "custom_clothes.json bevat “{value}” meer dan eens; alleen de eerste wordt gebruikt."
 }
