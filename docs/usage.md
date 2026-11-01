@@ -131,6 +131,40 @@ The **Faceless (18+)** purpose makes pictures from the neck down: the face is ne
 - **Always clothed, never nude**: Faceless has no Intimacy step, so nudity can't be chosen. No garment can be set to "Remove", a woman needs a top before the prompt is ready, and anatomy such as nipples never reaches the prompt. Items that leave the body bare or show through (nipple pasties, cupless shelf, quarter-cup and open-cup bras, crotchless panties, sheer bra and panties, bodystocking, cage and harness bras) are offered only in Glamour and Explicit. The negative prompt keeps breasts and the groin covered. Like every 18+ purpose it needs "Who" and an adult age, and is hidden for characters with an uploaded face.
 - **Surprise me** dresses the subject in a matching set: all lingerie or all swimwear, nothing under a one-piece, a top for a woman always, and for a man one of the men's tops about half the time (bare-chested otherwise, and always with swimwear).
 
+### Your own clothes
+
+Add clothes of your own in `custom_clothes.json` at the project root (reload the page after editing; no rebuild needed). Each entry is offered in the Outfit step like a built-in item, with colours, Random, Surprise me, locks and the JSON prompt:
+
+```json
+[
+  {
+    "value": "Lace keyhole mini dress",
+    "title": { "en": "Lace keyhole mini dress", "nl": "Kanten minijurk met sleutelgat" },
+    "prompt": "sleeveless lace mini dress with a high mock neck, a deep keyhole cut-out and a ruched bodycon skirt",
+    "tags": "lace mini dress, keyhole cutout, ruched skirt",
+    "slot": "top",
+    "covers": "both",
+    "group": "Dresses",
+    "for": "woman",
+    "adult": false
+  }
+]
+```
+
+| Field | Meaning |
+|-------|---------|
+| `value` | The item's English name, written into the prompt and the JSON prompt; it must not repeat a built-in option |
+| `title` | What the menu shows: one text, or one per language code (`en`, `nl`, `de`, `fr`, `es`, `it`, `pt`), falling back to English |
+| `prompt` | How a sentence prompt describes it, without "a" in front; a chosen colour goes before it ("a black sleeveless lace mini dress …") |
+| `tags` | Optional short wording for the SDXL models' tag prompts; the value when left out |
+| `slot` | `top`, `bottom`, `outerwear`, `shoes` or `accessory` |
+| `covers` | `"both"` for a dress or jumpsuit: worn in the Top menu, it clears the Bottom menu, and counts as a top in Faceless |
+| `group` | The menu group: `Everyday`, `Gym`, `Lingerie` or `Swimwear`, or a new name such as `Dresses`, which becomes a group of its own |
+| `for` | `woman`, `man` or `anyone` |
+| `adult` | `true` makes it lingerie: offered only in the 18+ purposes, hidden while adult content is locked, and taken off by the nudity levels like lingerie; only for a top, bottom or accessory |
+
+An entry that is broken, named like a built-in option, repeated, or with words that suggest a minor is left out, and the prompt builder says why above its purposes.
+
 ### Image filter
 
 The Camera step has its own **Image filter** section: a film stock, an old camera or a print look, each written out in full after the camera details (and as a few tags for the SDXL models). There are 14: 90s disposable camera, Polaroid instant, Kodak Portra 400, Fujifilm Superia 400, Cinestill 800T, black-and-white Tri-X, Kodachrome 60s slide, faded 70s print, antique sepia, expired 35mm film, Lomography cross-process, Super 8 film still, 2000s digicam flash and VHS camcorder still. For example the 90s disposable camera writes "shot on a 90s disposable 35mm film camera, heavy coarse film grain, high ISO noise, slightly soft out-of-focus lens blur, warm faded analog colour grading, an orange-red light leak on the left edge, dark vignette".
