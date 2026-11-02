@@ -189,8 +189,8 @@
   {
     "value": "Spider-themed bodysuit costume",
     "title": "Costume - SpiderWoman",
-    "prompt": "skin-tight glossy red bodysuit costume with yellow side panels running from the underarms down to the hips, a large black spider emblem outlined in yellow spreading across the chest and stomach, long yellow gloves and thigh-high yellow boots, cut high on the hips with a plunging neckline",
-    "tags": "red bodysuit, spider emblem, yellow gloves, thigh-high yellow boots, superheroine costume",
+    "prompt": "skin-tight glossy red long-sleeved bodysuit costume with a high collar and a clear keyhole cut-out at the throat, yellow side panels running from the underarms down to the hips, a large black spider emblem outlined in yellow spreading across the chest and stomach, cut high on the hips, long yellow gloves and thigh-high yellow boots that reach the upper thigh",
+    "tags": "red long-sleeved bodysuit, high collar, keyhole, spider emblem, yellow gloves, thigh-high yellow boots, superheroine costume",
     "slot": "top",
     "covers": "both",
     "group": "Costumes",
@@ -211,7 +211,7 @@
   {
     "value": "Symbiote bodysuit costume",
     "title": "Costume - Venom",
-    "prompt": "skin-tight glossy black symbiote bodysuit costume with a wet, liquid-latex sheen and subtle organic sinew texture flowing over the arms and legs, a large white spider emblem whose long legs wrap from the chest around the ribs to the back, matching black gloves and thigh-high black boots fused seamlessly into the suit with a high neck",
+    "prompt": "skin-tight glossy black long-sleeved symbiote bodysuit costume with a wet, liquid-latex sheen and subtle organic sinew texture flowing over the arms and legs, a large white spider emblem whose long legs wrap from the chest around the ribs to the back, matching black gloves and thigh-high black boots fused seamlessly into the suit with a high neck",
     "tags": "black symbiote bodysuit, glossy latex, white spider emblem, organic texture, superheroine costume",
     "slot": "top",
     "covers": "both",
@@ -233,7 +233,7 @@
   {
     "value": "Cat burglar catsuit costume",
     "title": "Costume - Catwoman",
-    "prompt": "skin-tight black patent-leather catsuit costume with a high collar and a silver front zip pulled down to the chest, fine quilted seams curving over the hips and thighs, black gloves tipped with small silver claws, thigh-high stiletto boots and a slim silver-buckled belt",
+    "prompt": "skin-tight black patent-leather long-sleeved catsuit costume with a high collar and a silver front zip pulled down to the chest, fine quilted seams curving over the hips and thighs, black gloves tipped with small silver claws, thigh-high stiletto boots and a slim silver-buckled belt",
     "tags": "black leather catsuit, front zip, claw gloves, thigh-high stiletto boots, cat burglar costume",
     "slot": "top",
     "covers": "both",
@@ -299,7 +299,7 @@
   {
     "value": "Spy tactical catsuit costume",
     "title": "Costume - Black Widow",
-    "prompt": "black tactical catsuit costume with a front zip, matte panels and quilted shoulders, a red hourglass emblem on the belt buckle, silver wrist gauntlets, black combat boots and a holster strapped to each thigh",
+    "prompt": "black long-sleeved tactical catsuit costume with a high collar and a front zip pulled up to the throat, matte panels and quilted shoulders, a red hourglass emblem on the belt buckle, silver wrist gauntlets, black combat boots and a holster strapped to each thigh",
     "tags": "black tactical catsuit, red hourglass buckle, wrist gauntlets, thigh holsters, combat boots",
     "slot": "top",
     "covers": "both",
@@ -431,7 +431,7 @@
   {
     "value": "Weather goddess costume",
     "title": "Costume - Storm",
-    "prompt": "black skin-tight bodysuit costume with silver lightning-bolt accents at the shoulders and hips, a long flowing black fabric cape fastened at the collar and attached at both wrists so it opens into a wide sheet of cloth when the arms spread, a silver belt, black thigh-high boots and lightning crackling at one hand",
+    "prompt": "black skin-tight long-sleeved bodysuit costume with a high neck and silver lightning-bolt accents at the shoulders and hips, a long flowing black fabric cape fastened at the collar and attached at both wrists so it opens into a wide sheet of cloth when the arms spread, a silver belt, black thigh-high boots and lightning crackling at one hand",
     "tags": "black bodysuit, silver lightning accents, fabric cape attached at the wrists, silver belt, thigh-high boots",
     "slot": "top",
     "covers": "both",
@@ -453,7 +453,7 @@
   {
     "value": "Mutant flyer costume",
     "title": "Costume - Rogue",
-    "prompt": "fitted green and yellow bodysuit costume with a yellow chest panel and green sides, a cropped brown leather bomber jacket with a fleece collar, long yellow gloves, yellow knee-high boots and a wide brown belt",
+    "prompt": "fitted green and yellow long-sleeved bodysuit costume with a high round neck, a yellow chest panel and green sides, a cropped brown leather bomber jacket with a fleece collar, long yellow gloves, yellow knee-high boots and a wide brown belt",
     "tags": "green and yellow bodysuit, brown bomber jacket, yellow gloves, yellow boots, brown belt",
     "slot": "top",
     "covers": "both",
@@ -706,7 +706,7 @@
   {
     "value": "Cat thief catsuit costume",
     "title": "Costume - Black Cat",
-    "prompt": "full-length glossy black leather catsuit costume covering the legs all the way down into the boots, unzipped to the chest with thick white fur trim at the collar, the cuffs and the tops of the black thigh-high boots, black gloves and a silver grappling line coiled at the hip",
+    "prompt": "full-length glossy black leather long-sleeved catsuit costume covering the legs all the way down into the boots, unzipped to the chest with thick white fur trim at the collar, the cuffs and the tops of the black thigh-high boots, black gloves and a silver grappling line coiled at the hip",
     "tags": "full-length black leather catsuit, white fur trim, thigh-high boots, grappling line",
     "slot": "top",
     "covers": "both",
@@ -860,7 +860,7 @@
   {
     "value": "Umbra witch catsuit costume",
     "title": "Costume - Bayonetta",
-    "prompt": "glossy black skin-tight catsuit costume with a subtle woven texture, gold rose emblems and gold chains at the hips, long white gloves, black heeled boots with silver pistols built into the heels and a silver pistol held in each hand",
+    "prompt": "glossy black skin-tight long-sleeved catsuit costume with a high collar, a subtle woven texture, gold rose emblems and gold chains at the hips, long white gloves, black heeled boots with silver pistols built into the heels and a silver pistol held in each hand",
     "tags": "black woven catsuit, gold roses, white gloves, pistol heels, twin pistols",
     "slot": "top",
     "covers": "both",
@@ -904,7 +904,7 @@
   {
     "value": "Bounty hunter zero suit costume",
     "title": "Costume - Samus Aran",
-    "prompt": "skin-tight blue zero suit costume with thin glowing pink lines running down the sides and the legs, a small emblem at the back of the neck, blue platform boots and a small silver energy pistol held in one hand",
+    "prompt": "skin-tight blue long-sleeved zero suit costume with a high neck, thin glowing pink lines running down the sides and the legs, a small emblem at the back of the neck, blue platform boots and a small silver energy pistol held in one hand",
     "tags": "blue zero suit, glowing pink lines, platform boots, energy pistol",
     "slot": "top",
     "covers": "both",
@@ -992,7 +992,7 @@
   {
     "value": "Sniper catsuit costume",
     "title": "Costume - Widowmaker",
-    "prompt": "dark purple skin-tight catsuit costume with a plunging neckline to the stomach, black armoured panels on the arms and legs, black gloves, black heeled boots and a long sleek purple sci-fi sniper rifle with a slim angular body, a glowing scope and no wood held across the body",
+    "prompt": "dark purple skin-tight long-sleeved catsuit costume with a plunging neckline to the stomach, black armoured panels on the arms and legs, black gloves, black heeled boots and a long sleek purple sci-fi sniper rifle with a slim angular body, a glowing scope and no wood held across the body",
     "tags": "dark purple catsuit, plunging neckline, armour panels, sniper rifle",
     "slot": "top",
     "covers": "both",
@@ -1080,7 +1080,7 @@
   {
     "value": "Hacker latex catsuit costume",
     "title": "Costume - Trinity",
-    "prompt": "glossy black latex catsuit costume with a high neck, a long black latex trench coat to the ankles, black combat boots and a black pistol held in one hand",
+    "prompt": "glossy black latex long-sleeved catsuit costume with a high neck, a long black latex trench coat to the ankles, black combat boots and a black pistol held in one hand",
     "tags": "black latex catsuit, long latex trench coat, combat boots, pistol",
     "slot": "top",
     "covers": "both",
@@ -1102,7 +1102,7 @@
   {
     "value": "Vampire death dealer costume",
     "title": "Costume - Selene",
-    "prompt": "black latex catsuit costume with a black leather corset over it, a long black leather coat, black knee-high boots, black gloves and a silver pistol held in each hand",
+    "prompt": "black latex long-sleeved catsuit costume with a high neck and a black leather corset over it, a long black leather coat, black knee-high boots, black gloves and a silver pistol held in each hand",
     "tags": "black latex catsuit, leather corset, long leather coat, twin pistols",
     "slot": "top",
     "covers": "both",
@@ -1124,7 +1124,7 @@
   {
     "value": "Space adventurer bodysuit costume",
     "title": "Costume - Barbarella",
-    "prompt": "silver metallic space bodysuit costume with clear plastic panels at the sides, a silver belt, silver gloves and silver thigh-high boots with a small ray gun at the hip",
+    "prompt": "silver metallic long-sleeved space bodysuit costume with a high round neck and clear plastic panels at the sides, a silver belt, silver gloves and silver thigh-high boots with a small ray gun at the hip",
     "tags": "silver space bodysuit, clear panels, silver gloves, thigh-high boots, ray gun",
     "slot": "top",
     "covers": "both",
