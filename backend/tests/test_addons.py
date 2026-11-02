@@ -6,6 +6,10 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from pydantic import ValidationError
 
+from mflux.models.common.lora.layer.fused_linear_lora_layer import FusedLoRALinear
+from mflux.models.common.lora.layer.linear_lora_layer import LoRALinear
+from mlx import nn
+
 import history_store
 import model_server
 from history_store import NewImage
@@ -37,7 +41,7 @@ PNG = png()
     ],
 )
 def test_an_addon_is_used_only_when_switched_on_and_the_prompt_asks_for_it(enabled: list[str], prompt: str, used: bool) -> None:
-    assert applied_addons(enabled, prompt) == ([TATTOO] if used else [])
+    assert applied_addons("z-image-turbo", enabled, prompt, {}) == ([TATTOO] if used else [])
 
 
 def test_the_trigger_phrase_is_added_only_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -93,8 +97,8 @@ def test_an_addon_that_is_not_downloaded_is_explained_rather_than_skipped(monkey
 
 def test_flux_offers_its_two_loras_as_addons_used_by_their_keywords() -> None:
     assert [addon.id for addon in addons_for("flux-dev")] == ["flux-create-nsfw", "flux-asian-nudity"]
-    assert [addon.id for addon in applied_addons(["flux-create-nsfw", "flux-asian-nudity"], "a nude woman on a beach")] == ["flux-create-nsfw"]
-    asian = applied_addons(["flux-asian-nudity"], "a Japanese woman by a window")
+    assert [addon.id for addon in applied_addons("flux-dev", ["flux-create-nsfw", "flux-asian-nudity"], "a nude woman on a beach", {})] == ["flux-create-nsfw"]
+    asian = applied_addons("flux-dev", ["flux-asian-nudity"], "a Japanese woman by a window", {})
     assert with_trigger_words("a Japanese woman by a window", asian) == "4s14n, a Japanese woman by a window"
 
 
@@ -120,18 +124,77 @@ def test_images_made_with_a_model_that_became_an_addon_move_to_its_base_model(tm
     ],
 )
 def test_each_z_image_addon_is_used_by_its_keywords_and_gets_its_trigger_only_when_missing(addon_id: str, prompt: str, sent: str) -> None:
-    used = applied_addons([addon_id], prompt)
+    used = applied_addons("z-image-turbo", [addon_id], prompt, {})
     assert [addon.id for addon in used] == [addon_id]
     assert with_trigger_words(prompt, used) == sent
 
 
-def test_an_addon_applies_at_the_strength_its_author_recommends() -> None:
+def test_an_addon_applies_at_the_strength_its_author_recommends(renders: list[tuple[tuple[object, ...], object]]) -> None:
+    render("a woman squirting with cum on body", ["squirt-queen", "cum-on-body"])
+    assert renders[0][1].lora_strengths == (0.8, 1.0)
     squirt = (ADDONS["squirt-queen"], ADDONS["cum-on-body"])
-    assert model_server.lora_arguments(squirt)["lora_scales"] == [0.8, 1.0]
     assert model_server.lora_arguments(squirt)["lora_paths"] == [
         str(model_server.MODELS_DIR / "lora-squirt-queen" / "squirt-queen.safetensors"),
         str(model_server.MODELS_DIR / "lora-cum-on-body" / "cum-on-body.safetensors"),
     ]
+
+
+def render_with(prompt: str, strengths: dict[str, float]) -> dict[str, object]:
+    resp = TestClient(model_server.app).post("/generate", json={"model": "z-image-turbo", "prompt": prompt, "width": 512, "height": 512, "strengths": strengths})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def test_an_automatic_addon_is_used_without_a_checkbox_when_the_prompt_mentions_it(renders: list[tuple[tuple[object, ...], object]]) -> None:
+    assert render("a foggy street with film grain", [])["addons"] == ["film-grain", "fog-smoke"]
+    assert render("a sunny street", [])["addons"] == []
+    assert renders[0][1].lora_strengths == (ADDONS["film-grain"].scale, ADDONS["fog-smoke"].scale)
+
+
+def test_an_automatic_addon_not_downloaded_is_left_out(renders: list[tuple[tuple[object, ...], object]], monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_server, "model_status", lambda model_id: "missing" if model_id == "fog-smoke" else "ready")
+    assert render("a foggy street", [])["addons"] == []
+
+
+def test_a_slider_is_used_at_its_strength_unless_it_is_0(renders: list[tuple[tuple[object, ...], object]]) -> None:
+    result = render_with("a woman in a studio", {"weight": -4.5, "skin-tone": 0})
+    assert (result["addons"], result["strengths"]) == (["weight"], {"weight": -4.5})
+    assert renders[0][1].lora_strengths == (-4.5,)
+
+
+@pytest.mark.parametrize(
+    ("addons", "strengths", "message"),
+    [
+        ([], {"weight": 11}, "between"),
+        ([], {"muscle-tone": -1}, "between"),
+        ([], {"tattoo": 1}, "tattoo"),
+        ([], {"film-grain": 2}, "film-grain"),
+        (["weight"], {}, "weight"),
+        (["fog-smoke"], {}, "fog-smoke"),
+    ],
+)
+def test_slider_strengths_are_checked_and_only_optional_addons_can_be_switched_on(addons: list[str], strengths: dict[str, float], message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        GenerateRequest(model="z-image-turbo", prompt="a woman", width=1024, height=1024, addons=addons, strengths=strengths)
+
+
+class FakeTransformer(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        base = nn.Linear(4, 4)
+        self.alone = LoRALinear.from_linear(nn.Linear(4, 4), r=2, scale=model_server.LORA_MARKER + 1)
+        self.shared = FusedLoRALinear(base, [LoRALinear.from_linear(base, r=2, scale=model_server.LORA_MARKER + index) for index in (0, 1)])
+
+
+def test_each_loras_strength_changes_between_renders_without_reloading() -> None:
+    model = type("Model", (), {"transformer": FakeTransformer()})()
+    layers = model_server.lora_layers(model, 2)
+    assert [len(group) for group in layers] == [1, 2]
+    model_server.set_lora_strengths(layers, (0.5, -3.0))
+    assert model.transformer.shared.loras[0].scale == 0.5
+    assert (model.transformer.shared.loras[1].scale, model.transformer.alone.scale) == (-3.0, -3.0)
+    with pytest.raises(ValueError):
+        model_server.set_lora_strengths(layers, (1.0,))
 
 
 def test_every_civitai_addon_downloads_one_pinned_version() -> None:

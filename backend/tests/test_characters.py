@@ -58,7 +58,10 @@ def test_a_character_keeps_several_makeup_and_facial_hair_picks_and_defaults_to_
 
 @pytest.mark.parametrize(
     "overrides",
-    [{"name": ""}, {"name": "x" * 41}, {"traits": {"wings": "yes"}}, {"seed": -1}, {"cover_id": 99}],
+    [
+        {"name": ""}, {"name": "x" * 41}, {"traits": {"wings": "yes"}}, {"seed": -1}, {"cover_id": 99},
+        {"traits": {"strengths": {"weight": 11}}}, {"traits": {"strengths": {"tattoo": 1}}},
+    ],
 )
 def test_a_character_with_bad_details_is_refused(client: TestClient, overrides: dict[str, object]) -> None:
     assert create(client, **overrides).status_code == 422
@@ -255,3 +258,11 @@ def test_a_broken_samples_file_is_refused_and_adds_nothing(tmp_path: Path, monke
     with pytest.raises(ValueError):
         character_store.add_samples_once()
     assert character_store.all_characters() == []
+
+
+def test_a_character_keeps_its_own_look_slider_defaults(client: TestClient) -> None:
+    created = client.post("/api/characters", json={"name": "Kai", "traits": {"who": "woman", "age": "30s", "strengths": {"weight": -4.5}}}).json()
+    assert created["traits"]["strengths"] == {"weight": -4.5}
+    updated = client.patch(f"/api/characters/{created['id']}", json={"traits": {**created["traits"], "strengths": {"weight": 2, "hair-length": 3}}}).json()
+    assert updated["traits"]["strengths"] == {"weight": 2, "hair-length": 3}
+    assert create(client).json()["traits"]["strengths"] == {}

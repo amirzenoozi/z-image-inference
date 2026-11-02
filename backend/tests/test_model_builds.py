@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from mlx import nn
 
 import model_server
 
@@ -94,6 +95,7 @@ class FakeFlux:
     def __init__(self, **kwargs: object) -> None:
         FakeFlux.made.append(kwargs)
         self.callbacks = type("Callbacks", (), {"register": lambda self, reporter: None})()
+        self.transformer = nn.Module()
 
     def save_model(self, base_path: str) -> None:
         Path(base_path).mkdir(parents=True)

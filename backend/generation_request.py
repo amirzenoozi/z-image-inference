@@ -39,8 +39,10 @@ class GenerateRequest(BaseModel):
     # For a face lock: the character's face image as base64 PNG, which the web app loads from History, and its strength
     face_image: str | None = None
     face_strength: float | None = Field(default=None, ge=MIN_FACE_STRENGTH, le=MAX_FACE_STRENGTH)
-    # Add-ons switched on for the model; each is applied only when the prompt mentions what it adds
+    # Optional add-ons switched on for the model; each is applied only when the prompt mentions what it adds
     addons: list[str] = Field(default_factory=list, max_length=10)
+    # Slider add-ons' strengths, by add-on id; 0 leaves the slider out
+    strengths: dict[str, float] = Field(default_factory=dict, max_length=10)
 
     def has_start_image(self) -> bool:
         return self.init_image is not None
@@ -56,6 +58,7 @@ class GenerateRequest(BaseModel):
         check_variation(self.has_start_image(), self.change, spec)
         check_face_lock(self.face_image is not None, self.face_strength, spec)
         check_addons(self.addons, spec)
+        check_strengths(self.strengths, spec)
         return self
 
 
@@ -77,10 +80,19 @@ def check_face_lock(has_face_image: bool, face_strength: float | None, spec: Mod
 def check_addons(addons: list[str], spec: ModelSpec) -> None:
     for addon_id in addons:
         addon = ADDONS.get(addon_id)
-        if addon is None or addon.base_model_id != spec.id:
+        if addon is None or addon.base_model_id != spec.id or addon.kind != "optional":
             raise ValueError(t("unknownAddon", addon=addon_id, label=spec.label))
     if len(set(addons)) != len(addons):
         raise ValueError(t("addonTwice"))
+
+
+def check_strengths(strengths: dict[str, float], spec: ModelSpec) -> None:
+    for addon_id, strength in strengths.items():
+        addon = ADDONS.get(addon_id)
+        if addon is None or addon.base_model_id != spec.id or addon.slider is None:
+            raise ValueError(t("unknownAddon", addon=addon_id, label=spec.label))
+        if not addon.slider.allows(strength):
+            raise ValueError(t("strengthRange", addon=addon.label, minimum=addon.slider.minimum, maximum=addon.slider.maximum))
 
 
 def check_size(width: int, height: int, spec: ModelSpec) -> None:

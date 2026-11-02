@@ -168,6 +168,21 @@ FLUX_DEV = ModelSpec(
 )
 
 Source = Literal["huggingface", "civitai"]
+# optional: a checkbox in Create, used when the prompt mentions it; automatic: no checkbox, used when the prompt mentions it;
+# slider: a strength the user sets in Create, used when it is not 0
+AddonKind = Literal["optional", "automatic", "slider"]
+
+
+@dataclass(frozen=True)
+class SliderRange:
+    """A slider LoRA's strengths: its author's stable range. Negative strengths work the other way (thinner, lighter, shorter)."""
+
+    minimum: float
+    maximum: float
+    step: float = 1
+
+    def allows(self, strength: float) -> bool:
+        return self.minimum <= strength <= self.maximum
 
 
 @dataclass(frozen=True)
@@ -191,6 +206,8 @@ class AddonSpec:
     scale: float = 1.0
     # It adds nudity or sex, so it is hidden while adult content is locked, and never applied to a safe render
     adult: bool = False
+    kind: AddonKind = "optional"
+    slider: SliderRange | None = None
 
     def matches(self, prompt: str) -> bool:
         pattern = r"\b(?:" + "|".join(map(re.escape, self.keywords)) + r")\b"
@@ -213,14 +230,25 @@ TATTOO_ADDON = AddonSpec(
 
 def civitai_addon(
     addon_id: str, label: str, description: str, model_id: int, version_id: int, file_id: int, size_gb: float, trigger: str, keywords: tuple[str, ...],
-    scale: float = 1.0, adult: bool = False,
+    scale: float = 1.0, adult: bool = False, kind: AddonKind = "optional", slider: SliderRange | None = None,
 ) -> AddonSpec:
     """A Z-Image-Turbo LoRA from Civitai: its model page, and the download link of the version picked."""
     return AddonSpec(
         id=addon_id, label=label, description=description, base_model_id=Z_IMAGE.id, repo_id=str(model_id), source="civitai",
         download_url=f"https://civitai.com/api/download/models/{version_id}?fileId={file_id}", lora_file=f"{addon_id}.safetensors",
-        download_gb=size_gb, trigger_word=trigger, keywords=keywords, scale=scale, adult=adult,
+        download_gb=size_gb, trigger_word=trigger, keywords=keywords, scale=scale, adult=adult, kind=kind, slider=slider,
     )
+
+
+def automatic_addon(
+    addon_id: str, label: str, description: str, model_id: int, version_id: int, file_id: int, size_gb: float, trigger: str, keywords: tuple[str, ...],
+    scale: float,
+) -> AddonSpec:
+    return civitai_addon(addon_id, label, description, model_id, version_id, file_id, size_gb, trigger, keywords, scale=scale, kind="automatic")
+
+
+def slider_addon(addon_id: str, label: str, description: str, model_id: int, version_id: int, file_id: int, size_gb: float, slider: SliderRange) -> AddonSpec:
+    return civitai_addon(addon_id, label, description, model_id, version_id, file_id, size_gb, "", (), kind="slider", slider=slider)
 
 
 Z_IMAGE_CIVITAI_ADDONS = (
@@ -233,6 +261,32 @@ Z_IMAGE_CIVITAI_ADDONS = (
     civitai_addon("hyper-futa", "Hyper Futa", "Women with penises, in more sizes.", 2196169, 2500617, 2388656, 0.17, "futa", ("futa", "futanari"), adult=True),
     # Its author recommends starting at 0.8
     civitai_addon("squirt-queen", "PornMaster Squirt Queen Z-image", "Squirting.", 2186843, 2462300, 2350841, 0.17, "", ("squirt", "squirting", "squirts"), scale=0.8, adult=True),
+)
+
+# Used without a checkbox whenever the prompt mentions what they add, at their authors' recommended strength
+Z_IMAGE_AUTOMATIC_ADDONS = (
+    automatic_addon("film-grain", "Film Grain Slider", "Film grain and a retro look.", 2642226, 2966821, 2846283, 0.01, "",
+                    ("film grain", "grain", "grainy"), scale=4.0),
+    automatic_addon("side-view", "Side View Slider", "A true side view.", 2609445, 2930017, 2808904, 0.04, "",
+                    ("side view", "in profile", "profile view", "from the side"), scale=7.0),
+    automatic_addon("from-above", "From Above Slider", "A camera angle from above.", 2591273, 2910951, 2788937, 0.01, "",
+                    ("from above", "high angle", "overhead", "bird's-eye"), scale=5.0),
+    automatic_addon("fog-smoke", "Fog & Smoke Slider", "Fog, smoke, mist and haze.", 2713189, 3048172, 2926899, 0.01, "",
+                    ("fog", "foggy", "smoke", "smoky", "mist", "misty", "haze", "hazy"), scale=5.0),
+    automatic_addon("portrait-lighting", "Cinematic Portrait Lighting", "Cinematic studio light on the subject.", 2595570, 2975453, 2855131, 0.16, "velatrix",
+                    ("cinematic lighting", "studio lighting", "rim light", "rim lighting"), scale=0.8),
+    automatic_addon("dark-light", "Dark Side of Light", "Low-key light with deep shadows.", 1032948, 2729875, 2615911, 0.16, "AuroLight art style",
+                    ("low-key", "low key", "chiaroscuro", "dramatic shadows"), scale=0.75),
+)
+
+# Strengths the user sets in Create, defaulting to what the chosen character looks like
+Z_IMAGE_SLIDER_ADDONS = (
+    slider_addon("weight", "Weight", "Thinner or heavier.", 2554553, 3048007, 2926737, 0.01, SliderRange(-10, 10)),
+    slider_addon("muscle-tone", "Muscle tone", "More muscle definition.", 2563675, 2880761, 2761158, 0.01, SliderRange(0, 8)),
+    slider_addon("skin-tone", "Skin tone", "Lighter or darker skin.", 2540631, 3018665, 2897567, 0.01, SliderRange(-3, 3)),
+    slider_addon("hair-length", "Hair length", "Shorter or longer hair.", 2542224, 2857058, 2743020, 0.02, SliderRange(-4, 4)),
+    slider_addon("hair-volume", "Hair volume", "Flatter or fuller hair.", 2541071, 2855762, 2741853, 0.02, SliderRange(-5, 5)),
+    slider_addon("natural-look", "Natural look", "Less polished, more natural faces and skin.", 2639539, 2963665, 2843046, 0.06, SliderRange(-2, 6)),
 )
 
 # The two FLUX.1-dev LoRAs were models of their own before add-ons; their ids, and so their folders, are kept
@@ -266,7 +320,10 @@ FLUX_ASIAN_NUDITY_ADDON = AddonSpec(
     adult=True,
 )
 
-ADDONS: dict[str, AddonSpec] = {addon.id: addon for addon in (TATTOO_ADDON, *Z_IMAGE_CIVITAI_ADDONS, FLUX_CREATE_NSFW_ADDON, FLUX_ASIAN_NUDITY_ADDON)}
+ADDONS: dict[str, AddonSpec] = {
+    addon.id: addon
+    for addon in (TATTOO_ADDON, *Z_IMAGE_CIVITAI_ADDONS, *Z_IMAGE_AUTOMATIC_ADDONS, *Z_IMAGE_SLIDER_ADDONS, FLUX_CREATE_NSFW_ADDON, FLUX_ASIAN_NUDITY_ADDON)
+}
 
 # Models that became add-ons of their base model: History's images made with them are moved over (history_store)
 MODELS_NOW_ADDONS: dict[str, str] = {FLUX_CREATE_NSFW_ADDON.id: FLUX_DEV.id, FLUX_ASIAN_NUDITY_ADDON.id: FLUX_DEV.id}
@@ -276,9 +333,17 @@ def addons_for(model_id: str) -> list[AddonSpec]:
     return [addon for addon in ADDONS.values() if addon.base_model_id == model_id]
 
 
-def applied_addons(enabled: list[str], prompt: str) -> list[AddonSpec]:
-    """The add-ons a render uses: those switched on whose keywords the prompt mentions. The rule for every add-on."""
-    return [ADDONS[addon_id] for addon_id in enabled if ADDONS[addon_id].matches(prompt)]
+def applied_addons(model_id: str, enabled: list[str], prompt: str, strengths: dict[str, float]) -> list[AddonSpec]:
+    """The add-ons a render uses, the rule for every add-on: optional ones switched on and automatic ones, when the prompt mentions
+    what they add, and sliders not at 0."""
+    optional = [ADDONS[addon_id] for addon_id in enabled if ADDONS[addon_id].matches(prompt)]
+    automatic = [addon for addon in addons_for(model_id) if addon.kind == "automatic" and addon.matches(prompt)]
+    sliders = [ADDONS[addon_id] for addon_id, strength in strengths.items() if strength]
+    return [*optional, *automatic, *sliders]
+
+
+def addon_strength(addon: AddonSpec, strengths: dict[str, float]) -> float:
+    return strengths.get(addon.id, addon.scale) if addon.kind == "slider" else addon.scale
 
 
 def with_trigger_words(prompt: str, addons: list[AddonSpec]) -> str:

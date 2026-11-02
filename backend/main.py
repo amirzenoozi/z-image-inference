@@ -43,7 +43,7 @@ from custom_clothes import CustomGarment
 from palette import PaletteColour
 from prompt_spec import PromptSpec
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
-from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, VIDEO_MODEL, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint, video_size
+from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, VIDEO_MODEL, AddonKind, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint, video_size
 from resolutions import CATEGORIES, PRESETS, Category
 
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
@@ -71,8 +71,15 @@ grok_client = GrokClient()
 SOURCE_NAMES: dict[str, str] = {"huggingface": "Hugging Face", "civitai": "Civitai"}
 
 
+class SliderInfo(BaseModel):
+    minimum: float
+    maximum: float
+    step: float
+
+
 class AddonInfo(BaseModel):
-    """An add-on the user can switch on for a model; it is used only when the prompt mentions one of its keywords."""
+    """An add-on of a model (model_catalog.AddonKind): optional ones the user switches on, automatic ones used when the prompt mentions
+    them, and sliders the user sets a strength for."""
 
     id: str
     label: str
@@ -84,12 +91,15 @@ class AddonInfo(BaseModel):
     source_name: str
     # It adds nudity or sex: the browser hides it while its own lock is on
     adult: bool
+    kind: AddonKind
+    slider: SliderInfo | None
 
     @classmethod
     def from_spec(cls, addon: AddonSpec) -> "AddonInfo":
         return cls(
             id=addon.id, label=addon.label, description=addon.description, keywords=list(addon.keywords), trigger_word=addon.trigger_word,
             download_gb=addon.download_gb, page_url=page_url(addon.source, addon.repo_id), source_name=SOURCE_NAMES[addon.source], adult=addon.adult,
+            kind=addon.kind, slider=SliderInfo(minimum=addon.slider.minimum, maximum=addon.slider.maximum, step=addon.slider.step) if addon.slider else None,
         )
 
 
@@ -371,6 +381,7 @@ class RenderedImage(BaseModel):
     seed: int
     seconds: float
     addons: list[str] = []
+    strengths: dict[str, float] = {}
 
 
 def request_image(req: GenerateRequest) -> RenderedImage:
@@ -511,7 +522,7 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
         face_from=face.image_id if face else None,
-        sensitive=True if nsfw else None, image_checked=nsfw is not None, addons=tuple(rendered.addons),
+        sensitive=True if nsfw else None, image_checked=nsfw is not None, addons=tuple(rendered.addons), strengths=rendered.strengths,
         prompt_spec=req.prompt_spec.to_json() if req.prompt_spec else None,
     ))
 
@@ -650,7 +661,7 @@ def save_edit(item_id: int, recipe: EditRecipe) -> HistoryItem:
         width=width, height=height, steps=source.steps, guidance=source.guidance, model=source.model,
         duration_seconds=None, edited_from=source.id, character_id=source.character_id,
         # A cropped or turned copy keeps its original's flag, which may have been set by hand
-        sensitive=source.sensitive, image_checked=True, addons=tuple(source.addons), prompt_spec=source.prompt_spec,
+        sensitive=source.sensitive, image_checked=True, addons=tuple(source.addons), prompt_spec=source.prompt_spec, strengths=source.strengths,
     ))
 
 

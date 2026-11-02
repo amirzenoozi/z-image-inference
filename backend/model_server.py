@@ -31,6 +31,9 @@ from fastapi import FastAPI, HTTPException, Response
 from huggingface_hub import get_token, snapshot_download
 from mflux.models.common.config.config import Config
 from mflux.models.common.config.model_config import ModelConfig
+from mflux.models.common.lora.layer.fused_linear_lora_layer import FusedLoRALinear
+from mflux.models.common.lora.layer.linear_lokr_layer import LoKrLinear
+from mflux.models.common.lora.layer.linear_lora_layer import LoRALinear
 from mflux.models.flux.variants.txt2img.flux import Flux1
 from mflux.models.z_image.variants.z_image import ZImage
 from optimum.quanto import freeze, qint8, quantization_map, quantize, requantize
@@ -44,7 +47,7 @@ from generation_request import MAX_SEED, GenerateRequest, VideoRequest
 from i18n import t
 from prompt_weights import a1111_to_compel
 import video_engine
-from model_catalog import ADDONS, ANIME_DESIRE, DEFAULT_MODEL, FLUX_DEV, MODELS, VIDEO_MODEL, AddonSpec, VideoModelSpec, Source, applied_addons, with_trigger_words, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
+from model_catalog import ADDONS, ANIME_DESIRE, DEFAULT_MODEL, FLUX_DEV, MODELS, VIDEO_MODEL, AddonSpec, VideoModelSpec, Source, addon_strength, applied_addons, with_trigger_words, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 from paths import MODELS_DIR
 
@@ -106,12 +109,40 @@ def base_of(entry: Downloadable) -> str | None:
     return entry.base_model_id if isinstance(entry, AddonSpec) else None
 
 
+# Each LoRA loads at its own marker strength, so its layers can be found afterwards and given each render's strength
+# (lora_layers): changing a strength then needs no reload
+LORA_MARKER = 1000.0
+LoraLayer = LoRALinear | LoKrLinear
+
+
 def lora_arguments(addons: tuple[AddonSpec, ...]) -> dict[str, object]:
     """The add-ons, applied while generating: merged in, they would turn quantised layers 8-bit."""
     paths = [lora_path(addon) / addon.lora_file for addon in addons]
     if not paths:
         return {}
-    return {"lora_paths": [str(path) for path in paths], "lora_scales": [addon.scale for addon in addons], "bake_lora": False}
+    return {"lora_paths": [str(path) for path in paths], "lora_scales": [LORA_MARKER + index for index in range(len(paths))], "bake_lora": False}
+
+
+def lora_layers(model: ZImage | Flux1, count: int) -> list[list[LoraLayer]]:
+    """Each loaded LoRA's layers, in loading order, found by their marker strengths."""
+    found: dict[int, LoraLayer] = {}
+    for _, module in model.transformer.named_modules():
+        candidates = module.loras if isinstance(module, FusedLoRALinear) else [module]
+        found.update((id(layer), layer) for layer in candidates if isinstance(layer, LoraLayer))
+    layers: list[list[LoraLayer]] = [[] for _ in range(count)]
+    for layer in found.values():
+        index = round(layer.scale - LORA_MARKER)
+        if 0 <= index < count:
+            layers[index].append(layer)
+    return layers
+
+
+def set_lora_strengths(layers: list[list[LoraLayer]], strengths: tuple[float, ...]) -> None:
+    if len(strengths) != len(layers):
+        raise ValueError(f"{len(layers)} LoRAs are loaded but {len(strengths)} strengths were given")
+    for group, strength in zip(layers, strengths):
+        for layer in group:
+            layer.scale = strength
 
 
 # The face lock for the SDXL models: IP-Adapter plus-face and the image encoder it reads faces with
@@ -138,6 +169,8 @@ class Job:
     # For a face lock: the character's face image, and how strongly to hold it (0 to 1)
     face_image: Image.Image | None = None
     face_strength: float | None = None
+    # The strength of each add-on the model is loaded with, in its loading order
+    lora_strengths: tuple[float, ...] = ()
 
 
 JobPhase = Literal["waiting", "loading", "encoding", "generating", "finishing"]
@@ -206,6 +239,7 @@ def to_job(req: GenerateRequest, addons: tuple[AddonSpec, ...]) -> Job:
         change=req.change,
         face_image=decode_face_image(req.face_image) if req.face_image else None,
         face_strength=req.face_strength,
+        lora_strengths=tuple(addon_strength(addon, req.strengths) for addon in addons),
     )
 
 
@@ -215,8 +249,9 @@ class GenerateResponse(BaseModel):
     model: str
     # Rendering only: waiting for the model thread and loading the model are not counted
     seconds: float
-    # The add-ons used: those switched on whose keywords the prompt mentions
+    # The add-ons used (applied_addons), and the strengths of the sliders among them
     addons: list[str] = []
+    strengths: dict[str, float] = {}
 
 
 @dataclass(frozen=True)
@@ -304,11 +339,13 @@ def start_image_file(image: Image.Image | None) -> Iterator[str | None]:
         yield file.name
 
 
-def mflux_generator(model: ZImage | Flux1, uses_guidance: bool) -> ImageGenerator:
+def mflux_generator(model: ZImage | Flux1, uses_guidance: bool, lora_count: int) -> ImageGenerator:
     reporter = MfluxStepReporter()
     model.callbacks.register(reporter)
+    layers = lora_layers(model, lora_count)
 
     def generate(job: Job, progress: JobProgress) -> Image.Image:
+        set_lora_strengths(layers, job.lora_strengths)
         reporter.progress = progress
         progress.enter("generating")
         guidance = {"guidance": job.guidance} if uses_guidance else {}
@@ -329,14 +366,14 @@ def mflux_generator(model: ZImage | Flux1, uses_guidance: bool) -> ImageGenerato
 
 
 def load_z_image(addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
-    return mflux_generator(ZImage(model_path=str(z_image_model_path()), **lora_arguments(addons)), uses_guidance=False)
+    return mflux_generator(ZImage(model_path=str(z_image_model_path()), **lora_arguments(addons)), uses_guidance=False, lora_count=len(addons))
 
 
 def load_flux(addons: tuple[AddonSpec, ...] = ()) -> ImageGenerator:
     """FLUX.1-dev always runs its 4-bit copy, with the add-ons a render uses."""
     build_flux_q4()
     model = Flux1(model_path=str(FLUX_Q4_PATH), model_config=ModelConfig.dev(), **lora_arguments(addons))
-    return mflux_generator(model, uses_guidance=True)
+    return mflux_generator(model, uses_guidance=True, lora_count=len(addons))
 
 
 def has_float32(file: Path) -> bool:
@@ -926,7 +963,10 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         raise HTTPException(503, not_ready_message(req.model))
     if req.face_image is not None and (problem := face_lock_problem()):
         raise HTTPException(503, problem)
-    addons = tuple(applied_addons(req.addons, req.prompt))
+    # An automatic add-on not downloaded is left out; the others were asked for, so they must be ready
+    addons = tuple(
+        addon for addon in applied_addons(req.model, req.addons, req.prompt, req.strengths) if addon.kind != "automatic" or model_status(addon.id) == "ready"
+    )
     for addon in addons:
         if model_status(addon.id) != "ready":
             raise HTTPException(503, not_ready_message(addon.id))
@@ -942,6 +982,7 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
     return GenerateResponse(
         image_base64=base64.b64encode(rendered.png).decode("utf-8"), seed=job.seed, model=req.model, seconds=round(rendered.seconds, 1),
         addons=[addon.id for addon in addons],
+        strengths={addon.id: req.strengths[addon.id] for addon in addons if addon.kind == "slider"},
     )
 
 

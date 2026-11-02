@@ -139,6 +139,8 @@ class PromptSpec(Section):
     camera: Camera | None = None
     finish: Finish | None = None
     details: Details | None = None
+    # The look sliders' strengths by slider add-on id (model_catalog.Z_IMAGE_SLIDER_ADDONS); the request checks them again
+    look: Annotated[dict[Annotated[str, StringConstraints(max_length=40)], float], Field(max_length=12)] | None = None
 
     def to_json(self) -> str:
         return self.model_dump_json(exclude_none=True)

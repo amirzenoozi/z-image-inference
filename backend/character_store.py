@@ -6,11 +6,12 @@ import sqlite3
 from typing import Annotated
 
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, field_validator
 
 from generation_request import MAX_FACE_STRENGTH, MAX_SEED, MIN_FACE_STRENGTH
 from history_store import connection
 from i18n import t
+from model_catalog import ADDONS
 from paths import PROJECT_DIR
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
@@ -55,6 +56,17 @@ class CharacterTraits(BaseModel):
     tattoos: TraitList = []
     piercings: TraitList = []
     bodyExtra: TraitText = ""
+    # The look sliders' saved defaults, by slider add-on id; a slider not here follows the traits above
+    strengths: dict[str, float] = Field(default_factory=dict, max_length=10)
+
+    @field_validator("strengths")
+    @classmethod
+    def check_strengths(cls, strengths: dict[str, float]) -> dict[str, float]:
+        for addon_id, strength in strengths.items():
+            slider = ADDONS[addon_id].slider if addon_id in ADDONS else None
+            if slider is None or not slider.allows(strength):
+                raise ValueError(t("characterStrength", addon=addon_id))
+        return strengths
 
 
 class NewCharacter(BaseModel):

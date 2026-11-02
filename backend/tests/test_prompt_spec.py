@@ -16,9 +16,16 @@ def test_the_example_json_prompt_has_the_shape_the_server_accepts() -> None:
     assert json.loads(PromptSpec.model_validate(EXAMPLE).to_json()) == EXAMPLE
 
 
+def test_a_json_prompt_keeps_its_look_sliders() -> None:
+    assert PromptSpec.model_validate({**EXAMPLE, "look": {"weight": -3, "hair-volume": 4}}).look == {"weight": -3, "hair-volume": 4}
+
+
 @pytest.mark.parametrize(
     "change",
-    [{"version": 2}, {"colour": "red"}, {"hair": {"colour": "red"}}, {"outfit": {"accessories": ["Anklet"] * 4}}, {"outfit": {"top": {"color": "red"}}}],
+    [
+        {"version": 2}, {"colour": "red"}, {"hair": {"colour": "red"}}, {"outfit": {"accessories": ["Anklet"] * 4}}, {"outfit": {"top": {"color": "red"}}},
+        {"look": {"weight": "heavy"}}, {"look": {f"slider-{index}": 1 for index in range(13)}},
+    ],
 )
 def test_a_json_prompt_of_another_shape_is_refused(change: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
