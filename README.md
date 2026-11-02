@@ -53,8 +53,7 @@ Only Z-Image-Turbo downloads by itself; you add or remove the others from the ap
 
 - A Mac with Apple Silicon; 24 GB of memory is comfortable (tested on an M5 with 24 GB)
 - macOS, [uv](https://github.com/astral-sh/uv) (it installs Python 3.12+ for you) and [Node.js](https://nodejs.org/) 20+
-- [Homebrew](https://brew.sh) and git (`xcode-select --install`); `make setup` installs [ffmpeg](https://ffmpeg.org/) (for videos) and gitleaks (secret check) with Homebrew
-- For videos from History images, about 29 GB more for the video model
+- [Homebrew](https://brew.sh) and git (`xcode-select --install`); `make setup` installs gitleaks (secret check) with Homebrew
 - Disk space: about 45 GB for Z-Image-Turbo (its original plus the 8-bit copy it runs), more for each extra model ([sizes](docs/models.md#download-sizes))
 
 ## Quick start
@@ -65,7 +64,7 @@ cd z-image-inference
 make setup
 ```
 
-`make setup` (`scripts/setup.sh`) checks the Mac and the tools above and says how to install any that are missing, installs ffmpeg and gitleaks, turns on the git hooks, creates `.env` from `.env.example` (left alone if you have one), installs the Python packages and builds the UI. It is safe to run again.
+`make setup` (`scripts/setup.sh`) checks the Mac and the tools above and says how to install any that are missing, installs gitleaks, turns on the git hooks, creates `.env` from `.env.example` (left alone if you have one), installs the Python packages and builds the UI. It is safe to run again.
 
 Then run the two parts, each in its own terminal:
 

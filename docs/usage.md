@@ -28,10 +28,10 @@ The app can be added to a phone's home screen and opened full screen, like an ap
 
 ## Adult content lock
 
-Everything adult (the Glamour, Faceless and Explicit purposes, the Lingerie and Swimwear groups of the Top and Bottom menus, the adult models WAI-NSFW-Illustrious, MOSS-Image NSFW and Anime Desire, the add-ons that add nudity or sex, and sensitive History images and their videos) sits behind two locks.
+Everything adult (the Glamour, Faceless and Explicit purposes, the Lingerie and Swimwear groups of the Top and Bottom menus, the adult models WAI-NSFW-Illustrious, MOSS-Image NSFW and Anime Desire, the add-ons that add nudity or sex, and sensitive History images) sits behind two locks.
 
-1. **`ADULT_CONTENT` in `.env`** (`off` by default, `on` to allow it; restart the web app after a change). Off, the web app itself serves none of it: the catalog leaves it out, History leaves sensitive images out of the list, the counts, the export and every image and video link, and every render is kept safe for work, as for a character with an uploaded face (a sensitive prompt or start image is refused, safe negatives are added, an adult model is refused, an adult add-on is not applied, and a result the image check finds nudity in is discarded).
-2. **A hidden word in `ADULT_UNLOCK_WORD`**, with `ADULT_CONTENT=on`. Each browser then starts locked, and keeps its own state: type the word on the Create page with no text box selected (nothing shows while you type; the browser asks the web app once you pause, so the word itself never reaches the page), or on a phone tap the **Z-Image Studio** title five times and type it in the box that opens. A short notice says "Adult content shown"; typing the word again hides it. While a browser is locked it works as if `ADULT_CONTENT` were off: the adult purposes, models and add-ons are hidden, the other purposes are kept safe for work, History leaves sensitive images out, and Generate and Make video ask the web app to keep the result safe. With no word set, what `.env` allows is simply shown.
+1. **`ADULT_CONTENT` in `.env`** (`off` by default, `on` to allow it; restart the web app after a change). Off, the web app itself serves none of it: the catalog leaves it out, History leaves sensitive images out of the list, the counts, the export and every image link, and every render is kept safe for work, as for a character with an uploaded face (a sensitive prompt or start image is refused, safe negatives are added, an adult model is refused, an adult add-on is not applied, and a result the image check finds nudity in is discarded).
+2. **A hidden word in `ADULT_UNLOCK_WORD`**, with `ADULT_CONTENT=on`. Each browser then starts locked, and keeps its own state: type the word on the Create page with no text box selected (nothing shows while you type; the browser asks the web app once you pause, so the word itself never reaches the page), or on a phone tap the **Z-Image Studio** title five times and type it in the box that opens. A short notice says "Adult content shown"; typing the word again hides it. While a browser is locked it works as if `ADULT_CONTENT` were off: the adult purposes, models and add-ons are hidden, the other purposes are kept safe for work, History leaves sensitive images out, and Generate asks the web app to keep the result safe. With no word set, what `.env` allows is simply shown.
 
 The browser's lock is a privacy screen for that browser, not security: anyone who can use the web app's API, or this browser's storage, can get past it. `ADULT_CONTENT=off` is the lock that holds.
 
@@ -289,17 +289,6 @@ Click the image to see it at 100% (drag to look around), and click again to fit 
 - **×** on the start image goes back to a normal render. **Reuse settings** on a variation brings its start image back.
 
 Z-Image-Turbo, WAI-Illustrious, Anime Desire, RealVisXL and FLUX.1-dev can make variations. MOSS-Image cannot; with a start image set it says so, and Generate waits until you pick another model or remove the image.
-
-## Videos
-
-**Make video** in the image viewer animates the image into a short clip with [LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) (distilled, 4-bit), running on the Mac.
-
-- Write what should move (it starts as "subtle, natural movement"), choose **2 s** or **4 s**, and **Generate video**. The clip keeps the image's shape, with its longer side at 512 px. Clips have no sound: the engine is told to skip it (`--no-audio`), which also saves a little time.
-- The first time, download the video model there (about 29 GB, once). It needs git and ffmpeg on the Mac, and says so if one is missing.
-- On this Mac (M5, 24 GB) a 2 s clip takes about 75 seconds and a 4 s clip about 2 minutes. Images and videos take turns on the model server, so a new image waits for a video to finish, and the other way round.
-- While it renders, the **Videos** strip under the image's facts shows its progress and a **Cancel**. Closing the viewer does not stop it; the video appears when the image is opened again.
-- Videos are kept in `history.db`, linked to their image, not as images: they don't appear in History's list. Each image's videos are in its viewer, newest first. Tap one to play it in place of the image, with **Back to the image**, **Download** (MP4) and **Delete**. Deleting the image deletes its videos.
-- A video is blurred in the strip when its image or its prompt is sensitive. For a character with an uploaded face photo, the same safe-for-work rules apply as for images: a sensitive prompt is refused, and a frame from the middle of the clip is checked.
 
 ## Look sliders
 
