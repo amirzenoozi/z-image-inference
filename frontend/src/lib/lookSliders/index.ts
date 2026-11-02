@@ -35,8 +35,8 @@ const TRAIT_SLIDERS: Record<string, TraitSlider> = {
   },
   'skin-tone': {
     field: 'skinTone',
-    defaults: { fair: -3, light: -2, 'light olive': -1, olive: 0, tan: 1, 'golden brown': 2, brown: 3, 'deep brown': 3, dark: 3 },
-    written: [['fair', -3], ['light', -2], ['light olive', -1], ['olive', 0], ['tan', 1], ['golden brown', 2], ['brown', 3]],
+    defaults: { fair: -2, light: -1, 'light olive': 0, olive: 0, tan: 1, 'golden brown': 2, brown: 3, 'deep brown': 3, dark: 3 },
+    written: [['fair', -2], ['light', -1], ['olive', 0], ['tan', 1], ['golden brown', 2], ['brown', 3]],
   },
   'hair-length': {
     field: 'hairLength',
@@ -83,6 +83,12 @@ export function withStrength<T extends LookTraits>(look: T, addonId: string, str
   const strengths = { ...look.strengths, [addonId]: strength }
   const trait = TRAIT_SLIDERS[addonId]
   return trait ? { ...look, strengths, [trait.field]: nearestOption(trait.written, strength) } : { ...look, strengths }
+}
+
+/** The look with a slider's own strength taken off, so it follows its matching choice again (or goes back to 0). */
+export function withoutStrength<T extends LookTraits>(look: T, addonId: string): T {
+  const strengths = Object.fromEntries(Object.entries(look.strengths ?? {}).filter(([id]) => id !== addonId))
+  return { ...look, strengths }
 }
 
 /** The look with each moved slider applied, in turn. */

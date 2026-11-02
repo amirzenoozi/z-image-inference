@@ -152,7 +152,7 @@ function StepContent({ step, character, onCharacterSaved, ...props }: StepConten
     return (
       <>
         <CharacterSummary character={character} />
-        <CharacterLookSliders state={props.state} set={props.set} />
+        <CharacterLookSliders state={props.state} set={props.set} character={character} />
         <ImageBodyChoices state={props.state} mode={props.mode} set={props.set} />
       </>
     )

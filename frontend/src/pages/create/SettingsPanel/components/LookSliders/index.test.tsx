@@ -32,7 +32,6 @@ beforeEach(() => vi.mocked(api.updateCharacter).mockReset())
 it('starts each downloaded slider at the character’s default', () => {
   renderSliders()
   expect(screen.getByRole('slider', { name: 'Weight slider' })).toHaveValue('-2')
-  expect(screen.getByText(/start at Mei’s look|start at Mei's look/)).toBeInTheDocument()
 })
 
 it('changes only this render when a slider moves', () => {
@@ -75,10 +74,16 @@ it('offers a retry when saving the defaults fails', async () => {
   expect(onChange).not.toHaveBeenCalled()
 })
 
-it('can’t save or reset before a slider moves, and has no save without a character', () => {
+it('can’t save before a slider moves, and a moved one resets to the character’s look', async () => {
   renderSliders()
   expect(screen.getByRole('button', { name: /Mei/ })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Reset Weight' })).not.toBeInTheDocument()
+})
+
+it('resets one moved slider, keeping the others moved', async () => {
+  const { onChange } = renderSliders({ moved: { weight: 4, 'skin-tone': 1 } })
+  await userEvent.click(screen.getByRole('button', { name: 'Reset Weight' }))
+  expect(onChange).toHaveBeenCalledExactlyOnceWith({ 'skin-tone': 1 })
 })
 
 it('starts every slider at 0 with no character', () => {

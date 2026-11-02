@@ -15,7 +15,7 @@ const ready = (...ids: string[]): Loadable<ModelStatusReport> => ({
 describe('a slider’s strength', () => {
   it('follows the matching option, mildly, or is 0 with nothing to go on', () => {
     expect(lookStrength('weight', slim)).toBe(-2)
-    expect(lookStrength('skin-tone', slim)).toBe(-2)
+    expect(lookStrength('skin-tone', slim)).toBe(-1)
     expect(lookStrength('hair-length', slim)).toBe(2)
     expect(lookStrength('muscle-tone', slim)).toBe(0)
     expect(lookStrength('hair-volume', slim)).toBe(0)
