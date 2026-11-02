@@ -31,12 +31,17 @@ All eight are defined in one place, with the add-ons (see [Add-ons](#add-ons)),,
 
 ## Add-ons
 
-An add-on is a LoRA that goes over a base model instead of being a model of its own. Download one in the model dialog (**Change** next to the model), on its **Add-ons** tab, which lists the selected model's add-ons with what they do and the words that use them. Once downloaded, it appears as a checkbox under the model in Create: tick it to switch it on.
+An add-on is a LoRA that goes over a base model instead of being a model of its own. Download one in the model dialog (**Change** next to the model), on its **Add-ons** tab, which lists the selected model's add-ons with what they do and how Create uses them. There are three kinds:
 
-- A switched-on add-on is used only when the prompt mentions what it adds; otherwise the image is made with the base model alone. With it switched off, the base model is used whatever the prompt says.
-- When it is used, its trigger phrase is added to the prompt if missing.
-- History shows the add-ons an image used next to its model. Reusing an image's settings switches them back on.
-- Switching between a render with an add-on and one without reloads the model (about 10 seconds); renders in a row with the same add-ons do not.
+- **Optional** (the table below): once downloaded, a checkbox under the model in Create; tick it to switch it on. A switched-on add-on is used only when the prompt mentions what it adds; otherwise the image is made with the base model alone.
+- **Automatic**: no checkbox; once downloaded, used whenever the prompt mentions what it adds, at its author's recommended strength.
+- **Slider**: a look slider in Create, the prompt builder and the character dialog (see [Look sliders](usage.md#look-sliders)), used at the strength you set; 0 leaves it out.
+
+For all of them:
+
+- When one is used, its trigger phrase is added to the prompt if missing.
+- History shows the add-ons an image used next to its model, and the slider strengths. Reusing an image's settings switches them back on.
+- The model reloads (about 10 seconds) when the set of add-ons a render uses changes; renders in a row with the same set do not, even when a slider's strength changes.
 
 | Add-on | Base model | Used when the prompt mentions | Trigger |
 |--------|-----------|------------------------------|---------|
@@ -51,6 +56,19 @@ An add-on is a LoRA that goes over a base model instead of being a model of its 
 | [PornMaster Squirt Queen Z-image](https://civitai.com/models/2186843) | Z-Image-Turbo | squirt, squirting, squirts | none (applied at 0.8, as its author recommends) |
 | [create-nsfw](https://huggingface.co/Bigfawg6669/create-nsfw) | FLUX.1-dev | nsfw, nude, naked, topless | none |
 | [asian-nudity-2](https://huggingface.co/inuptia/asian-nudity-2) | FLUX.1-dev | asian, japanese, korean, chinese | `4s14n` |
+
+Automatic add-ons, all for Z-Image-Turbo:
+
+| Add-on | Used when the prompt mentions | Strength | Trigger |
+|--------|------------------------------|----------|---------|
+| [Film Grain Slider](https://civitai.com/models/2642226) | film grain, grain, grainy | 4 | none |
+| [Side View Slider](https://civitai.com/models/2609445) | side view, in profile, profile view, from the side | 7 | none |
+| [From Above Slider](https://civitai.com/models/2591273) | from above, high angle, overhead, bird's-eye | 5 | none |
+| [Fog & Smoke Slider](https://civitai.com/models/2713189) | fog, foggy, smoke, smoky, mist, misty, haze, hazy | 5 | none |
+| [Cinematic Portrait Lighting](https://civitai.com/models/2595570) | cinematic lighting, studio lighting, rim light, rim lighting | 0.8 | `velatrix` |
+| [Dark Side of Light](https://civitai.com/models/1032948) | low-key, low key, chiaroscuro, dramatic shadows | 0.75 | `AuroLight art style` |
+
+Slider add-ons, all for Z-Image-Turbo, with their authors' stable ranges: [Weight](https://civitai.com/models/2554553) (-10 to 10), [Muscle tone](https://civitai.com/models/2563675) (0 to 8), [Skin tone](https://civitai.com/models/2540631) (-3 to 3, as further it changes the face, not only the skin), [Hair length](https://civitai.com/models/2542224) (-4 to 4), [Hair volume](https://civitai.com/models/2541071) (-5 to 5) and [Natural look](https://civitai.com/models/2639539) (-2 to 6, as further it ages the face). The server refuses a strength outside the range.
 
 An add-on is applied while generating, not merged into the model, which would turn the quantised layers 8-bit and need more memory. Images made before create-nsfw and asian-nudity-2 became add-ons (when they were models of their own) show in History as FLUX.1-dev with that add-on.
 
