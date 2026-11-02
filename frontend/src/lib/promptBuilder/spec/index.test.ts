@@ -89,3 +89,23 @@ describe('the builder rules still apply to a JSON prompt', () => {
     expect(written(spec)).not.toMatch(/low-cut/i)
   })
 })
+
+describe('the look sliders in a JSON prompt', () => {
+  const general = modeOf('general')
+  const looked: BuilderState = { ...emptyBuilderState(), who: 'woman', age: 'late 20s', hairLength: 'long', strengths: { 'hair-volume': 4, weight: -3 } }
+
+  it('keep their strengths through the JSON, and write their phrases into the text', () => {
+    const spec = parsed(specText(specFromState(looked, general)))
+    expect(spec.look).toEqual({ 'hair-volume': 4, weight: -3 })
+    expect(stateFromSpec(spec).strengths).toEqual({ 'hair-volume': 4, weight: -3 })
+    expect(written(spec)).toMatch(/big voluminous hair/i)
+  })
+
+  it('leave the JSON without a look section when none is set', () => {
+    expect(specFromState({ ...looked, strengths: {} }, general).look).toBeUndefined()
+  })
+
+  it('must be numbers', () => {
+    expect(parseSpec(JSON.stringify({ version: 1, purpose: 'general', look: { weight: 'heavy' } }))).toMatchObject({ ok: false })
+  })
+})

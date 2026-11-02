@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
 import sampleCharacters from '../../../../sample_characters.json'
-import { animeModel, catalog, character, fastModel, historyItem } from '../../test/fixtures'
+import { animeModel, catalog, character, fastModel, historyItem, weightSlider } from '../../test/fixtures'
 import type { Character, CharacterTraits, GenerationSettings, ModelInfo } from '../../types'
-import { addsCharacterLook, promptToSend } from './.'
+import { addsCharacterLook, promptToSend, renderStrength } from './.'
 import { traitsOf } from '../promptBuilder/character'
 import { emptyBuilderState } from '../promptBuilder/build'
 import { initialSettings, settingsFromItem } from '../settings'
@@ -38,4 +38,20 @@ it('leaves a prompt alone without a character, or when it already has the look',
 it('treats the prompt of an image made for a character as already having its look', () => {
   expect(settingsFromItem(historyItem({ character_id: 13 }), catalog).lookIncluded).toBe(13)
   expect(settingsFromItem(historyItem(), catalog).lookIncluded).toBeNull()
+})
+
+it('writes a look slider moved in Create into the character’s look, for a model with that slider', () => {
+  const withSlider: ModelInfo = { ...fastModel, addons: [...fastModel.addons, weightSlider] }
+  expect(sentText({ ...typed, strengths: { weight: 3 } }, ivy, withSlider)).toContain('with a voluptuous figure')
+  expect(sentText({ ...typed, strengths: { weight: -5 } }, ivy, withSlider)).toContain('with a slim build')
+  expect(sentText({ ...typed, strengths: { weight: -5 } }, ivy, fastModel)).toContain('with a curvy figure')
+})
+
+it('takes a render’s strengths from the JSON prompt the builder wrote, else from Create’s Look section and the character', () => {
+  const withSlider: ModelInfo = { ...fastModel, addons: [...fastModel.addons, weightSlider] }
+  const spec = { version: 1 as const, purpose: 'general', body: { type: 'plus-size figure' }, look: { weight: 8 } }
+  expect(renderStrength('weight', { status: 'ready', prompt: 'x', spec }, { ...typed, strengths: { weight: -4 } }, ivy, withSlider)).toBe(8)
+  expect(renderStrength('weight', { status: 'ready', prompt: 'x' }, { ...typed, strengths: { weight: -4 } }, ivy, withSlider)).toBe(-4)
+  expect(renderStrength('weight', { status: 'ready', prompt: 'x' }, typed, ivy, withSlider)).toBe(2)
+  expect(renderStrength('weight', { status: 'ready', prompt: 'x' }, typed, null, withSlider)).toBe(0)
 })

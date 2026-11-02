@@ -93,6 +93,7 @@ export async function generateImage(settings: SentSettings, jobId: string, signa
       change: settings.startImage?.change ?? null,
       character_id: settings.characterId,
       addons: settings.addons,
+      strengths: settings.strengths,
       prompt_spec: settings.promptSpec ?? null,
       safe_only: settings.safeOnly ?? false,
     },

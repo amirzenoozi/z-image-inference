@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
-import { animeModel, fastModel } from '../../../../../test/fixtures'
+import { animeModel, fastModel, weightSlider } from '../../../../../test/fixtures'
 import type { Loadable, ModelStatus, ModelStatusReport } from '../../../../../types'
 import { AddonsPanel } from './.'
 
@@ -39,4 +39,15 @@ it.each([
 ])('shows nothing while %s', (_, status, model) => {
   const { container } = renderPanel(status, ['tattoo'], model)
   expect(container).toBeEmptyDOMElement()
+})
+
+it('has no checkbox for sliders or automatic add-ons, which Create uses without one', () => {
+  const grain = { ...weightSlider, id: 'film-grain', label: 'Film Grain Slider', kind: 'automatic' as const, slider: null }
+  const model = { ...fastModel, addons: [...fastModel.addons, weightSlider, grain] }
+  const status: Loadable<ModelStatusReport> = {
+    status: 'settled',
+    value: { server_running: true, free_bytes: 50e9, models: Object.fromEntries(['tattoo', 'weight', 'film-grain'].map((id) => [id, { status: 'ready' as const, size_bytes: 0 }])) },
+  }
+  renderPanel(status, [], model)
+  expect(screen.getAllByRole('checkbox').map((box) => box.getAttribute('aria-label') ?? box.closest('label')?.textContent)).toEqual(['Tattoo'])
 })

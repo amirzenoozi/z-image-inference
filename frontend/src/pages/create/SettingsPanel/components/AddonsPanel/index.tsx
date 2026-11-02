@@ -1,5 +1,5 @@
 import { t } from '../../../../../i18n'
-import { addonLabel, withAddon } from '../../../../../lib/addons'
+import { addonLabel, optionalAddons, withAddon } from '../../../../../lib/addons'
 import type { Loadable, ModelInfo, ModelStatusReport } from '../../../../../types'
 import { Checkbox } from '../../../../../shared/form/Checkbox'
 
@@ -17,7 +17,7 @@ interface Props {
  */
 export function AddonsPanel({ model, enabled, status, onChange }: Props) {
   if (status.status !== 'settled') return null
-  const downloaded = model.addons.filter((addon) => status.value.models[addon.id]?.status === 'ready')
+  const downloaded = optionalAddons(model).filter((addon) => status.value.models[addon.id]?.status === 'ready')
   if (downloaded.length === 0) return null
   return (
     <fieldset className="flex flex-wrap gap-x-4 gap-y-2">

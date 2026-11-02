@@ -3,6 +3,7 @@
 // a flowing paragraph (prose.ts) or a weighted tag list (tags.ts), depending on the model, and shaped by the mode.
 import { t } from '../../../i18n'
 import type { ModelInfo } from '../../../types'
+import type { Strengths } from '../../lookSliders'
 import { CHOICE_OPTIONS, TEXT_CHOICES, type TextChoice } from '../choices'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../constants'
 import { CLOTHING_COLORS, LIGHTING_EXPANSIONS } from '../data'
@@ -83,6 +84,10 @@ export interface BuilderState {
   tattoos: string[]
   piercings: string[]
   bodyExtra: string
+  /** The look sliders' strengths (lib/lookSliders); a slider with a matching choice moves it, and follows it when it is picked. */
+  strengths: Strengths
+  /** With a character chosen: the sliders moved over its look for this prompt only. */
+  lookMoved: Strengths
   outfit: OutfitState
   /** The id of the builder mode (purpose), from prompt_modes.json. */
   mode: string
@@ -140,6 +145,7 @@ export function emptyBuilderState(): BuilderState {
     hairColor: NOT_SET, hairstyle: NOT_SET, hairLength: NOT_SET,
     bodyType: NOT_SET, height: NOT_SET, bust: NOT_SET, hips: NOT_SET, penis: NOT_SET, nipples: NOT_SET, pubicHair: NOT_SET,
     facialHair: NOT_SET, facialHairMore: [], muscles: NOT_SET, abs: NOT_SET, chest: NOT_SET, bodyHair: NOT_SET, bulge: NOT_SET, tattoos: [], piercings: [], bodyExtra: '',
+    strengths: {}, lookMoved: {},
     outfit: emptyOutfit(), mode: 'general', nudity: 'clothed', intimacy: [], explicitDetails: [],
     pose: NOT_SET, explicitAction: NOT_SET, action: '',
     sceneType: NOT_SET, environment: '', timeOfDay: NOT_SET, weather: NOT_SET, lightingSetup: NOT_SET, lightingMore: [], lightingCustom: '',

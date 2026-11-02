@@ -1,3 +1,4 @@
+import { lookPhrases } from '../../lookSliders'
 import { IMAGE_FILTERS, dateStampText } from '../filters'
 import type { BuilderState, OutfitState } from '../build'
 import type { ChoiceField } from '../choices'
@@ -199,7 +200,8 @@ function personFacts(state: BuilderState, mode: BuilderMode, choose: Choose) {
     makeup: chooseAll(state, mode, choose, 'makeup'),
     skinTone: choose('skinTone', state.skinTone),
     skinDetails: state.skinDetails,
-    appearanceExtra: state.appearanceExtra.trim(),
+    // The look sliders with no builder option say what they add here, with the face's own details
+    appearanceExtra: [state.appearanceExtra.trim(), ...lookPhrases(state)].filter(Boolean).join(', '),
     hair: { length: choose('hairLength', state.hairLength), color: choose('hairColor', state.hairColor), style: choose('hairstyle', state.hairstyle) },
     body: {
       type: choose('bodyType', state.bodyType),

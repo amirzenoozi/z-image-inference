@@ -10,6 +10,7 @@ import { tabClass } from '../../../lib/styles'
 import { CharacterPicker } from './components/CharacterPicker'
 import { ChatPanel } from './components/ChatPanel'
 import { AddonsPanel } from './components/AddonsPanel'
+import { LookSliders } from './components/LookSliders'
 import { ModelPicker } from './components/ModelPicker'
 import { PromptEditor } from './components/PromptEditor'
 import { ResolutionPicker } from './components/ResolutionPicker'
@@ -67,6 +68,7 @@ export function SettingsPanel(props: Props) {
           <AddonsPanel model={model} enabled={settings.addons} status={props.modelStatus} onChange={(addons) => patch({ addons })} />
         </Section>
         <PromptSection {...props} onGenerate={generate} model={model} patch={patch} addsLook={addsCharacterLook(settings, character)} />
+        <LookSliders model={model} characterId={settings.characterId} promptFormat={settings.promptFormat} moved={settings.strengths} status={props.modelStatus} onChange={(strengths) => patch({ strengths })} />
         <Section title={t('create.sectionResolution')}>
           <ResolutionPicker
             width={settings.width}

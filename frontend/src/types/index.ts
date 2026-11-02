@@ -3,7 +3,10 @@ import type { PromptSpec } from '../lib/promptBuilder/spec'
 export type Category = 'square' | 'portrait' | 'landscape' | 'widescreen'
 export type Tier = 'S' | 'M' | 'L' | 'XL'
 
-/** A LoRA switched on over its model; used only when the prompt mentions one of its keywords (lib/addons.ts). */
+/**
+ * A LoRA over its model (model_catalog.AddonKind): an optional one the user switches on and an automatic one are used when the prompt
+ * mentions one of its keywords (lib/addons); a slider is used at the strength the user sets (lib/lookSliders).
+ */
 export interface AddonInfo {
   id: string
   label: string
@@ -15,6 +18,9 @@ export interface AddonInfo {
   source_name: string
   /** It adds nudity or sex, so it is hidden while adult content is locked. */
   adult: boolean
+  kind: 'optional' | 'automatic' | 'slider'
+  /** A slider's strengths: its author's stable range. */
+  slider: { minimum: number; maximum: number; step: number } | null
 }
 
 export interface ModelInfo {
@@ -188,6 +194,8 @@ export interface HistoryItem {
   sensitive: boolean
   /** The add-ons the render used (ids from its model's add-ons); empty for none. */
   addons: string[]
+  /** The slider add-ons' strengths the render used, by add-on id. */
+  strengths: Record<string, number>
   /** The JSON prompt the text was written from, as saved (read it with parseSpec); null for a prompt written as text. */
   prompt_spec: string | null
 }
@@ -220,6 +228,8 @@ export interface CharacterTraits {
   tattoos: string[]
   piercings: string[]
   bodyExtra: string
+  /** The look sliders' saved defaults by slider add-on id (lib/lookSliders); a slider not here follows the traits above. */
+  strengths?: Record<string, number>
 }
 
 export interface Character {
@@ -308,6 +318,11 @@ export interface GenerationSettings {
   lookIncluded: number | null
   /** Add-ons switched on, for any model; only the chosen model's are sent, and each applies only when the prompt mentions it. */
   addons: string[]
+  /**
+   * The look sliders the user moved, by slider add-on id; the others follow the character (lib/lookSliders). What Generate sends
+   * (SentSettings) is instead every strength the render uses.
+   */
+  strengths: Record<string, number>
   /** 'json': `prompt` is a JSON prompt (lib/promptBuilder/spec.ts), written as text for the model when it is sent. */
   promptFormat: PromptFormat
 }
