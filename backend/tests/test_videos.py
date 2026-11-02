@@ -60,6 +60,17 @@ def python(code: str) -> list[str]:
     return [sys.executable, "-c", code]
 
 
+def test_every_clip_is_made_without_a_sound_track(tmp_path: Path) -> None:
+    command = video_engine.engine_command(tmp_path / "start.png", tmp_path / "clip.mp4", "subtle movement", 49, 512, 288, 1)
+    assert "--no-audio" in command
+
+
+def test_the_engine_reports_decoding_a_silent_clip(tmp_path: Path) -> None:
+    decoding: list[bool] = []
+    video_engine.run_engine(python("print('[Decoding video (--no-audio)] ...', flush=True)"), tmp_path, lambda: False, lambda: decoding.append(True))
+    assert decoding == [True]
+
+
 def test_the_engine_reports_when_it_starts_decoding_and_finishes(tmp_path: Path) -> None:
     decoding: list[bool] = []
     video_engine.run_engine(python("print('[Decoding video + audio + muxing] ...', flush=True)"), tmp_path, lambda: False, lambda: decoding.append(True))

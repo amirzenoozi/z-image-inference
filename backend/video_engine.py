@@ -74,6 +74,8 @@ def engine_command(image: Path, output: Path, prompt: str, frames: int, width: i
         "--prompt", prompt, "--image", str(image), "0", "1.0", "--distilled",
         "-f", str(frames), "--frame-rate", str(VIDEO_MODEL.frame_rate), "-H", str(height), "-W", str(width),
         "--seed", str(seed), "--model", str(WEIGHTS_PATH), "-o", str(output),
+        # Clips are silent: the engine skips the sound and writes no audio track
+        "--no-audio",
     ]
 
 
