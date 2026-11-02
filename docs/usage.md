@@ -294,7 +294,7 @@ Z-Image-Turbo, WAI-Illustrious, Anime Desire, RealVisXL and FLUX.1-dev can make 
 
 **Make video** in the image viewer animates the image into a short clip with [LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) (distilled, 4-bit), running on the Mac.
 
-- Write what should move (it starts as "subtle, natural movement"), choose **2 s** or **4 s**, and **Generate video**. The clip keeps the image's shape, with its longer side at 512 px.
+- Write what should move (it starts as "subtle, natural movement"), choose **2 s** or **4 s**, and **Generate video**. The clip keeps the image's shape, with its longer side at 512 px. Clips have no sound: the engine is told to skip it (`--no-audio`), which also saves a little time.
 - The first time, download the video model there (about 29 GB, once). It needs git and ffmpeg on the Mac, and says so if one is missing.
 - On this Mac (M5, 24 GB) a 2 s clip takes about 75 seconds and a 4 s clip about 2 minutes. Images and videos take turns on the model server, so a new image waits for a video to finish, and the other way round.
 - While it renders, the **Videos** strip under the image's facts shows its progress and a **Cancel**. Closing the viewer does not stop it; the video appears when the image is opened again.
