@@ -44,6 +44,8 @@
   "needsCivitaiToken": "{label} é baixado do Civitai, que precisa de uma chave de API: crie uma em Account settings → API Keys em civitai.com, adicione CIVITAI_TOKEN=<sua chave> ao .env e reinicie o servidor de modelos.",
   "unknownAddon": "{label} não tem nenhum complemento chamado {addon}.",
   "addonTwice": "Cada complemento só pode ser ativado uma vez.",
+  "strengthRange": "{addon} deve estar entre {minimum} e {maximum}.",
+  "characterStrength": "{addon} não é um controlo de aspeto, ou o valor está fora do intervalo.",
   "videoLength": "Um vídeo pode ter {lengths} segundos.",
   "videoSize": "Os lados de um vídeo devem ser múltiplos de 64, até {max} pixels.",
   "videoNeedsTools": "Os vídeos precisam de {tools} neste Mac. Instale-os com o Homebrew (brew install {tools}) e tente de novo.",
