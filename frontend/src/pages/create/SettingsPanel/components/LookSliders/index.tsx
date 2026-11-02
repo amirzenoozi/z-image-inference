@@ -32,11 +32,6 @@ export function LookSliders({ model, characterId, promptFormat, moved, status, o
   const sliders = sliderAddons(model).filter((addon) => status.value.models[addon.id]?.status === 'ready')
   if (sliders.length === 0) return null
   const anyMoved = Object.keys(moved).length > 0
-  const reset = (
-    <button type="button" onClick={() => onChange({})} disabled={!anyMoved} className="text-xs text-violet-600 hover:text-violet-500 disabled:text-zinc-400 dark:text-violet-400">
-      {t('create.lookReset')}
-    </button>
-  )
   // The defaults come from the character, so they can't be shown until the list has loaded
   if (characterId !== null && characters.status !== 'settled') {
     return (
@@ -48,6 +43,8 @@ export function LookSliders({ model, characterId, promptFormat, moved, status, o
   const character = characters.status === 'settled' ? (characters.value.find((each) => each.id === characterId) ?? null) : null
   // The look the sliders show: the character's with the moved ones over it, which also changes the options they match
   const strengthOf = (addonId: string) => (character ? lookStrength(addonId, lookWithMoved(character, model, moved).traits) : (moved[addonId] ?? 0))
+  const defaultOf = (addonId: string) => (character ? lookStrength(addonId, character.traits) : 0)
+  const unmove = (addonId: string) => Object.fromEntries(Object.entries(moved).filter(([id]) => id !== addonId))
   const save = async (target: Character) => {
     setSaveState('saving')
     try {
@@ -60,10 +57,16 @@ export function LookSliders({ model, characterId, promptFormat, moved, status, o
     }
   }
   return (
-    <Section title={t('create.sectionLook')} aside={reset}>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">{t(character ? 'create.lookHintCharacter' : 'create.lookHint', { name: character?.name ?? '' })}</p>
+    <Section title={t('create.sectionLook')}>
       {sliders.map((addon) => (
-        <LookSliderField key={addon.id} addon={addon} value={strengthOf(addon.id)} onChange={(value) => onChange({ ...moved, [addon.id]: value })} />
+        <LookSliderField
+          key={addon.id}
+          addon={addon}
+          value={strengthOf(addon.id)}
+          defaultValue={defaultOf(addon.id)}
+          onChange={(value) => onChange({ ...moved, [addon.id]: value })}
+          onReset={() => onChange(unmove(addon.id))}
+        />
       ))}
       {character && <SaveDefaults character={character} disabled={!anyMoved || saveState === 'saving'} onSave={() => void save(character)} />}
       {saveState === 'failed' && character && <ErrorNotice message={t('create.lookSaveFailed')} onRetry={() => void save(character)} />}

@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expect, it, vi } from 'vitest'
 import { emptyBuilderState, type BuilderState } from '../../../lib/promptBuilder/build'
 import { parseModes } from '../../../lib/promptBuilder/modes'
-import { builderModes, weightSlider } from '../../../test/fixtures'
+import { builderModes, character, weightSlider } from '../../../test/fixtures'
 import { chooseOption } from '../../../test/select'
 import { LookSlidersContext } from '../../lookSliders/LookSlidersContext'
 import { BodyStep, CharacterLookSliders } from '.'
@@ -57,9 +58,17 @@ it('with a character, moves a slider for this prompt only', () => {
   const look = { ...emptyBuilderState(), bodyType: 'slim build' }
   render(
     <LookSlidersContext.Provider value={[weightSlider]}>
-      <CharacterLookSliders state={look} set={set} />
+      <CharacterLookSliders state={look} set={set} character={character({ traits: { ...character().traits, bodyType: 'slim build' } })} />
     </LookSlidersContext.Provider>,
   )
   fireEvent.change(screen.getByRole('slider', { name: 'Weight slider' }), { target: { value: '3' } })
   expect(set).toHaveBeenCalledExactlyOnceWith({ lookMoved: { weight: 3 } })
+})
+
+it('resets a moved slider back to what its choice says', async () => {
+  const onState = renderBody()
+  fireEvent.change(screen.getByRole('slider', { name: 'Weight slider' }), { target: { value: '-4' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Reset Weight' }))
+  expect(onState).toHaveBeenLastCalledWith(expect.objectContaining({ bodyType: 'slim build', strengths: {} }))
+  expect(screen.getByRole('slider', { name: 'Weight slider' })).toHaveValue('-2')
 })
