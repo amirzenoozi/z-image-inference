@@ -18,7 +18,7 @@
 [![Español](https://img.shields.io/badge/🇪🇸-Español-lightgrey)](docs/usage.md#language)
 [![Português](https://img.shields.io/badge/🇧🇷-Português-lightgrey)](docs/usage.md#language)
 
-![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](docs/images/create.png)
+![Z-Image Studio: generate images locally on your Mac, with a fanned stack of sample renders made by the app with Z-Image-Turbo](docs/images/banner.jpg)
 
 > Generate images locally on your Mac with Z-Image-Turbo, RealVisXL, two SDXL anime models and MOSS-Image, from a clean web interface, in seven languages. Nothing leaves your machine (unless you turn on the optional Grok chat).
 
@@ -33,6 +33,10 @@ Z-Image Inference runs image generation models natively on Apple Silicon (MLX an
 | [RealVisXL V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) (SDXL) | Photorealistic people, and keeping a character's face in photo style |
 
 Only Z-Image-Turbo downloads by itself; you add or remove the others from the app.
+
+## Screenshot
+
+![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](docs/images/create.png)
 
 ## Highlights
 
