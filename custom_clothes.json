@@ -229,5 +229,27 @@
     "group": "Costumes",
     "for": "woman",
     "adult": true
+  },
+  {
+    "value": "Cat burglar catsuit costume",
+    "title": "Costume - Catwoman",
+    "prompt": "skin-tight black patent-leather catsuit costume with a high collar and a silver front zip pulled down to the chest, fine quilted seams curving over the hips and thighs, black gloves tipped with small silver claws, thigh-high stiletto boots and a slim silver-buckled belt",
+    "tags": "black leather catsuit, front zip, claw gloves, thigh-high stiletto boots, cat burglar costume",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": false
+  },
+  {
+    "value": "Cat burglar corset costume",
+    "title": "Costume - Catwoman Spicy",
+    "prompt": "black patent-leather cat burglar costume of an underbust corset laced at the back with a zipped half-cup bustier lined at the bust, a high-waisted cheeky brief lined at the groin, a buckled leather collar with a small silver bell and straps running down to a waist belt, garter straps clipped to thigh-high stiletto boots, claw-tipped gloves, a coiled whip hooked at the hip and a long black leather tail falling from the back of the brief",
+    "tags": "black leather corset, zip bustier, cheeky brief, bell collar, harness, garter boots, claw gloves, whip, cat tail",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": true
   }
 ]
