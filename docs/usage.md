@@ -301,6 +301,15 @@ Z-Image-Turbo, WAI-Illustrious, Anime Desire, RealVisXL and FLUX.1-dev can make 
 - Videos are kept in `history.db`, linked to their image, not as images: they don't appear in History's list. Each image's videos are in its viewer, newest first. Tap one to play it in place of the image, with **Back to the image**, **Download** (MP4) and **Delete**. Deleting the image deletes its videos.
 - A video is blurred in the strip when its image or its prompt is sensitive. For a character with an uploaded face photo, the same safe-for-work rules apply as for images: a sensitive prompt is refused, and a frame from the middle of the clip is checked.
 
+## Look sliders
+
+With Z-Image-Turbo and any of its slider add-ons downloaded (Weight, Muscle tone, Skin tone, Hair length, Hair volume, Natural look), the look sliders appear in three places, all the same slider: Create's **Look** section under the prompt, the prompt builder's **Face & hair** and **Body** steps (and its **Character** step when a character is chosen), and the character dialog. Each shows its strength, a tick for every step, and its lowest and highest strength at either end.
+
+- **Linked to the choices**: Weight follows Body type, Muscle tone follows Muscles, Skin tone follows Skin tone and Hair length follows Hair length. Moving a slider picks the nearest option, so the prompt says what the LoRA makes, and picking an option moves the slider to that option's strength (Mei's slim build puts Weight at -2, her long hair Hair length at 2, her light skin Skin tone at -2). Hair volume and Natural look have no option: far from 0 they add a short phrase ("big voluminous hair", "a natural look with minimal makeup and real skin texture"). A slider at 0 leaves its LoRA out.
+- **Create's Look section** is for typed prompts. With a character chosen, the sliders start at its look, and moving one changes the next renders only: the character's look written in front of the prompt follows it. **Reset** goes back to the character's look, as picking another character does. **Save as <name>'s default** stores the moved sliders, and the options they picked, on the character. Without a character only the LoRA applies, since free text can't be rewritten safely. The section is hidden for a prompt from the prompt builder, which has its own sliders.
+- **The prompt builder** keeps its sliders in the JSON prompt (`look`), so reopening it, or reusing an image, brings them back. With a character chosen, the sliders in its Character step start at the character's look and change this prompt only.
+- **The character dialog** sets the character's own look, sliders included.
+
 ## Characters
 
 A **character** is a named person you make many images of, such as "Ava". It keeps the prompt builder's **Subject**, **Face & hair** and **Body** choices (who, age, ethnicity, eyes, skin, hair, facial hair, makeup, body, muscles, stomach, chest, tattoos and piercings), but not the outfit, pose or scene, so the same person can go anywhere. Pubic hair, penis size, nipples, body hair and a bulge are not part of a character either: they are chosen for each image.
