@@ -263,16 +263,17 @@ Z_IMAGE_CIVITAI_ADDONS = (
     civitai_addon("squirt-queen", "PornMaster Squirt Queen Z-image", "Squirting.", 2186843, 2462300, 2350841, 0.17, "", ("squirt", "squirting", "squirts"), scale=0.8, adult=True),
 )
 
-# Used without a checkbox whenever the prompt mentions what they add, at their authors' recommended strength
+# Used without a checkbox whenever the prompt mentions what they add, at their authors' recommended strength. Their words name only
+# what they add: "overhead" or "hazy" also describe light, and "grain" wood, so those would switch them on wrongly
 Z_IMAGE_AUTOMATIC_ADDONS = (
     automatic_addon("film-grain", "Film Grain Slider", "Film grain and a retro look.", 2642226, 2966821, 2846283, 0.01, "",
-                    ("film grain", "grain", "grainy"), scale=4.0),
+                    ("film grain", "grainy"), scale=4.0),
     automatic_addon("side-view", "Side View Slider", "A true side view.", 2609445, 2930017, 2808904, 0.04, "",
                     ("side view", "in profile", "profile view", "from the side"), scale=7.0),
     automatic_addon("from-above", "From Above Slider", "A camera angle from above.", 2591273, 2910951, 2788937, 0.01, "",
-                    ("from above", "high angle", "overhead", "bird's-eye"), scale=5.0),
+                    ("from above", "high angle", "bird's-eye"), scale=5.0),
     automatic_addon("fog-smoke", "Fog & Smoke Slider", "Fog, smoke, mist and haze.", 2713189, 3048172, 2926899, 0.01, "",
-                    ("fog", "foggy", "smoke", "smoky", "mist", "misty", "haze", "hazy"), scale=5.0),
+                    ("fog", "foggy", "smoke", "smoky", "mist", "misty"), scale=5.0),
     automatic_addon("portrait-lighting", "Cinematic Portrait Lighting", "Cinematic studio light on the subject.", 2595570, 2975453, 2855131, 0.16, "velatrix",
                     ("cinematic lighting", "studio lighting", "rim light", "rim lighting"), scale=0.8),
     automatic_addon("dark-light", "Dark Side of Light", "Low-key light with deep shadows.", 1032948, 2729875, 2615911, 0.16, "AuroLight art style",

@@ -61,10 +61,10 @@ Automatic add-ons, all for Z-Image-Turbo:
 
 | Add-on | Used when the prompt mentions | Strength | Trigger |
 |--------|------------------------------|----------|---------|
-| [Film Grain Slider](https://civitai.com/models/2642226) | film grain, grain, grainy | 4 | none |
+| [Film Grain Slider](https://civitai.com/models/2642226) | film grain, grainy | 4 | none |
 | [Side View Slider](https://civitai.com/models/2609445) | side view, in profile, profile view, from the side | 7 | none |
-| [From Above Slider](https://civitai.com/models/2591273) | from above, high angle, overhead, bird's-eye | 5 | none |
-| [Fog & Smoke Slider](https://civitai.com/models/2713189) | fog, foggy, smoke, smoky, mist, misty, haze, hazy | 5 | none |
+| [From Above Slider](https://civitai.com/models/2591273) | from above, high angle, bird's-eye | 5 | none |
+| [Fog & Smoke Slider](https://civitai.com/models/2713189) | fog, foggy, smoke, smoky, mist, misty | 5 | none |
 | [Cinematic Portrait Lighting](https://civitai.com/models/2595570) | cinematic lighting, studio lighting, rim light, rim lighting | 0.8 | `velatrix` |
 | [Dark Side of Light](https://civitai.com/models/1032948) | low-key, low key, chiaroscuro, dramatic shadows | 0.75 | `AuroLight art style` |
 

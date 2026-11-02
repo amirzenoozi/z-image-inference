@@ -151,6 +151,11 @@ def test_an_automatic_addon_is_used_without_a_checkbox_when_the_prompt_mentions_
     assert renders[0][1].lora_strengths == (ADDONS["film-grain"].scale, ADDONS["fog-smoke"].scale)
 
 
+@pytest.mark.parametrize("prompt", ["harsh overhead gym lighting", "hazy sunlight through the window", "a wood grain table"])
+def test_an_automatic_addon_is_not_switched_on_by_words_about_something_else(renders: list[tuple[tuple[object, ...], object]], prompt: str) -> None:
+    assert render(prompt, [])["addons"] == []
+
+
 def test_an_automatic_addon_not_downloaded_is_left_out(renders: list[tuple[tuple[object, ...], object]], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(model_server, "model_status", lambda model_id: "missing" if model_id == "fog-smoke" else "ready")
     assert render("a foggy street", [])["addons"] == []
