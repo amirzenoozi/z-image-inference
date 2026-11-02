@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from image_codec import encode_for_storage, is_webp, to_png
 from model_catalog import DEFAULT_MODEL, MODELS_NOW_ADDONS
@@ -13,7 +13,7 @@ from resolutions import CATEGORY_CONDITIONS, Category
 from sensitive import is_sensitive
 
 DB_PATH = PROJECT_DIR / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec, strengths"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -42,6 +42,8 @@ ADDED_COLUMNS: dict[str, str] = {
     "addons": "TEXT NOT NULL DEFAULT ''",
     # The JSON prompt the text was written from (prompt_spec.py); NULL for a prompt written as text
     "prompt_spec": "TEXT",
+    # The slider add-ons' strengths, as a JSON object by add-on id; empty for none
+    "strengths": "TEXT NOT NULL DEFAULT '{}'",
 }
 # Character columns added after characters were first released
 ADDED_CHARACTER_COLUMNS: dict[str, str] = {
@@ -75,8 +77,9 @@ class HistoryItem:
     sensitive: bool
     addons: list[str]
     prompt_spec: str | None
+    strengths: dict[str, float]
 
-    def to_dict(self) -> dict[str, str | int | float | list[str] | None]:
+    def to_dict(self) -> dict[str, str | int | float | list[str] | dict[str, float] | None]:
         return asdict(self)
 
 
@@ -160,6 +163,8 @@ class NewImage:
     addons: tuple[str, ...] = ()
     # The JSON prompt the text was written from, as JSON text
     prompt_spec: str | None = None
+    # The slider add-ons' strengths; an edited copy keeps its original's
+    strengths: dict[str, float] = field(default_factory=dict)
 
 
 @contextmanager
@@ -223,16 +228,16 @@ def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str,
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
 
-Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int, str, str | None]
+Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int, str, str | None, str]
 
 
 def to_item(row: Row) -> HistoryItem:
     id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
-    edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec = links
+    edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec, strengths = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
         edited_from, varied_from, change, character_id, face_from, bool(sensitive), [addon for addon in addons.split(",") if addon],
-        prompt_spec,
+        prompt_spec, json.loads(strengths),
     )
 
 
@@ -240,12 +245,12 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons, prompt_spec)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons, prompt_spec, strengths)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (encode_for_storage(image.png), image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
              image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive),
-             int(image.image_checked), ",".join(image.addons), image.prompt_spec),
+             int(image.image_checked), ",".join(image.addons), image.prompt_spec, json.dumps(image.strengths)),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)

@@ -664,6 +664,23 @@ def test_models_and_their_addons_link_to_their_pages(client: TestClient) -> None
     assert models["wai-illustrious"]["addons"] == []
 
 
+def test_the_catalog_says_how_each_addon_is_used(client: TestClient) -> None:
+    addons = {addon["id"]: addon for addon in client.get("/api/catalog").json()["models"][0]["addons"]}
+    assert (addons["tattoo"]["kind"], addons["tattoo"]["slider"]) == ("optional", None)
+    assert addons["film-grain"]["kind"] == "automatic"
+    assert (addons["weight"]["kind"], addons["weight"]["slider"]) == ("slider", {"minimum": -10, "maximum": 10, "step": 1})
+
+
+def test_history_records_the_slider_strengths_a_render_used(client: TestClient, model_server: FakeModelServer) -> None:
+    model_server.body = {
+        "image_base64": base64.b64encode(png_bytes()).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0,
+        "addons": ["weight"], "strengths": {"weight": -3.5},
+    }
+    item = generate(client, prompt="a woman", strengths={"weight": -3.5}).json()
+    assert (item["addons"], item["strengths"]) == (["weight"], {"weight": -3.5})
+    assert model_server.calls[-1]["strengths"] == {"weight": -3.5}
+
+
 def test_history_records_the_addons_a_render_used_and_an_edited_copy_keeps_them(client: TestClient, model_server: FakeModelServer) -> None:
     model_server.body = {"image_base64": base64.b64encode(png_bytes()).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0, "addons": ["tattoo"]}
     item = generate(client, prompt="a tattooed man", addons=["tattoo"]).json()
