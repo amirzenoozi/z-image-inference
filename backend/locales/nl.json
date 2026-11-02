@@ -44,6 +44,8 @@
   "needsCivitaiToken": "{label} komt van Civitai, waarvoor een API-sleutel nodig is: maak er een aan onder Account settings → API Keys op civitai.com, zet CIVITAI_TOKEN=<je sleutel> in .env en start de modelserver opnieuw.",
   "unknownAddon": "{label} heeft geen add-on met de naam {addon}.",
   "addonTwice": "Elke add-on kan maar één keer aangezet worden.",
+  "strengthRange": "{addon} moet tussen {minimum} en {maximum} liggen.",
+  "characterStrength": "{addon} is geen uiterlijk-schuifje, of de waarde valt buiten het bereik.",
   "videoLength": "Een video kan {lengths} seconden duren.",
   "videoSize": "De zijden van een video moeten veelvouden van 64 zijn, tot {max} pixels.",
   "videoNeedsTools": "Video’s hebben {tools} op deze Mac nodig. Installeer ze met Homebrew (brew install {tools}) en probeer het opnieuw.",
