@@ -5,12 +5,8 @@ import { deleteHistoryItem, downloadUrl, fetchHistory, imageUrl } from '../../..
 import { errorMessage } from '../../../../../lib/hooks'
 import { useSwipe } from '../../../../../lib/swipe'
 import { secondaryButtonClass } from '../../../../../lib/styles'
-import type { HistoryFilters, HistoryItem, Loadable, VideoItem, VideoModelInfo } from '../../../../../types'
+import type { HistoryFilters, HistoryItem, Loadable } from '../../../../../types'
 import { ColourPalette } from './components/ColourPalette'
-import { MakeVideoDialog } from './components/MakeVideoDialog'
-import { useImageVideos } from './useImageVideos'
-import { VideoPlayer } from './components/VideoPlayer'
-import { VideoStrip } from './components/VideoStrip'
 import { EditSession } from './components/EditSession'
 import { FavouriteButton } from '../../../FavouriteButton'
 import { ImageCharacter } from './components/ImageCharacter'
@@ -19,7 +15,7 @@ import { ImageFacts } from '../../../../../shared/images/ImageFacts'
 import { Modal } from '../../../../../shared/ui/Modal'
 import { ErrorNotice, PromptBlock, Spinner } from '../../../../../shared/ui/ui'
 import { useAdultContent } from '../../../../../lib/adultContent'
-import { ChevronLeft, ChevronRight, Clapperboard, Download, Maximize, Minimize, Pencil, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, Pencil, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 
 /** The image the viewer opens on, and its position among all images matching the filters. */
 export interface ViewerStart {
@@ -32,8 +28,6 @@ interface Props {
   filters: HistoryFilters
   start: ViewerStart
   labelOf: (id: string) => string
-  /** The model Make video uses. */
-  video: VideoModelInfo
   /** Called when the viewer moves, so History can show the page it is on. */
   onIndexChange: (index: number) => void
   /** Called after a star or delete, so History reloads what it shows. */
@@ -152,7 +146,7 @@ function useArmedDelete(onConfirmed: () => void): [boolean, () => void] {
   return [armed, press]
 }
 
-export function HistoryViewer({ filters, start, labelOf, video, onIndexChange, onListChanged, onReuse, onVary, onEdited, onClose }: Props) {
+export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListChanged, onReuse, onVary, onEdited, onClose }: Props) {
   const [index, setIndex] = useState(start.index)
   const image = useImageAt(filters, index, start)
   const area = useRef<HTMLDivElement>(null)
@@ -212,11 +206,6 @@ export function HistoryViewer({ filters, start, labelOf, video, onIndexChange, o
   )
 
   const item = image.state.status === 'settled' ? image.state.value : null
-  const [playing, setPlaying] = useState<VideoItem | null>(null)
-  const [makingVideo, setMakingVideo] = useState(false)
-  const videos = useImageVideos(item?.id ?? null, setPlaying)
-  // A clip plays in place of its own image only; moving to another image shows that image
-  const playingNow = playing !== null && playing.image_id === item?.id ? playing : null
   const remove = async (target: HistoryItem) => {
     setDeleteState({ status: 'deleting' })
     try {
@@ -234,7 +223,7 @@ export function HistoryViewer({ filters, start, labelOf, video, onIndexChange, o
     if (index < image.total - 1) moveTo(index + 1)
   }
   // A zoomed image is dragged to look around, so swiping only moves between images when it fits
-  const swipe = useSwipe(previous, next, !zoomed && playingNow === null)
+  const swipe = useSwipe(previous, next, !zoomed)
   return (
     <Modal title={editing ? t('history.editImage') : t('history.imageDetails')} onClose={requestClose} size="full">
       <div className="grid gap-5 lg:h-full lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -254,39 +243,31 @@ export function HistoryViewer({ filters, start, labelOf, video, onIndexChange, o
               {...swipe}
               className={`relative flex touch-pan-y items-center justify-center overflow-hidden ${fullScreen.active ? 'h-screen bg-black' : 'h-[55dvh] rounded-xl bg-zinc-100 sm:h-[60vh] lg:h-full dark:bg-zinc-800'}`}
             >
-              {playingNow ? (
-                <VideoPlayer video={playingNow} onBack={() => setPlaying(null)} onDeleted={() => { setPlaying(null); videos.reload() }} />
-              ) : (
-                <ImageArea state={image.state} zoomed={zoomed} onZoomedChange={setZoomed} onRetry={image.retry} />
-              )}
-              {!playingNow && (
-                <>
-                  <p className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white tabular-nums">
-                    {t('history.position', { index: index + 1, total: image.total })}
-                  </p>
-                  <div className="absolute top-3 right-3 flex max-w-[calc(100%-5.5rem)] flex-wrap justify-end gap-2">
-                    {item && (
-                      <ImageTools
-                        item={item}
-                        deleting={deleteState.status === 'deleting'}
-                        deleteButton={deleteButton}
-                        onDelete={() => void remove(item)}
-                        onEdit={() => setEditing(true)}
-                      />
-                    )}
-                    <OverlayButton label={zoomed ? t('history.fitToWindow') : t('history.zoomFull')} onClick={() => setZoomed(!zoomed)} disabled={!item}>
-                      {zoomed ? <ZoomOut /> : <ZoomIn />}
-                    </OverlayButton>
-                    <OverlayButton label={fullScreen.active ? t('history.leaveFullScreen') : t('history.fullScreen')} shortcut="Z" onClick={fullScreen.toggle}>
-                      {fullScreen.active ? <Minimize /> : <Maximize />}
-                    </OverlayButton>
-                    {item && <SensitiveButton item={item} onChanged={changed} onFailed={setMarkError} className={overlayClass} />}
-                    {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setMarkError} />}
-                  </div>
-                  <SideButton side="previous" disabled={index === 0} onClick={() => moveTo(index - 1)} />
-                  <SideButton side="next" disabled={index >= image.total - 1} onClick={() => moveTo(index + 1)} />
-                </>
-              )}
+              <ImageArea state={image.state} zoomed={zoomed} onZoomedChange={setZoomed} onRetry={image.retry} />
+              <p className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white tabular-nums">
+                {t('history.position', { index: index + 1, total: image.total })}
+              </p>
+              <div className="absolute top-3 right-3 flex max-w-[calc(100%-5.5rem)] flex-wrap justify-end gap-2">
+                {item && (
+                  <ImageTools
+                    item={item}
+                    deleting={deleteState.status === 'deleting'}
+                    deleteButton={deleteButton}
+                    onDelete={() => void remove(item)}
+                    onEdit={() => setEditing(true)}
+                  />
+                )}
+                <OverlayButton label={zoomed ? t('history.fitToWindow') : t('history.zoomFull')} onClick={() => setZoomed(!zoomed)} disabled={!item}>
+                  {zoomed ? <ZoomOut /> : <ZoomIn />}
+                </OverlayButton>
+                <OverlayButton label={fullScreen.active ? t('history.leaveFullScreen') : t('history.fullScreen')} shortcut="Z" onClick={fullScreen.toggle}>
+                  {fullScreen.active ? <Minimize /> : <Maximize />}
+                </OverlayButton>
+                {item && <SensitiveButton item={item} onChanged={changed} onFailed={setMarkError} className={overlayClass} />}
+                {item && <FavouriteButton ref={favouriteButton} item={item} shortcut="F" onChanged={changed} onFailed={setMarkError} />}
+              </div>
+              <SideButton side="previous" disabled={index === 0} onClick={() => moveTo(index - 1)} />
+              <SideButton side="next" disabled={index >= image.total - 1} onClick={() => moveTo(index + 1)} />
             </div>
             {item && (
               <ViewerDetails
@@ -295,13 +276,11 @@ export function HistoryViewer({ filters, start, labelOf, video, onIndexChange, o
                 markError={markError}
                 deleteError={deleteState.status === 'failed' ? deleteState.error : null}
                 armed={armed}
-                videos={<VideoStrip {...videos} playingId={playingNow?.id ?? null} onPlay={setPlaying} />}
                 actions={
-                  <ViewerActions onMakeVideo={() => setMakingVideo(true)} onVary={() => onVary(item)} onReuse={() => onReuse(item)} />
+                  <ViewerActions onVary={() => onVary(item)} onReuse={() => onReuse(item)} />
                 }
               />
             )}
-            {makingVideo && <MakeVideoDialog video={video} onMake={videos.make} onClose={() => setMakingVideo(false)} />}
           </>
         )}
       </div>
@@ -450,18 +429,15 @@ interface DetailsProps {
   markError: string | null
   deleteError: string | null
   armed: boolean
-  /** The image's videos, under its facts. */
-  videos: ReactNode
   actions: ReactNode
 }
 
 /** The metadata column beside the image; its actions sit at the bottom of the column, under a divider. */
-function ViewerDetails({ item, label, markError, deleteError, armed, videos, actions }: DetailsProps) {
+function ViewerDetails({ item, label, markError, deleteError, armed, actions }: DetailsProps) {
   return (
     <div className="flex min-h-0 flex-col gap-4 text-sm lg:h-full">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <ImageFacts item={item} label={label} />
-        {videos}
         <ImageCharacter item={item} />
         <ColourPalette itemId={item.id} />
         <PromptBlock title={t('common.prompt')} text={item.prompt} />
@@ -488,12 +464,9 @@ function ViewerDetails({ item, label, markError, deleteError, armed, videos, act
   )
 }
 
-function ViewerActions({ onMakeVideo, onVary, onReuse }: { onMakeVideo: () => void; onVary: () => void; onReuse: () => void }) {
+function ViewerActions({ onVary, onReuse }: { onVary: () => void; onReuse: () => void }) {
   return (
     <>
-      <button type="button" onClick={onMakeVideo} className={`${secondaryButtonClass} inline-flex items-center gap-1.5`}>
-        <Clapperboard className="size-4" /> {t('history.makeVideo')}
-      </button>
       <button type="button" onClick={onVary} className={secondaryButtonClass}>
         {t('history.makeVariations')}
       </button>

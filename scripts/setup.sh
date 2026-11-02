@@ -20,8 +20,8 @@ node_major="$(node -p 'process.versions.node.split(".")[0]')"
 [ "$node_major" -ge "$MIN_NODE_MAJOR" ] || fail "Node.js ${MIN_NODE_MAJOR} or newer is needed (found $(node -v)). Update it with: brew upgrade node"
 echo "Apple Silicon, Homebrew, git, uv and Node.js $(node -v): all there."
 
-step "Installing ffmpeg (videos) and gitleaks (secret check) if missing"
-for tool in ffmpeg gitleaks; do
+step "Installing gitleaks (secret check) if missing"
+for tool in gitleaks; do
   if command -v "$tool" >/dev/null; then echo "$tool: already installed"; else brew install "$tool"; fi
 done
 

@@ -43,11 +43,10 @@ from safetensors.torch import load_file, save_file
 from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from generation_request import MAX_SEED, GenerateRequest, VideoRequest
+from generation_request import MAX_SEED, GenerateRequest
 from i18n import t
 from prompt_weights import a1111_to_compel
-import video_engine
-from model_catalog import ADDONS, ANIME_DESIRE, DEFAULT_MODEL, FLUX_DEV, MODELS, VIDEO_MODEL, AddonSpec, VideoModelSpec, Source, addon_strength, applied_addons, with_trigger_words, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
+from model_catalog import ADDONS, ANIME_DESIRE, DEFAULT_MODEL, FLUX_DEV, MODELS, AddonSpec, Source, addon_strength, applied_addons, with_trigger_words, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 from paths import MODELS_DIR
 
@@ -92,8 +91,8 @@ FLUX_DEV_FILES = ["model_index.json", "scheduler/*", "text_encoder/*", "text_enc
 
 
 # Everything that can be downloaded and removed: models and the add-ons that go over them
-Downloadable = ModelSpec | AddonSpec | VideoModelSpec
-ENTRIES: dict[str, Downloadable] = {**MODELS, **ADDONS, VIDEO_MODEL.id: VIDEO_MODEL}
+Downloadable = ModelSpec | AddonSpec
+ENTRIES: dict[str, Downloadable] = {**MODELS, **ADDONS}
 
 
 def lora_path(addon: AddonSpec) -> Path:
@@ -725,13 +724,6 @@ def download_addon(spec: AddonSpec) -> None:
         ensure_downloaded(spec.repo_id, lora_path(spec), [spec.lora_file])
 
 
-def download_video_model() -> None:
-    """The engine and its environment, the text encoder, then the weights, whose marker means everything is there."""
-    video_engine.install_engine()
-    snapshot_download(VIDEO_MODEL.text_encoder_repo, cache_dir=HF_CACHE_DIR)
-    ensure_downloaded(VIDEO_MODEL.weights_repo, video_engine.WEIGHTS_PATH, list(VIDEO_MODEL.weights_files))
-
-
 DOWNLOADERS: dict[str, Callable[[], None]] = {
     Z_IMAGE.id: download_z_image,
     WAI_ILLUSTRIOUS.id: download_wai_illustrious,
@@ -740,7 +732,6 @@ DOWNLOADERS: dict[str, Callable[[], None]] = {
     REALVIS_XL.id: download_realvis_xl,
     FLUX_DEV.id: download_flux_dev,
     **{addon.id: (lambda addon=addon: download_addon(addon)) for addon in ADDONS.values()},
-    VIDEO_MODEL.id: download_video_model,
 }
 GB = 1_000_000_000
 
@@ -756,10 +747,6 @@ MODEL_FOLDERS: dict[str, list[Path]] = {
     FLUX_DEV.id: [FLUX_DEV_PATH, FLUX_Q4_PATH, MODELS_DIR / f"{FLUX_Q4_PATH.name}.building"],
     # A LoRA model removes only its LoRA; the base stays for the others
     **{addon.id: [lora_path(addon)] for addon in ADDONS.values()},
-    VIDEO_MODEL.id: [
-        video_engine.ENGINE_PATH, video_engine.ENGINE_PATH.with_name(f"{video_engine.ENGINE_PATH.name}.building"), video_engine.WEIGHTS_PATH,
-        HF_CACHE_DIR / f"models--{VIDEO_MODEL.text_encoder_repo.replace('/', '--')}",
-    ],
 }
 
 DOWNLOAD_PATHS: dict[str, Path] = {
@@ -770,7 +757,6 @@ DOWNLOAD_PATHS: dict[str, Path] = {
     REALVIS_XL.id: REALVIS_XL_PATH,
     FLUX_DEV.id: FLUX_DEV_PATH,
     **{addon.id: lora_path(addon) for addon in ADDONS.values()},
-    VIDEO_MODEL.id: video_engine.WEIGHTS_PATH,
 }
 
 ModelStatus = Literal["ready", "queued", "downloading", "missing", "failed"]
@@ -875,15 +861,7 @@ def download_problem(model_id: str) -> str | None:
         return t("needsHfToken", label=FLUX_DEV.label)
     if source_of(spec) == "civitai" and not os.environ.get("CIVITAI_TOKEN", "").strip():
         return t("needsCivitaiToken", label=spec.label)
-    if model_id == VIDEO_MODEL.id:
-        return video_tools_problem()
     return None
-
-
-def video_tools_problem() -> str | None:
-    """The video engine is installed with git and uv and writes its clips with ffmpeg, all installed on the Mac."""
-    missing = video_engine.missing_tools()
-    return t("videoNeedsTools", tools=", ".join(missing)) if missing else None
 
 
 loaded_model_id: str | None = None
@@ -983,58 +961,6 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         image_base64=base64.b64encode(rendered.png).decode("utf-8"), seed=job.seed, model=req.model, seconds=round(rendered.seconds, 1),
         addons=[addon.id for addon in addons],
         strengths={addon.id: req.strengths[addon.id] for addon in addons if addon.kind == "slider"},
-    )
-
-
-class VideoResponse(BaseModel):
-    video_base64: str
-    # The first frame, and one from the middle, as PNG
-    poster_base64: str
-    middle_base64: str
-    seed: int
-    # Rendering only, as for images
-    seconds: float
-
-
-def render_video(req: VideoRequest, seed: int, progress: JobProgress) -> tuple[video_engine.Clip, float]:
-    """Runs on the model thread, after unloading the image model: the video model needs the memory to itself."""
-    progress.enter("loading")
-    unload()
-    image = Image.open(io.BytesIO(base64.b64decode(req.image or "")))
-    progress.enter("generating")
-    started = time.perf_counter()
-    try:
-        clip = video_engine.make_clip(
-            image, req.prompt, req.seconds, (req.width, req.height), seed, HF_CACHE_DIR,
-            cancelled=lambda: progress.cancelled, on_decoding=lambda: setattr(progress, "phase", "finishing"),
-        )
-    except video_engine.EngineCancelled:
-        raise JobCancelled()
-    return clip, time.perf_counter() - started
-
-
-@app.post("/videos", response_model=VideoResponse)
-async def make_video(req: VideoRequest) -> VideoResponse:
-    if req.image is None:
-        raise HTTPException(422, t("videoNeedsImage"))
-    if model_status(VIDEO_MODEL.id) != "ready":
-        raise HTTPException(503, not_ready_message(VIDEO_MODEL.id))
-    if problem := video_tools_problem():
-        raise HTTPException(503, problem)
-    seed = random.randint(0, MAX_SEED) if req.seed is None else req.seed
-    job_id = req.job_id or str(uuid.uuid4())
-    progress = jobs[job_id] = JobProgress(total=1)
-    try:
-        clip, seconds = await asyncio.get_running_loop().run_in_executor(model_thread, render_video, req, seed, progress)
-    except JobCancelled:
-        raise HTTPException(409, t("cancelled"))
-    except video_engine.EngineFailed as error:
-        raise HTTPException(500, t("videoFailed", detail=str(error)[-300:]))
-    finally:
-        jobs.pop(job_id, None)
-    return VideoResponse(
-        video_base64=base64.b64encode(clip.mp4).decode(), poster_base64=base64.b64encode(clip.poster).decode(),
-        middle_base64=base64.b64encode(clip.middle).decode(), seed=seed, seconds=round(seconds, 1),
     )
 
 

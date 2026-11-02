@@ -5,8 +5,6 @@ import history_store
 import nsfw_detector
 from history_store import NewImage
 from test_web_app import FakeModelServer, client, generate, model_server, png_bytes  # noqa: F401 (fixtures used by name)
-from video_store import NewVideo
-import video_store
 
 
 def adult_content_off(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -67,7 +65,6 @@ def test_the_hidden_word_matches_the_end_of_what_was_typed(client: TestClient, m
 
 def test_sensitive_images_are_hidden_while_adult_content_is_off(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     plain, sensitive = saved("a cat", False), saved("nude", True)
-    clip = video_store.add(NewVideo(image_id=plain, mp4=b"mp4", poster=png_bytes(), prompt="she undresses", seconds=2, width=64, height=64, seed=1, duration_seconds=1, sensitive=True))
     assert client.get("/api/history").json()["total"] == 2
     assert client.get("/api/history?hide_sensitive=true").json()["total"] == 1
 
@@ -76,8 +73,6 @@ def test_sensitive_images_are_hidden_while_adult_content_is_off(client: TestClie
     assert [item["id"] for item in client.get("/api/history").json()["items"]] == [plain]
     assert client.get(f"/api/history/{sensitive}/image").status_code == 404
     assert client.get(f"/api/history/{sensitive}/download").status_code == 404
-    assert client.get(f"/api/history/{plain}/videos").json() == []
-    assert client.get(f"/api/videos/{clip.id}/video").status_code == 404
 
 
 # -- Rendering -----------------------------------------------------------------------------------------------------------
