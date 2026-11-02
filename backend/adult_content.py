@@ -25,5 +25,5 @@ def ends_with_unlock_word(typed: str) -> bool:
 
 
 def hidden(sensitive: bool) -> bool:
-    """A sensitive image, video or prompt is never served while adult content is off."""
+    """A sensitive image or prompt is never served while adult content is off."""
     return sensitive and not enabled()

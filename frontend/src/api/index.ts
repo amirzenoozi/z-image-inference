@@ -1,4 +1,4 @@
-import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings, VideoItem } from '../types'
+import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings } from '../types'
 import { t } from '../i18n'
 
 export class ApiError extends Error {
@@ -162,36 +162,10 @@ export async function deleteHistoryItem(id: number): Promise<void> {
   await request(`/api/history/${id}`, { method: 'DELETE' })
 }
 
-export async function fetchVideos(imageId: number, signal?: AbortSignal): Promise<VideoItem[]> {
-  return (await request(`/api/history/${imageId}/videos`, { signal })).json() as Promise<VideoItem[]>
-}
-
-/** `jobId` lets the caller follow the render with fetchJobProgress and stop it with cancelJob, as for images. */
-/** `safeOnly`: adult content is locked in this browser, so the server keeps the clip safe for work. */
-export async function makeVideo(imageId: number, prompt: string, seconds: number, jobId: string, safeOnly: boolean): Promise<VideoItem> {
-  return (await postJson(`/api/history/${imageId}/videos`, { prompt, seconds, job_id: jobId, safe_only: safeOnly })).json() as Promise<VideoItem>
-}
-
 /** Whether the keys typed end with the hidden word; the word itself stays on the server. */
 export async function checkUnlockWord(typed: string): Promise<boolean> {
   const resp = await postJson('/api/adult-content/word', { typed })
   return ((await resp.json()) as { match: boolean }).match
-}
-
-export async function deleteVideo(id: number): Promise<void> {
-  await request(`/api/videos/${id}`, { method: 'DELETE' })
-}
-
-export function videoUrl(id: number): string {
-  return `/api/videos/${id}/video`
-}
-
-export function videoPosterUrl(id: number, thumb = false): string {
-  return `/api/videos/${id}/poster${thumb ? '?thumb=true' : ''}`
-}
-
-export function videoDownloadUrl(id: number): string {
-  return `/api/videos/${id}/download`
 }
 
 export async function clearHistory(): Promise<void> {

@@ -3,7 +3,7 @@
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
 
-setup: ## First-time setup: checks the tools, installs ffmpeg and gitleaks, git hooks, .env, Python and UI (scripts/setup.sh)
+setup: ## First-time setup: checks the tools, installs gitleaks, git hooks, .env, Python and UI (scripts/setup.sh)
 	./scripts/setup.sh
 
 hooks: ## Turn on the git hooks (secret and branch-name checks) and install gitleaks
