@@ -496,7 +496,7 @@
   },
   {
     "value": "Martial artist bar costume",
-    "title": "Costume - Tifa Lockhart",
+    "title": "Costume - Tifa Lockhart V1",
     "prompt": "white fitted tank top costume with a black mini skirt held up by suspenders over the shoulders, black knee-high boots and red and black fingerless leather fighting gloves with metal knuckle plates on each hand",
     "tags": "white tank top, black suspender mini skirt, black boots, fingerless fighting gloves",
     "slot": "top",
@@ -507,9 +507,20 @@
   },
   {
     "value": "Martial artist suspender costume",
-    "title": "Costume - Tifa Lockhart Spicy",
+    "title": "Costume - Tifa Lockhart V2",
     "prompt": "white lace-up crop tank lined at the bust, a black leather suspender micro skirt over a lined brief with garter clips holding sheer black thigh-high stockings, black knee-high boots and red and black fingerless leather fighting gloves with metal knuckle plates on each hand",
     "tags": "lace-up crop tank, leather suspender micro skirt, garter stockings, fingerless fighting gloves",
+    "slot": "top",
+    "covers": "both",
+    "group": "Costumes",
+    "for": "woman",
+    "adult": true
+  },
+  {
+    "value": "Martial artist after-hours costume",
+    "title": "Costume - Tifa Lockhart Spicy",
+    "prompt": "tiny cropped white lace-up bralette lined at the bust that ends right under the bust and leaves the whole stomach bare, black leather suspenders running over the bare stomach and the bralette, a black leather micro skirt unzipped at one side over a lined thong, fishnet thigh-high stockings clipped to the skirt with garter straps, black knee-high boots and red and black fingerless leather fighting gloves with metal knuckle plates on each hand",
+    "tags": "tiny cropped lace-up bralette, bare stomach, suspenders, unzipped leather micro skirt, fishnet garter stockings, fingerless fighting gloves",
     "slot": "top",
     "covers": "both",
     "group": "Costumes",
