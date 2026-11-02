@@ -10,6 +10,10 @@ import { picksOf, withPicks } from '../../../lib/promptBuilder/multiChoice'
 import type { ChoiceField } from '../../../lib/promptBuilder/choices'
 import { alwaysClothed, isAdultMode, isSafeMode, type BuilderMode } from '../../../lib/promptBuilder/modes'
 import { t, type MessageKey } from '../../../i18n'
+import { useContext } from 'react'
+import { lookStrength, withStrength } from '../../../lib/lookSliders'
+import { LookSliderField } from '../../lookSliders/LookSliderField'
+import { LookSlidersContext, useLookSlider } from '../../lookSliders/LookSlidersContext'
 import { CheckboxGroup, ChoiceSelect, FieldGrid, MultiChoiceSelect, Segmented, StepIntro, TextField } from './components/fields'
 
 export interface StepProps {
@@ -47,8 +51,12 @@ export function AppearanceStep({ state, mode, set }: StepProps) {
       <ChoiceSelect label={t('builder.fieldExpression')} value={state.expression} groups={options('expression')} onChange={(expression) => set({ expression })} />
       <MultiChoiceSelect label={t('builder.fieldMakeup')} values={picksOf(state, 'makeup')} groups={options('makeup')} onChange={(picks) => set(withPicks(state, 'makeup', picks))} />
       <ChoiceSelect label={t('builder.fieldSkinTone')} value={state.skinTone} groups={options('skinTone')} onChange={(skinTone) => set({ skinTone })} />
+      <StepLookSlider id="skin-tone" state={state} set={set} />
       <CheckboxGroup label={t('builder.fieldSkinDetails')} options={SKIN_DETAILS} value={state.skinDetails} onChange={(skinDetails) => set({ skinDetails })} />
       <ChoiceSelect label={t('builder.fieldHairLength')} value={state.hairLength} groups={options('hairLength')} onChange={(hairLength) => set({ hairLength })} />
+      <StepLookSlider id="hair-length" state={state} set={set} />
+      <StepLookSlider id="hair-volume" state={state} set={set} />
+      <StepLookSlider id="natural-look" state={state} set={set} />
       <ChoiceSelect label={t('builder.fieldHairColour')} value={state.hairColor} groups={options('hairColor')} onChange={(hairColor) => set({ hairColor })} />
       <ChoiceSelect label={t('builder.fieldHairstyle')} value={state.hairstyle} groups={options('hairstyle')} onChange={(hairstyle) => set({ hairstyle })} />
       <FacialHair state={state} mode={mode} set={set} />
@@ -63,6 +71,8 @@ export function BodyStep({ state, mode, set }: StepProps) {
   return (
     <FieldGrid>
       <ChoiceSelect label={t('builder.fieldBodyType')} value={state.bodyType} groups={options('bodyType')} onChange={(bodyType) => set({ bodyType })} />
+      <StepLookSlider id="weight" state={state} set={set} />
+      <StepLookSlider id="muscle-tone" state={state} set={set} />
       <ChoiceSelect label={t('builder.fieldHeight')} value={state.height} groups={options('height')} onChange={(height) => set({ height })} />
       {choicesFor('bust', state, mode).length > 0 && <ChoiceSelect label={t('builder.fieldBust')} value={state.bust} groups={options('bust')} onChange={(bust) => set({ bust })} />}
       <ChoiceSelect label={t('builder.fieldHips')} value={state.hips} groups={options('hips')} onChange={(hips) => set({ hips })} />
@@ -105,6 +115,29 @@ function AreaRow({ area, state, mode, setOutfit }: { area: BodyArea } & Pick<Ste
       <ChoiceSelect label={t(AREA_LABELS[area].item)} value={choice.item} groups={groups} allowRemove={!alwaysClothed(mode)} onChange={(item) => setOutfit(wearItem(area, state.outfit, item, mode))} />
       <ChoiceSelect label={t(AREA_LABELS[area].colour)} value={choice.color} groups={one(CLOTHING_COLORS)} onChange={(color) => setOutfit(colourItem(area, state.outfit, color))} />
     </div>
+  )
+}
+
+/** A downloaded look slider beside its builder choice; moving it picks the nearest option, and picking an option moves it. */
+function StepLookSlider({ id, state, set }: { id: string; state: BuilderState; set: StepProps['set'] }) {
+  const addon = useLookSlider(id)
+  if (!addon) return null
+  return <LookSliderField addon={addon} value={lookStrength(id, state)} onChange={(value) => set(withStrength(state, id, value))} />
+}
+
+const LOOK_SLIDER_IDS = ['weight', 'muscle-tone', 'skin-tone', 'hair-length', 'hair-volume', 'natural-look'] as const
+
+/** With a character chosen: its look sliders, which start at its look and change this prompt only. */
+export function CharacterLookSliders({ state, set }: Pick<StepProps, 'state' | 'set'>) {
+  const sliders = useContext(LookSlidersContext)
+  const shown = LOOK_SLIDER_IDS.flatMap((id) => sliders.filter((addon) => addon.id === id))
+  if (shown.length === 0) return null
+  return (
+    <FieldGrid>
+      {shown.map((addon) => (
+        <LookSliderField key={addon.id} addon={addon} value={lookStrength(addon.id, state)} onChange={(value) => set({ lookMoved: { ...state.lookMoved, [addon.id]: value } })} />
+      ))}
+    </FieldGrid>
   )
 }
 

@@ -1,4 +1,5 @@
 import type { Catalog, Character, GenerationSettings, HistoryItem, Limits, ModelInfo, ResolutionInfo, StartImage } from '../../types'
+import { parseStrengths } from '../lookSliders'
 
 const STORAGE_KEY = 'z-image-studio.settings.v1'
 export const MIN_CHANGE = 0.1
@@ -19,7 +20,7 @@ export function modelDefaults(model: ModelInfo): ModelDefaults {
 
 export function initialSettings(catalog: Catalog): GenerationSettings {
   const model = catalog.models[0]
-  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, addons: [], promptFormat: 'text', ...modelDefaults(model) }
+  return { modelId: model.id, prompt: '', seed: 0, randomSeed: true, startImage: null, characterId: null, lookIncluded: null, addons: [], strengths: {}, promptFormat: 'text', ...modelDefaults(model) }
 }
 
 export function findModel(catalog: Catalog, modelId: string): ModelInfo {
@@ -91,8 +92,9 @@ export function settingsFromItem(item: HistoryItem, catalog: Catalog): Generatio
       characterId: item.character_id,
       // An image made for a character was saved with the look in its prompt
       lookIncluded: item.character_id,
-      // The add-ons the image was made with, so the same render can be made again
+      // The add-ons and slider strengths the image was made with, so the same render can be made again
       addons: item.addons,
+      strengths: item.strengths ?? {},
     },
     model,
   )
@@ -103,10 +105,10 @@ export function variationSettings(item: HistoryItem, catalog: Catalog): Generati
   return { ...settingsFromItem(item, catalog), randomSeed: true, startImage: { id: item.id, change: DEFAULT_CHANGE } }
 }
 
-/** Settings for making images of a character, or of no one; a character with its own seed renders with it. */
+/** Settings for making images of a character, or of no one; a character with its own seed renders with it, and the look sliders start at its defaults. */
 export function characterSettings(character: Character | null): Partial<GenerationSettings> {
   const seed = character?.seed ?? null
-  return { characterId: character?.id ?? null, lookIncluded: null, ...(seed === null ? {} : { seed, randomSeed: false }) }
+  return { characterId: character?.id ?? null, lookIncluded: null, strengths: {}, ...(seed === null ? {} : { seed, randomSeed: false }) }
 }
 
 export function differsFromDefaults(settings: GenerationSettings, model: ModelInfo): boolean {
@@ -149,8 +151,9 @@ export function loadSettings(catalog: Catalog): GenerationSettings {
   const characterId = Number.isInteger(stored.characterId) ? stored.characterId : null
   const lookIncluded = Number.isInteger(stored.lookIncluded) ? stored.lookIncluded : null
   const addons = isStringList(stored.addons) ? stored.addons : []
+  const strengths = parseStrengths(stored.strengths)
   const promptFormat = stored.promptFormat === 'json' ? 'json' : 'text'
-  return withModel({ ...stored, startImage, characterId, lookIncluded, addons, promptFormat }, findModel(catalog, stored.modelId))
+  return withModel({ ...stored, startImage, characterId, lookIncluded, addons, strengths, promptFormat }, findModel(catalog, stored.modelId))
 }
 
 export function saveSettings(settings: GenerationSettings): void {

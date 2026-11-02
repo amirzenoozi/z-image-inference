@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { animeModel, catalog, fastModel, historyItem } from '../../test/fixtures'
+import { animeModel, catalog, character, fastModel, historyItem } from '../../test/fixtures'
 import {
+  characterSettings,
   differsFromDefaults,
   initialSettings,
   loadSettings,
@@ -117,4 +118,14 @@ it('settingsFromItem brings back the JSON prompt an image was written from, or i
     promptFormat: 'json',
   })
   expect(settingsFromItem(historyItem({ prompt: 'a cat', prompt_spec: null }), catalog)).toMatchObject({ prompt: 'a cat', promptFormat: 'text' })
+})
+
+it('picking a character drops the sliders moved for the last one, so they start at its defaults', () => {
+  expect(characterSettings(character()).strengths).toEqual({})
+})
+
+it('settingsFromItem and loadSettings bring back the slider strengths', () => {
+  expect(settingsFromItem(historyItem({ strengths: { weight: -3 } }), catalog).strengths).toEqual({ weight: -3 })
+  saveSettings({ ...initialSettings(catalog), strengths: { weight: 4, broken: 'x' as unknown as number } })
+  expect(loadSettings(catalog).strengths).toEqual({ weight: 4 })
 })

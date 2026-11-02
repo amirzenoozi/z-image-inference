@@ -3,6 +3,7 @@
 // choice keeps to the builder's options, so the purpose's content rules and the age safeguard still apply; the free
 // text goes where the builder has free text. A new detail is a new optional key; a change that breaks old prompts
 // raises SPEC_VERSION and upgrades them in `upgraded`.
+import type { Strengths } from '../../lookSliders'
 import { t } from '../../../i18n'
 import { buildPrompt, emptyBuilderState, type BuilderState, type BuildResult, type OutfitState, type PromptStyle } from '../build'
 import { CHOICE_OPTIONS, isChoiceField } from '../choices'
@@ -62,7 +63,7 @@ export interface Garment {
 
 export type OutfitSpec = { [S in GarmentSlot]?: Garment } & { accessories?: string[]; details?: string }
 
-export type PromptSpec = { version: typeof SPEC_VERSION; purpose: string; outfit?: OutfitSpec } & { [S in keyof Sections]?: SpecSection<Sections[S]> }
+export type PromptSpec = { version: typeof SPEC_VERSION; purpose: string; outfit?: OutfitSpec; look?: Strengths } & { [S in keyof Sections]?: SpecSection<Sections[S]> }
 
 export type ParsedSpec = { ok: true; spec: PromptSpec } | { ok: false; reason: string }
 
@@ -106,7 +107,8 @@ export function specFromState(state: BuilderState, mode: BuilderMode): PromptSpe
     return section ? [[name, section]] : []
   })
   const outfit = outfitFrom(used.outfit)
-  return { version: SPEC_VERSION, purpose: mode.id, ...Object.fromEntries(sections), ...(outfit && { outfit }) }
+  const look = Object.keys(used.strengths).length > 0 ? used.strengths : null
+  return { version: SPEC_VERSION, purpose: mode.id, ...Object.fromEntries(sections), ...(outfit && { outfit }), ...(look && { look }) }
 }
 
 function setField(state: BuilderState, field: Field, value: string | string[]): BuilderState {
@@ -134,7 +136,7 @@ export function stateFromSpec(spec: PromptSpec): BuilderState {
     const section: Values = spec[name as keyof Sections] ?? {}
     return Object.entries(section).reduce((next, [key, value]) => setField(next, fields[key as keyof typeof fields], value), state)
   }, emptyBuilderState())
-  return { ...filled, mode: spec.purpose, outfit: outfitOf(spec.outfit) }
+  return { ...filled, mode: spec.purpose, outfit: outfitOf(spec.outfit), strengths: spec.look ?? {} }
 }
 
 // ── Reading and checking a JSON prompt ───────────────────────────────────────
@@ -207,6 +209,11 @@ function checkOutfit(value: unknown): void {
   if (value.details !== undefined && typeof value.details !== 'string') throw new SpecProblem(t('create.jsonNeedsText', { field: 'outfit.details' }))
 }
 
+function checkLook(value: unknown): void {
+  const numbers = isRecord(value) && Object.values(value).every((strength) => typeof strength === 'number' && Number.isFinite(strength))
+  if (!numbers) throw new SpecProblem(t('create.jsonNeedsNumbers', { field: 'look' }))
+}
+
 function checkAccessories(value: unknown): void {
   if (value === undefined) return
   const path = 'outfit.accessories'
@@ -224,10 +231,11 @@ function upgraded(value: Record<string, unknown>): Record<string, unknown> {
 function checkSpec(value: unknown): PromptSpec {
   if (!isRecord(value)) throw new SpecProblem(t('create.jsonNeedsObject', { field: 'JSON' }))
   const spec = upgraded(value)
-  checkKeys(spec, ['version', 'purpose', 'outfit', ...Object.keys(FIELDS)], '')
+  checkKeys(spec, ['version', 'purpose', 'outfit', 'look', ...Object.keys(FIELDS)], '')
   if (typeof spec.purpose !== 'string') throw new SpecProblem(t('create.jsonNeedsText', { field: 'purpose' }))
   for (const [name, fields] of Object.entries(FIELDS)) if (spec[name] !== undefined) checkSection(spec[name], fields, name)
   if (spec.outfit !== undefined) checkOutfit(spec.outfit)
+  if (spec.look !== undefined) checkLook(spec.look)
   return spec as PromptSpec
 }
 

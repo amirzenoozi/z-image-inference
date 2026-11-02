@@ -15,6 +15,19 @@ export const tattooAddon: AddonInfo = {
   page_url: 'https://civitai.com/models/2178484',
   source_name: 'Civitai',
   adult: false,
+  kind: 'optional',
+  slider: null,
+}
+
+export const weightSlider: AddonInfo = {
+  ...tattooAddon,
+  id: 'weight',
+  label: 'Weight',
+  description: 'Thinner or heavier.',
+  keywords: [],
+  trigger_word: '',
+  kind: 'slider',
+  slider: { minimum: -10, maximum: 10, step: 1 },
 }
 
 export const fastModel: ModelInfo = {
@@ -120,6 +133,7 @@ export function historyItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     face_from: null,
     sensitive: false,
     addons: [],
+    strengths: {},
     prompt_spec: null,
     ...overrides,
   }

@@ -7,8 +7,10 @@ import { CreatePage } from '../pages/create/CreatePage'
 import type { PromptMode } from '../pages/create/SettingsPanel'
 import { ErrorNotice, Spinner } from '../shared/ui/ui'
 import { useCharacter, useCharacters } from '../lib/characters'
-import { promptToSend } from '../lib/characterPrompt'
+import { promptToSend, renderStrength } from '../lib/characterPrompt'
+import { LookSlidersContext, downloadedSliders } from '../shared/lookSliders/LookSlidersContext'
 import { addonsToSend } from '../lib/addons'
+import { strengthsToSend } from '../lib/lookSliders'
 import { useGeneration } from '../lib/generation'
 import { useCatalog } from '../lib/hooks'
 import { catalogFor, useAdultContent } from '../lib/adultContent'
@@ -110,6 +112,7 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   useForgetDeletedCharacter(settings.characterId, forgetCharacter)
 
   const generating = generation.state.status === 'pending'
+  const sliders = useMemo(() => downloadedSliders(catalog, modelStatus), [catalog, modelStatus])
   const character = useCharacter(settings.characterId)
   const generateWith = (next: GenerationSettings) => {
     if (generating || !next.prompt.trim()) return
@@ -119,7 +122,7 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
     if (sent.status !== 'ready') return
     // A model hidden by the lock falls back to the first one shown, so the request names that one too
     const request = { ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text' as const, promptSpec: sent.spec, safeOnly: !adultShown }
-    void generation.run({ ...request, addons: addonsToSend(model, next.addons, modelStatus) })
+    void generation.run({ ...request, addons: addonsToSend(model, next.addons, modelStatus), strengths: strengthsToSend(model, (id) => renderStrength(id, sent, next, character, model), modelStatus) })
   }
   const openInCreate = (next: GenerationSettings) => {
     setSettings(next)
@@ -128,44 +131,47 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   }
 
   return (
-    // On phones the views sit in a bar at the bottom, so the page leaves room for it
-    <div className="flex h-dvh flex-col pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] sm:pb-0">
-      <Header view={view} onViewChange={setView} unseenResult={unseen} onTitleTap={unlock.onTitleTap} />
-      {unlock.dialog}
-      <CreatePage
-        catalog={catalog}
-        settings={settings}
-        onSettingsChange={setSettings}
-        mode={mode}
-        onModeChange={setMode}
-        generation={generation}
-        lastSeed={lastSeed}
-        modelStatus={modelStatus}
-        onModelStatusChanged={refreshModelStatus}
-        onGenerate={() => generateWith(settings)}
-        onChatPrompt={(prompt) => {
-          // Grok's prompt is new, so it doesn't have the character's look yet
-          const next: GenerationSettings = { ...settings, prompt, promptFormat: 'text', lookIncluded: null }
-          setSettings(next)
-          generateWith(next)
-        }}
-        hidden={view !== 'create'}
-      />
-      {view === 'characters' && (
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          <CharactersPage
-            maxSeed={catalog.limits.max_seed}
-            onUse={(character) => openInCreate({ ...settings, ...characterSettings(character) })}
-            onShowImages={(character) => setView('history', `?character=${character.id}`)}
-          />
-        </main>
-      )}
-      {view === 'history' && (
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          <HistoryPage models={catalog.models} video={catalog.video} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
-        </main>
-      )}
-    </div>
+    // The prompt builder and the character dialog offer the look sliders that are downloaded
+    <LookSlidersContext.Provider value={sliders}>
+      // On phones the views sit in a bar at the bottom, so the page leaves room for it
+      <div className="flex h-dvh flex-col pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] sm:pb-0">
+        <Header view={view} onViewChange={setView} unseenResult={unseen} onTitleTap={unlock.onTitleTap} />
+        {unlock.dialog}
+        <CreatePage
+          catalog={catalog}
+          settings={settings}
+          onSettingsChange={setSettings}
+          mode={mode}
+          onModeChange={setMode}
+          generation={generation}
+          lastSeed={lastSeed}
+          modelStatus={modelStatus}
+          onModelStatusChanged={refreshModelStatus}
+          onGenerate={() => generateWith(settings)}
+          onChatPrompt={(prompt) => {
+            // Grok's prompt is new, so it doesn't have the character's look yet
+            const next: GenerationSettings = { ...settings, prompt, promptFormat: 'text', lookIncluded: null }
+            setSettings(next)
+            generateWith(next)
+          }}
+          hidden={view !== 'create'}
+        />
+        {view === 'characters' && (
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <CharactersPage
+              maxSeed={catalog.limits.max_seed}
+              onUse={(character) => openInCreate({ ...settings, ...characterSettings(character) })}
+              onShowImages={(character) => setView('history', `?character=${character.id}`)}
+            />
+          </main>
+        )}
+        {view === 'history' && (
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <HistoryPage models={catalog.models} video={catalog.video} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
+          </main>
+        )}
+      </div>
+    </LookSlidersContext.Provider>
   )
 }
 

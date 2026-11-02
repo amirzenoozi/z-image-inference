@@ -1,3 +1,4 @@
+import { parseStrengths } from '../../lookSliders'
 import { optionLabel, t } from '../../../i18n'
 import type { Character, CharacterTraits } from '../../../types'
 import { buildPrompt, emptyBuilderState, minorWordIn, type BuilderState, type PromptStyle } from '../build'
@@ -22,8 +23,8 @@ const LIST_TRAITS = {
 export function traitsOf(state: BuilderState): CharacterTraits {
   const choices = Object.fromEntries(CHOICE_TRAITS.map((key) => [key, state[key]]))
   const texts = Object.fromEntries(FREE_TEXT_TRAITS.map((key) => [key, state[key].trim()]))
-  const { skinDetails, tattoos, piercings, makeupMore, facialHairMore } = state
-  return { ...choices, ...texts, skinDetails, tattoos, piercings, makeupMore, facialHairMore } as CharacterTraits
+  const { skinDetails, tattoos, piercings, makeupMore, facialHairMore, strengths } = state
+  return { ...choices, ...texts, skinDetails, tattoos, piercings, makeupMore, facialHairMore, strengths } as CharacterTraits
 }
 
 const known = (options: readonly string[]) => (value: string) => options.includes(value)
@@ -37,7 +38,7 @@ export function withTraits(state: BuilderState, traits: CharacterTraits): Builde
   const lists = Object.fromEntries(
     Object.entries(LIST_TRAITS).map(([key, options]) => [key, traits[key as keyof typeof LIST_TRAITS].filter(known(options))]),
   )
-  return { ...state, ...choices, ...texts, ...lists }
+  return { ...state, ...choices, ...texts, ...lists, strengths: parseStrengths(traits.strengths) }
 }
 
 /**

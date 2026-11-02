@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { useContext, useEffect, useMemo, useState, type ComponentType } from 'react'
 import { buildPrompt, emptyBuilderState, hasRandomChoice, surprise, surpriseStep, switchMode, toggleLock, type BuilderState, type BuildResult, type OutfitState } from '../../../lib/promptBuilder/build'
 import { modeLabel, modesForCharacter, parseModes, type BuilderMode, type StepId } from '../../../lib/promptBuilder/modes'
 import { customClothesProblems } from '../../../lib/promptBuilder/customClothes'
@@ -6,12 +6,14 @@ import { specFromState, type PromptSpec } from '../../../lib/promptBuilder/spec'
 import { loadBuilderState, saveBuilderState } from '../../../lib/promptBuilder/storage'
 import { secondaryButtonClass } from '../../../lib/styles'
 import { withOwnTraits, withTraits } from '../../../lib/promptBuilder/character'
+import { lookStrength, withMoved } from '../../../lib/lookSliders'
+import { LookSlidersContext, slidersOf } from '../../lookSliders/LookSlidersContext'
 import type { BuilderModeData, Character, ModelInfo } from '../../../types'
 import { CharacterSummary, SaveAsCharacter } from './components/CharacterParts'
 import { ClashWarnings } from './components/ClashWarnings'
 import { Modal } from '../../ui/Modal'
 import { ModePicker } from './components/ModePicker'
-import { AppearanceStep, BodyStep, CameraStep, FinishStep, ImageBodyChoices, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from '../steps'
+import { AppearanceStep, BodyStep, CameraStep, CharacterLookSliders, FinishStep, ImageBodyChoices, IntimacyStep, OutfitStep, PoseStep, SceneStep, SubjectStep, type StepProps } from '../steps'
 import { t, type MessageKey } from '../../../i18n'
 import { IconButton } from '../../ui/IconButton'
 import { Dices, Lock, LockOpen } from 'lucide-react'
@@ -67,14 +69,16 @@ interface Props {
 }
 
 export function PromptBuilderDialog({ model, modes: modeData, character, onCharacterSaved, hasExistingPrompt, maxPromptLength, initialState, onClose, onConfirm }: Props) {
-  const [state, setState] = useState<BuilderState>(() => initialState ?? loadBuilderState())
+  const [state, setState] = useState<BuilderState>(() => (initialState ? withCharacterMoves(initialState, character) : loadBuilderState()))
   const [stepId, setStepId] = useState<StepId>(STEPS[0].id)
   useEffect(() => saveBuilderState(state), [state])
   const { modes: allModes, problems } = useMemo(() => parseModes(modeData), [modeData])
   const modes = modesForCharacter(allModes, character)
   const mode = modes.find((candidate) => candidate.id === state.mode) ?? modes[0]
   // The character's look is applied when building, not saved into the builder, so your own choices come back without it
-  const withLook = useMemo(() => (character ? withTraits(state, character.traits) : state), [state, character])
+  // Sliders moved in the Character step change this prompt's look only
+  const withLook = useMemo(() => (character ? withMoved(withTraits(state, character.traits), state.lookMoved) : state), [state, character])
+  const sliders = slidersOf(useContext(LookSlidersContext), model)
   const result = useMemo(() => buildPrompt(withLook, mode, model.prompt_style), [withLook, mode, model.prompt_style])
 
   const steps = stepsFor(mode, character)
@@ -92,39 +96,48 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
 
   const tooLong = promptTooLong(result, maxPromptLength)
   return (
-    <Modal
-      title={t('builder.title')}
-      onClose={onClose}
-      size="xl"
-      actionsNote={actionsNote(tooLong, hasExistingPrompt)}
-      actions={<DialogActions ready={result.status === 'ready' && !tooLong} hasExistingPrompt={hasExistingPrompt} onCancel={onClose} onConfirm={confirm} />}
-    >
-      <ModePicker modes={modes} current={mode.id} problems={[...problems, ...customClothesProblems()]} onSelect={(next) => setState((current) => switchMode(current, next))} />
-      <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
-        <StepNav steps={steps} current={step.id} locked={state.lockedSteps} onSelect={setStepId} />
-        <section aria-label={t(step.label)} className="min-h-0 overflow-y-auto pr-1">
-          <StepHeading
-            step={step}
-            canSurprise={!(character && step.id === 'subject')}
-            locked={state.lockedSteps.includes(step.id)}
-            onSurprise={() => surpriseWithLook((looked) => surpriseStep(looked, step.id, newSeed(), mode))}
-            onToggleLock={() => setState((current) => toggleLock(current, step.id))}
+    <LookSlidersContext.Provider value={sliders}>
+      <Modal
+        title={t('builder.title')}
+        onClose={onClose}
+        size="xl"
+        actionsNote={actionsNote(tooLong, hasExistingPrompt)}
+        actions={<DialogActions ready={result.status === 'ready' && !tooLong} hasExistingPrompt={hasExistingPrompt} onCancel={onClose} onConfirm={confirm} />}
+      >
+        <ModePicker modes={modes} current={mode.id} problems={[...problems, ...customClothesProblems()]} onSelect={(next) => setState((current) => switchMode(current, next))} />
+        <div className="grid gap-5 lg:h-[62vh] lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,340px)]">
+          <StepNav steps={steps} current={step.id} locked={state.lockedSteps} onSelect={setStepId} />
+          <section aria-label={t(step.label)} className="min-h-0 overflow-y-auto pr-1">
+            <StepHeading
+              step={step}
+              canSurprise={!(character && step.id === 'subject')}
+              locked={state.lockedSteps.includes(step.id)}
+              onSurprise={() => surpriseWithLook((looked) => surpriseStep(looked, step.id, newSeed(), mode))}
+              onToggleLock={() => setState((current) => toggleLock(current, step.id))}
+            />
+            {/* The steps offer what fits the character, so a woman's Outfit has bras and dresses her with a top */}
+            <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={withLook} mode={mode} set={set} setOutfit={setOutfit} />
+          </section>
+          <PreviewPane
+            result={result}
+            styleNote={styleNote(model, mode)}
+            maxPromptLength={maxPromptLength}
+            canReroll={hasRandomChoice(state)}
+            onSurprise={() => surpriseWithLook((looked) => surprise(looked, newSeed(), mode))}
+            onReroll={() => set({ rollSeed: newSeed() })}
+            onReset={() => setState(switchMode(emptyBuilderState(), mode))}
           />
-          {/* The steps offer what fits the character, so a woman's Outfit has bras and dresses her with a top */}
-          <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={withLook} mode={mode} set={set} setOutfit={setOutfit} />
-        </section>
-        <PreviewPane
-          result={result}
-          styleNote={styleNote(model, mode)}
-          maxPromptLength={maxPromptLength}
-          canReroll={hasRandomChoice(state)}
-          onSurprise={() => surpriseWithLook((looked) => surprise(looked, newSeed(), mode))}
-          onReroll={() => set({ rollSeed: newSeed() })}
-          onReset={() => setState(switchMode(emptyBuilderState(), mode))}
-        />
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+    </LookSlidersContext.Provider>
   )
+}
+
+/** A prompt reopened with a character: its strengths that differ from the character's own look were moved for this prompt, so they stay moved. */
+function withCharacterMoves(state: BuilderState, character: Character | null): BuilderState {
+  if (!character) return state
+  const lookMoved = Object.fromEntries(Object.entries(state.strengths).filter(([id, strength]) => strength !== lookStrength(id, character.traits)))
+  return { ...state, lookMoved }
 }
 
 interface StepContentProps extends StepProps {
@@ -139,6 +152,7 @@ function StepContent({ step, character, onCharacterSaved, ...props }: StepConten
     return (
       <>
         <CharacterSummary character={character} />
+        <CharacterLookSliders state={props.state} set={props.set} />
         <ImageBodyChoices state={props.state} mode={props.mode} set={props.set} />
       </>
     )
