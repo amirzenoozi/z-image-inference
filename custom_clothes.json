@@ -706,8 +706,8 @@
   {
     "value": "Cat thief catsuit costume",
     "title": "Costume - Black Cat",
-    "prompt": "glossy black leather catsuit costume unzipped to the chest with thick white fur trim at the collar, the cuffs and the tops of the black thigh-high boots, black gloves and a silver grappling line coiled at the hip",
-    "tags": "black leather catsuit, white fur trim, thigh-high boots, grappling line",
+    "prompt": "full-length glossy black leather catsuit costume covering the legs all the way down into the boots, unzipped to the chest with thick white fur trim at the collar, the cuffs and the tops of the black thigh-high boots, black gloves and a silver grappling line coiled at the hip",
+    "tags": "full-length black leather catsuit, white fur trim, thigh-high boots, grappling line",
     "slot": "top",
     "covers": "both",
     "group": "Costumes",
@@ -794,7 +794,7 @@
   {
     "value": "Kryptonian powerhouse leotard costume",
     "title": "Costume - Power Girl",
-    "prompt": "white long-sleeved leotard costume with a round cut-out window at the chest, a red belt, blue gloves, blue knee-high boots and a red cape fastened with a gold clasp",
+    "prompt": "white long-sleeved leotard costume with a large round cut-out window across the upper chest, as wide as a hand span, a red belt, blue gloves, blue knee-high boots and a red cape fastened with a gold clasp",
     "tags": "white leotard, round chest window, red belt, blue gloves, blue boots, red cape",
     "slot": "top",
     "covers": "both",
@@ -871,8 +871,8 @@
   {
     "value": "Umbra witch ribbon costume",
     "title": "Costume - Bayonetta Spicy",
-    "prompt": "lingerie of wide glossy black ribbon bands wound tightly around the body like a bodysuit, layered to fully cover the bust and groin, gold chains at the hips, long white gloves, black heeled boot and a silver pistol on a garter strap on each thigh",
-    "tags": "black ribbon band bodysuit, gold chains, white gloves, pistol garters",
+    "prompt": "lingerie set of a lined black satin bandeau and a lined high-cut black brief, wrapped over with wide glossy black ribbon bands crossing the bust, ribs and hips like a bodysuit, gold chains at the hips, long white gloves, black heeled boots and a silver pistol on a garter strap on each thigh",
+    "tags": "lined black bandeau and brief, wide black ribbon bands, gold chains, white gloves, pistol garters",
     "slot": "top",
     "covers": "both",
     "group": "Costumes",
@@ -970,7 +970,7 @@
   {
     "value": "Snake sword armour costume",
     "title": "Costume - Ivy Valentine",
-    "prompt": "purple armoured corset costume with a deep plunge, one large silver gauntlet covering the left arm, purple leather trousers, purple thigh-high boots and a segmented silver whip-sword held in the right hand",
+    "prompt": "purple armoured corset costume with a deep plunge, one large silver gauntlet covering only the left arm while the right arm stays bare, purple leather trousers, purple thigh-high boots and a segmented silver whip-sword held in the right hand",
     "tags": "purple armoured corset, silver gauntlet, purple trousers, thigh-high boots, whip-sword",
     "slot": "top",
     "covers": "both",
@@ -992,7 +992,7 @@
   {
     "value": "Sniper catsuit costume",
     "title": "Costume - Widowmaker",
-    "prompt": "dark purple skin-tight catsuit costume with a plunging neckline to the stomach, black armoured panels on the arms and legs, black gloves, black heeled boots and a long sniper rifle held across the body",
+    "prompt": "dark purple skin-tight catsuit costume with a plunging neckline to the stomach, black armoured panels on the arms and legs, black gloves, black heeled boots and a long sleek purple sci-fi sniper rifle with a slim angular body, a glowing scope and no wood held across the body",
     "tags": "dark purple catsuit, plunging neckline, armour panels, sniper rifle",
     "slot": "top",
     "covers": "both",
@@ -1036,7 +1036,7 @@
   {
     "value": "Edenian princess ninja costume",
     "title": "Costume - Kitana",
-    "prompt": "blue ninja costume of a fitted wrap top with gold trim and high-cut wrap bottoms, a blue sash, blue arm guards, blue wrapped boots and a steel bladed fan held in each hand",
+    "prompt": "blue ninja costume of a fitted wrap top with gold trim and high-cut wrap bottoms, a blue sash, blue arm guards, blue wrapped boots and a steel bladed war fan, a fan of thin sharp metal blades joined at the base with no paper held in each hand",
     "tags": "blue ninja wraps, gold trim, arm guards, wrapped boots, steel fans",
     "slot": "top",
     "covers": "both",
@@ -1047,7 +1047,7 @@
   {
     "value": "Edenian princess halter costume",
     "title": "Costume - Kitana Spicy",
-    "prompt": "blue silk halter bodysuit lined at the bust and groin with keyhole cut-outs at the chest and the hips and gold trim, a sheer blue panel skirt split at both sides, blue arm guards, blue wrapped boots and a steel bladed fan held in one hand",
+    "prompt": "blue silk halter bodysuit lined at the bust and groin with keyhole cut-outs at the chest and the hips and gold trim, a sheer blue panel skirt split at both sides, blue arm guards, blue wrapped boots and a steel bladed war fan, a fan of thin sharp metal blades joined at the base with no paper held in one hand",
     "tags": "blue silk halter bodysuit, keyhole cut-outs, sheer panel skirt, steel fan",
     "slot": "top",
     "covers": "both",
@@ -1069,8 +1069,8 @@
   {
     "value": "Supreme being bandage costume",
     "title": "Costume - Leeloo Spicy",
-    "prompt": "outfit of wide white thermal bandage strips wrapped around the body over a lined white bandeau and a lined white brief, layered to fully cover the bust and groin, leaving the stomach, arms and legs bare, with a few loose bandage ends hanging at the hip",
-    "tags": "white bandage strips outfit, lined bandeau and brief, loose bandage ends",
+    "prompt": "outfit of narrow flat white bandage strips crossing tightly over the body in a criss-cross pattern, worn over a lined white bandeau and a lined high-cut white brief, sleek and close to the skin with no padding, leaving the stomach, arms and legs bare apart from thin strips around the thighs and a few loose ends at the hip",
+    "tags": "narrow criss-cross white bandage strips, lined white bandeau and high-cut brief, sleek",
     "slot": "top",
     "covers": "both",
     "group": "Costumes",
@@ -1135,8 +1135,8 @@
   {
     "value": "Space adventurer chain-mail lingerie",
     "title": "Costume - Barbarella Spicy",
-    "prompt": "silver chain-mail bra and high-cut brief lined at the bust and groin, a clear vinyl cape over the shoulders, silver gloves and silver thigh-high boots with a small ray gun at the hip",
-    "tags": "silver chain-mail lingerie, clear vinyl cape, silver gloves, thigh-high boots",
+    "prompt": "lingerie set of a lined silver satin bandeau and a lined silver satin high-cut brief, both covered with a layer of fine silver chain-mail, a clear vinyl cape over the shoulders, silver gloves and silver thigh-high boots with a small ray gun at the hip",
+    "tags": "lined silver satin set covered in chain-mail, clear vinyl cape, silver gloves, thigh-high boots",
     "slot": "top",
     "covers": "both",
     "group": "Costumes",
@@ -1168,7 +1168,7 @@
   {
     "value": "Assassin rose dress costume",
     "title": "Costume - Yor Forger",
-    "prompt": "black off-the-shoulder assassin dress costume with gold rose details, a fitted bodice, a long skirt slit high on both sides, black thigh-high heeled boots and a gold stiletto dagger held in each hand",
+    "prompt": "black off-the-shoulder assassin dress costume with gold rose details, a fitted bodice, a long skirt slit high on both sides, black thigh-high heeled boots and a short gold stiletto dagger with a thin needle-like blade no longer than the hand held in each hand",
     "tags": "black assassin dress, gold roses, high slits, thigh-high boots, stiletto daggers",
     "slot": "top",
     "covers": "both",
@@ -1179,7 +1179,7 @@
   {
     "value": "Assassin lace dress costume",
     "title": "Costume - Yor Forger Spicy",
-    "prompt": "black lace off-the-shoulder corset dress lined at the bust with gold rose details, a short lace skirt split at both sides over a lined brief, black thigh-high stockings with lace tops and a gold stiletto dagger held in each hand",
+    "prompt": "black lace off-the-shoulder corset dress lined at the bust with gold rose details, a short lace skirt split at both sides over a lined brief, black thigh-high stockings with lace tops and a short gold stiletto dagger with a thin needle-like blade no longer than the hand held in each hand",
     "tags": "black lace corset dress, gold roses, split skirt, thigh-high stockings, daggers",
     "slot": "top",
     "covers": "both",
