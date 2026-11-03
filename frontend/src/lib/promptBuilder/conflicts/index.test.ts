@@ -107,6 +107,22 @@ describe('warnings for clashes in your own choices', () => {
   })
 })
 
+describe('light filters', () => {
+  it.each([
+    ['light', { imageFilter: 'Red Night Glow', timeOfDay: 'midday' }],
+    ['light', { imageFilter: 'Purple Club Light', timeOfDay: 'golden hour' }],
+    ['filter', { imageFilter: 'Red Night Glow', lightingSetup: 'candlelight' }],
+    ['filter', { imageFilter: 'Purple Club Light', lightingSetup: 'neon night' }],
+  ] as const)('a light filter clashes with daylight or another light: %s %j', (kind, patch) => {
+    expect(kinds(adult(patch))).toContain(kind)
+  })
+
+  it('lets a light filter be at night, and lets other filters keep a lighting setup', () => {
+    expect(kinds(adult({ imageFilter: 'Red Night Glow', timeOfDay: 'night' }))).toEqual([])
+    expect(kinds(adult({ imageFilter: 'Disposable Flash', lightingSetup: 'candlelight' }))).toEqual([])
+  })
+})
+
 describe('lights and places', () => {
   it.each([
     { sceneType: 'bedroom', lightingSetup: 'candlelight' },

@@ -62,11 +62,30 @@ export const IMAGE_FILTERS: Readonly<Record<string, ImageFilter>> = {
     text: 'shot on an early 2000s compact digital camera, harsh direct flash, blown highlights, low-resolution JPEG noise, cool white balance',
     tags: 'y2k digicam, direct flash, blown highlights, jpeg noise, low resolution',
   },
+  'Portra Analog Warmth': {
+    text: 'a vintage analog film look inspired by Kodak Portra, warm rich shadows with a soft gradient, creamy smooth skin tones like an analog portrait, soft organic film grain, gently faded blacks that keep their depth, natural colours with a nostalgic warmth',
+    tags: 'kodak portra, analog film, warm shadows, creamy skin tones, soft film grain, faded blacks',
+  },
+  'Disposable Flash': {
+    text: 'a vintage disposable camera snapshot, bright direct on-camera flash, deep local shadows, vivid saturated colours, faint chemical dust specks, a soft dark vignette, a spontaneous fun party mood',
+    tags: 'disposable camera, direct flash, saturated colours, dust specks, vignette, party snapshot',
+  },
+  'Red Night Glow': {
+    text: 'lit by a strong deep red neon or brake-light glow at night, red-tinted highlights on the cheekbones, lips and hair, deep blacks and rich shadows, a warm red bloom around the highlights, red light spilling onto nearby surfaces, subtle film grain, realistic skin texture, a moody cinematic editorial feel',
+    tags: 'red neon light, red glow, night, red bloom, deep blacks, cinematic, film grain',
+  },
+  'Purple Club Light': {
+    text: 'lit by deep violet LED or UV blacklight from above and to the right, lavender-violet highlights on the cheekbones and forehead, shadows falling into indigo and plum, a soft violet bloom around the silhouette, purple light spilling onto the clothes, pure blacks, subtle low-light grain, a moody nightclub editorial feel',
+    tags: 'purple led light, uv blacklight, violet glow, indigo shadows, nightclub, editorial, film grain',
+  },
   'VHS camcorder still': {
     text: 'a VHS camcorder still frame, scan lines, colour bleeding, chromatic aberration, soft low resolution, tracking noise along the bottom',
     tags: 'vhs, camcorder, scan lines, chromatic aberration, low resolution',
   },
 }
+
+/** Filters that bring their own coloured night light, so they replace the lighting setup and need a night or twilight scene. */
+export const LIGHT_FILTERS: ReadonlySet<string> = new Set(['Red Night Glow', 'Purple Club Light'])
 
 /** Realism details a filter's grain and soft focus contradict. */
 export const SHARP_REALISM: ReadonlySet<string> = new Set(['sharp focus on the eyes', 'natural skin texture with visible pores', 'true-to-life colours'])

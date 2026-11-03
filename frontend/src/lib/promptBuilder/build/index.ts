@@ -319,8 +319,9 @@ function surpriseFilter(state: BuilderState, mode: BuilderMode, seed: number, ca
   const none = { ...state, imageFilter: NOT_SET }
   if (pick(FILTER_ODDS, seed, 'filterOdds') === NOT_SET) return none
   const imageFilter = pick(choicesFor('imageFilter', state, mode), seed, 'imageFilter')
-  if (canChangeLook) return { ...state, imageFilter, colorGrading: NOT_SET, realism: state.realism.filter((detail) => !SHARP_REALISM.has(detail)) }
-  return fitsChoice(state, { imageFilter }, imageFilter) ? { ...state, imageFilter } : none
+  const looked = canChangeLook ? { ...state, colorGrading: NOT_SET, realism: state.realism.filter((detail) => !SHARP_REALISM.has(detail)) } : state
+  // A light filter still has to fit the time of day and the lighting, which Surprise me does not change for it
+  return fitsChoice(looked, { imageFilter }, imageFilter) ? { ...looked, imageFilter } : none
 }
 
 /** "Who" is kept once chosen, since the body, the outfit and the acts are chosen for it. */
