@@ -3,7 +3,7 @@
 // them (fitsChoice); clashes in choices the user made are shown as warnings (clashesIn), not blocked.
 import type { BuilderState } from '../build'
 import { NOT_SET, RANDOM, REMOVE } from '../constants'
-import { SHARP_REALISM } from '../filters'
+import { LIGHT_FILTERS, SHARP_REALISM } from '../filters'
 
 type Position = 'standing' | 'sitting' | 'kneeling' | 'allFours' | 'lying' | 'squatting' | 'onTop' | 'carried'
 
@@ -154,6 +154,7 @@ const NEEDS_LIGHT: Readonly<Record<string, readonly Daylight[]>> = {
   'golden hour': ['golden'], 'blue hour': ['twilight'], 'harsh midday sun': ['day'], 'backlit sun flare': ['day', 'golden'],
   'overcast soft': ['day'], 'natural window light': ['day', 'golden', 'twilight'], 'golden hour aesthetic': ['golden'], 'neon night': ['night', 'twilight'],
   'golden hour track light': ['golden'], 'soft studio daylight': ['day', 'golden'],
+  ...Object.fromEntries([...LIGHT_FILTERS].map((filter) => [filter, ['night', 'twilight'] as const])),
 }
 
 const INDOOR = new Set([
@@ -273,7 +274,7 @@ function hairClash(choices: Choices): Clash[] {
 function lightClash(choices: Choices): Clash[] {
   const daylight = TIME_LIGHT[choices.timeOfDay]
   if (!daylight) return []
-  const wrong = [choices.lightingSetup, ...choices.lightingMore, choices.photoStyle].find((value) => NEEDS_LIGHT[value] && !NEEDS_LIGHT[value].includes(daylight))
+  const wrong = [choices.lightingSetup, ...choices.lightingMore, choices.photoStyle, choices.imageFilter].find((value) => NEEDS_LIGHT[value] && !NEEDS_LIGHT[value].includes(daylight))
   return wrong ? [{ kind: 'light', values: [wrong, choices.timeOfDay] }] : []
 }
 
@@ -283,11 +284,12 @@ function placeClash(choices: Choices): Clash[] {
   return wrong ? [{ kind: 'place', values: [wrong, choices.sceneType] }] : []
 }
 
-/** A filter brings its own colours and focus, so a colour grading or a sharp-focus detail works against it. */
+/** A filter brings its own colours and focus, so a colour grading or a sharp-focus detail works against it; a light filter, any lighting setup too. */
 function filterClash(choices: Choices): Clash[] {
   if (!chosen(choices.imageFilter)) return []
   const grading = chosen(choices.colorGrading) && choices.colorGrading !== 'natural' ? [choices.colorGrading] : []
-  const against = [...grading, ...choices.realism.filter((detail) => SHARP_REALISM.has(detail))][0]
+  const lights = LIGHT_FILTERS.has(choices.imageFilter) ? [choices.lightingSetup, ...choices.lightingMore].filter(chosen) : []
+  const against = [...grading, ...lights, ...choices.realism.filter((detail) => SHARP_REALISM.has(detail))][0]
   return against ? [{ kind: 'filter', values: [choices.imageFilter, against] }] : []
 }
 
