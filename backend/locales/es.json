@@ -2,6 +2,7 @@
   "unknownModel": "Modelo desconocido: {model}",
   "stepsRange": "los pasos deben estar entre 1 y {max_steps}",
   "variationNeedsBoth": "Una variación necesita una imagen de partida y cuánto cambiarla",
+  "setNeedsBoth": "Una imagen de una prueba A/B necesita tanto el id del conjunto como su etiqueta",
   "cannotStartFromImage": "{label} no puede partir de una imagen; elige otro modelo o quita la imagen de partida",
   "faceLockNeedsBoth": "Fijar una cara necesita una imagen de la cara y su intensidad",
   "cannotLockFace": "{label} no puede fijar una cara; usa uno de estos: {able}",

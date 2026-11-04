@@ -2,6 +2,7 @@
   "unknownModel": "Modèle inconnu : {model}",
   "stepsRange": "le nombre d’étapes doit être compris entre 1 et {max_steps}",
   "variationNeedsBoth": "Une variation nécessite à la fois une image de départ et l’intensité du changement",
+  "setNeedsBoth": "Une image d’un test A/B nécessite à la fois l’identifiant du lot et son libellé",
   "cannotStartFromImage": "{label} ne peut pas partir d’une image ; choisissez un autre modèle ou retirez l’image de départ",
   "faceLockNeedsBoth": "Un verrouillage du visage nécessite à la fois une image du visage et sa force",
   "cannotLockFace": "{label} ne peut pas verrouiller un visage ; utilisez l’un de ceux-ci : {able}",

@@ -106,5 +106,8 @@
   "flippedHorizontally": "Retournée horizontalement",
   "flippedVertically": "Retournée verticalement",
   "croppedTo": "Recadrée en {width} × {height}",
-  "noEdits": "Aucune modification pour l’instant"
+  "noEdits": "Aucune modification pour l’instant",
+  "compareSet": "Comparer le lot A/B",
+  "setOnlyOne": "Il ne reste qu’une image de ce lot A/B, il n’y a donc rien à comparer.",
+  "imageMissing": "L’image #{id} n’est pas dans l’historique, ou les filtres la masquent."
 }

@@ -2,6 +2,7 @@
   "unknownModel": "Modelo desconhecido: {model}",
   "stepsRange": "os passos devem estar entre 1 e {max_steps}",
   "variationNeedsBoth": "Uma variação precisa de uma imagem inicial e da intensidade da mudança",
+  "setNeedsBoth": "Uma imagem de um teste A/B precisa do id do conjunto e do seu rótulo",
   "cannotStartFromImage": "{label} não pode partir de uma imagem; escolha outro modelo ou remova a imagem inicial",
   "faceLockNeedsBoth": "A fixação de rosto precisa de uma imagem do rosto e da sua intensidade",
   "cannotLockFace": "{label} não consegue fixar um rosto; use um destes: {able}",

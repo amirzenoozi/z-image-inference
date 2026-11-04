@@ -106,5 +106,8 @@
   "flippedHorizontally": "Flipped horizontally",
   "flippedVertically": "Flipped vertically",
   "croppedTo": "Cropped to {width} × {height}",
-  "noEdits": "No edits yet"
+  "noEdits": "No edits yet",
+  "compareSet": "Compare A/B set",
+  "setOnlyOne": "Only one image of this A/B set is left, so there's nothing to compare.",
+  "imageMissing": "Image #{id} isn't in History, or the filters hide it."
 }

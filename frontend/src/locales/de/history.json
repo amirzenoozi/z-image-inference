@@ -106,5 +106,8 @@
   "flippedHorizontally": "Horizontal gespiegelt",
   "flippedVertically": "Vertikal gespiegelt",
   "croppedTo": "Zugeschnitten auf {width} × {height}",
-  "noEdits": "Noch keine Bearbeitungen"
+  "noEdits": "Noch keine Bearbeitungen",
+  "compareSet": "A/B-Set vergleichen",
+  "setOnlyOne": "Von diesem A/B-Set ist nur noch ein Bild übrig, es gibt also nichts zu vergleichen.",
+  "imageMissing": "Bild #{id} ist nicht im Verlauf, oder die Filter blenden es aus."
 }

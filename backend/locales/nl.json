@@ -2,6 +2,7 @@
   "unknownModel": "Onbekend model: {model}",
   "stepsRange": "stappen moeten tussen 1 en {max_steps} liggen",
   "variationNeedsBoth": "Een variatie heeft zowel een startafbeelding als de mate van verandering nodig",
+  "setNeedsBoth": "Een afbeelding uit een A/B-test heeft zowel een set-id als een label nodig",
   "cannotStartFromImage": "{label} kan niet vanuit een afbeelding beginnen; kies een ander model of haal de startafbeelding weg",
   "faceLockNeedsBoth": "Een gezicht vastzetten vereist zowel een gezichtsafbeelding als de sterkte",
   "cannotLockFace": "{label} kan geen gezicht vastzetten; gebruik een van: {able}",
