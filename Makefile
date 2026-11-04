@@ -1,4 +1,4 @@
-.PHONY: help setup hooks build model-server app dev test lint check
+.PHONY: help setup hooks build model-server app dev test lint check render
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -30,3 +30,6 @@ lint: ## Type-check and lint the UI
 	cd frontend && npx tsc -b && npx oxlint src
 
 check: lint test ## Everything to run before a PR
+
+render: ## Render a list of JSON prompts through the running app (FILE=list.json, DRY_RUN=1 to only print them)
+	cd frontend && node scripts/render.mjs $(abspath $(FILE)) $(if $(DRY_RUN),--dry-run)
