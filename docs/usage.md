@@ -234,6 +234,8 @@ Your messages are sent to xAI; everything else stays on your Mac.
 
 **Compare** lets you pick two images, even from different searches, and see them side by side with the facts that differ (seed, steps, size and so on) highlighted.
 
+An open image is named in the address (`/history?image=384`, with the filters beside it), so a link, a bookmark or a reload opens that exact image, and Back closes the viewer. An image that is gone, or hidden by the filters, says so instead.
+
 The header shows how much space History uses, and offers:
 
 - **Export** (or **Export these** with a filter on): a zip of the images shown, each PNG with a text file of its prompts and settings, plus `history.json` with every image's details
@@ -298,6 +300,19 @@ With Z-Image-Turbo and any of its slider add-ons downloaded (Weight, Muscle tone
 - **Create's Look section** is for typed prompts. With a character chosen, the sliders start at its look, and moving one changes the next renders only: the character's look written in front of the prompt follows it. A slider's reset button puts it back to the character's look; picking another character resets them all. **Save as <name>'s default** stores the moved sliders, and the options they picked, on the character. Without a character only the LoRA applies, since free text can't be rewritten safely. The section is hidden for a prompt from the prompt builder, which has its own sliders.
 - **The prompt builder** keeps its sliders in the JSON prompt (`look`), so reopening it, or reusing an image, brings them back. With a character chosen, the sliders in its Character step start at the character's look and change this prompt only.
 - **The character dialog** sets the character's own look, sliders included.
+
+## A/B test
+
+**A/B test**, beside Generate, makes two to six images that differ only in what you compare, so you can see what it does. Everything else is the same in every image, the seed included.
+
+- **Settings to compare**: up to three, mixed as you like: any downloaded **look slider** (any prompt), and with a prompt from the prompt builder its **choices**: pose, scene, time of day, weather, photo style, shot type, camera angle, lens, depth of field, image filter or colour grading. An added setting starts every version at what the prompt has for it now; removing one keeps the values set for the others.
+- **Versions**: one card per image (A to F), with a value for each setting, using the same controls as the builder and the Look section. Each version must differ from the others as a whole (A and B may share a Weight if their Skin tone differs), and every choice must be set. For example: A = Weight -4 · Skin tone -2, B = Weight 6 · Skin tone 2, C = Weight 6 · Skin tone -2.
+- **Start test** fixes the seed (picking one if each render had its own) and puts version A in the prompt. A bar at the top of Create says what is compared. **Generate** becomes "Generate N images" and makes them one after another; the result area says which one is rendering, and Cancel stops the rest. When they are done, they open side by side, each labelled with its combination.
+- A slider value follows the usual rule: moving Weight to 5 also writes "plus-size figure" in the prompt.
+- **What stays editable**: everything else (outfit, scene, size, steps and so on). A change applies to every image.
+- **What is off until you leave** (each says why on hover): the model and the character, the purpose, Who and Age, every compared setting (edited from the bar's **Edit values**), the seed controls, every Random option, Surprise me, Reroll and Reset, the JSON | Text switch, chat, and anything that replaces the prompt (Reuse settings, Make variations, a character's **Use**).
+- **Leave A/B test** keeps version A; **Undo** brings the test back. The test is kept across reloads until you leave it.
+- History keeps each image with its test, and **Compare A/B set** in the image viewer opens the whole test again.
 
 ## Characters
 
