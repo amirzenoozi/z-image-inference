@@ -1,9 +1,8 @@
-import { useContext, useMemo, useState } from 'react'
+import { lazy, Suspense, useContext, useMemo, useState } from 'react'
 import type { AbTestControls } from '../../../App/useAbTest'
 import { testProblem, testableSliders, type AbTest } from '../../../lib/abTest'
 import { LookSlidersContext } from '../../../shared/lookSliders/LookSlidersContext'
 import { AbTestBar } from './components/AbTestBar'
-import { AbTestDialog } from './components/AbTestDialog'
 import { FlaskConical } from 'lucide-react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../../../types'
 import { useCharacter } from '../../../lib/characters'
@@ -23,8 +22,11 @@ import { ResolutionPicker } from './components/ResolutionPicker'
 import { SamplingControls } from './components/SamplingControls'
 import { SizeHint } from './components/SizeHint'
 import { StartImageBlock } from './components/StartImageBlock'
-import { Section, Spinner } from '../../../shared/ui/ui'
+import { DialogLoading, Section, Spinner } from '../../../shared/ui/ui'
 import { t } from '../../../i18n'
+
+// The A/B test dialog loads the first time it is opened
+const AbTestDialog = lazy(() => import('./components/AbTestDialog').then((module) => ({ default: module.AbTestDialog })))
 
 export type PromptMode = 'direct' | 'chat'
 
@@ -83,7 +85,9 @@ export function SettingsPanel(props: Props) {
           onUndoLeave={props.abTest.undoLeave}
         />
         {settingUpTest && (
-          <AbTestDialog settings={settings} model={model} modes={builderModes} sliders={testSliders} test={test} onSave={props.abTest.start} onClose={() => setSettingUpTest(false)} />
+          <Suspense fallback={<DialogLoading />}>
+            <AbTestDialog settings={settings} model={model} modes={builderModes} sliders={testSliders} test={test} onSave={props.abTest.start} onClose={() => setSettingUpTest(false)} />
+          </Suspense>
         )}
         <Section title={t('create.sectionModel')}>
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />

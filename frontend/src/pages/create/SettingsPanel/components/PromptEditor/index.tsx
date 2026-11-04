@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react'
+import { lazy, Suspense, useContext, useMemo, useState } from 'react'
 import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { useCharacter } from '../../../../../lib/characters'
 import type { BuilderModeData, GenerationSettings, Limits, ModelInfo } from '../../../../../types'
@@ -9,7 +9,8 @@ import { Textarea } from '../../../../../shared/form/Textarea'
 import { withoutSafeForWorkTerms, type BuilderState } from '../../../../../lib/promptBuilder/build'
 import { modesForCharacter, parseModes } from '../../../../../lib/promptBuilder/modes'
 import { parseSpec, specFromText, specText, stateFromSpec, type PromptSpec } from '../../../../../lib/promptBuilder/spec'
-import { PromptBuilderDialog, type InsertMode } from '../../../../../shared/promptBuilder/PromptBuilderDialog'
+import type { InsertMode } from '../../../../../shared/promptBuilder/PromptBuilderDialog'
+import { DialogLoading } from '../../../../../shared/ui/ui'
 import { WandSparkles } from 'lucide-react'
 import { t, type MessageKey } from '../../../../../i18n'
 
@@ -30,6 +31,9 @@ interface Props {
 function typedPrompt(prompt: string): PromptPatch {
   return prompt.trim() ? { prompt } : { prompt, lookIncluded: null, promptFormat: 'text' }
 }
+
+// The builder loads the first time it is opened
+const PromptBuilderDialog = lazy(() => import('../../../../../shared/promptBuilder/PromptBuilderDialog').then((module) => ({ default: module.PromptBuilderDialog })))
 
 function joinText(current: string, addition: string, separator: string): string {
   return current.trim() ? `${current.trim()}${separator}${addition}` : addition
@@ -79,6 +83,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
         <WandSparkles /> {t('create.promptBuilder')}
       </button>
       {builder && (
+        <Suspense fallback={<DialogLoading />}>
         <PromptBuilderDialog
           model={model}
           modes={builderModes}
@@ -90,6 +95,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
           onClose={() => setBuilder(null)}
           onConfirm={insertBuilt}
         />
+        </Suspense>
       )}
       <PromptBox
         settings={settings}
