@@ -2,6 +2,7 @@
   "unknownModel": "Unknown model: {model}",
   "stepsRange": "steps must be between 1 and {max_steps}",
   "variationNeedsBoth": "A variation needs both a start image and how much to change it",
+  "setNeedsBoth": "An A/B test image needs both its set id and its label",
   "cannotStartFromImage": "{label} can't start from an image; pick another model or remove the start image",
   "faceLockNeedsBoth": "A face lock needs both a face image and its strength",
   "cannotLockFace": "{label} can't lock a face; use one of: {able}",

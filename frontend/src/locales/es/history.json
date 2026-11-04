@@ -106,5 +106,8 @@
   "flippedHorizontally": "Volteada horizontalmente",
   "flippedVertically": "Volteada verticalmente",
   "croppedTo": "Recortada a {width} × {height}",
-  "noEdits": "Aún no hay ediciones"
+  "noEdits": "Aún no hay ediciones",
+  "compareSet": "Comparar el conjunto A/B",
+  "setOnlyOne": "Solo queda una imagen de este conjunto A/B, así que no hay nada que comparar.",
+  "imageMissing": "La imagen #{id} no está en el historial, o los filtros la ocultan."
 }

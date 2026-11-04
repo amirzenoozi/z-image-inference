@@ -2,6 +2,7 @@
   "unknownModel": "Modello sconosciuto: {model}",
   "stepsRange": "i passi devono essere tra 1 e {max_steps}",
   "variationNeedsBoth": "Una variante richiede sia un'immagine di partenza sia quanto modificarla",
+  "setNeedsBoth": "Un'immagine di un test A/B richiede sia l'id del set sia la sua etichetta",
   "cannotStartFromImage": "{label} non può partire da un'immagine; scegli un altro modello o rimuovi l'immagine di partenza",
   "faceLockNeedsBoth": "Un blocco del volto richiede sia un'immagine del volto sia la sua intensità",
   "cannotLockFace": "{label} non può bloccare un volto; usa uno di questi: {able}",

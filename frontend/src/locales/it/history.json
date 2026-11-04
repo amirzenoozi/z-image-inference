@@ -106,5 +106,8 @@
   "flippedHorizontally": "Riflessa in orizzontale",
   "flippedVertically": "Riflessa in verticale",
   "croppedTo": "Ritagliata a {width} × {height}",
-  "noEdits": "Ancora nessuna modifica"
+  "noEdits": "Ancora nessuna modifica",
+  "compareSet": "Confronta il set A/B",
+  "setOnlyOne": "È rimasta una sola immagine di questo set A/B, quindi non c’è nulla da confrontare.",
+  "imageMissing": "L’immagine #{id} non è nella cronologia, oppure i filtri la nascondono."
 }

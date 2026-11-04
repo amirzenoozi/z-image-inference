@@ -106,5 +106,8 @@
   "flippedHorizontally": "Espelhada na horizontal",
   "flippedVertically": "Espelhada na vertical",
   "croppedTo": "Recortada para {width} × {height}",
-  "noEdits": "Nenhuma edição ainda"
+  "noEdits": "Nenhuma edição ainda",
+  "compareSet": "Comparar o conjunto A/B",
+  "setOnlyOne": "Só resta uma imagem deste conjunto A/B, por isso não há nada para comparar.",
+  "imageMissing": "A imagem #{id} não está no histórico, ou os filtros escondem-na."
 }

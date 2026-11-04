@@ -106,5 +106,8 @@
   "flippedHorizontally": "Horizontaal gespiegeld",
   "flippedVertically": "Verticaal gespiegeld",
   "croppedTo": "Bijgesneden tot {width} × {height}",
-  "noEdits": "Nog geen bewerkingen"
+  "noEdits": "Nog geen bewerkingen",
+  "compareSet": "A/B-set vergelijken",
+  "setOnlyOne": "Er is nog maar één afbeelding van deze A/B-set over, dus er valt niets te vergelijken.",
+  "imageMissing": "Afbeelding #{id} staat niet in de geschiedenis, of de filters verbergen haar."
 }
