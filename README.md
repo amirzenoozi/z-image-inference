@@ -92,6 +92,8 @@ Optional, in a `.env` file in the project folder:
 | `CIVITAI_TOKEN` | Civitai API key, to download the LoRAs hosted there, such as the tattoo add-on |
 | `Z_IMAGE_BITS` | Which Z-Image-Turbo copy to run: `8` (default), `6`, `5`, `4`, `3`, or `original` |
 | `MODEL_COMPRESSION` | `on` keeps smaller compressed copies of the other models instead of their originals |
+| `ADULT_CONTENT` | `off` (default) or `on`: the 18+ purposes, adult models and add-ons, and sensitive History images. Off, the app serves none of it and keeps every render safe for work |
+| `ADULT_UNLOCK_WORD` | With `ADULT_CONTENT=on`, a hidden word that keeps adult content hidden in each browser until it is typed on the Create page (see [Adult content lock](docs/usage.md#adult-content-lock)); empty shows it without a word |
 
 Restart both servers after changing them. See [Models](docs/models.md) for what each setting changes.
 
