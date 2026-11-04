@@ -584,6 +584,9 @@ it('runs an A/B test: one seed, one image per version in turn, with what it lock
   const [request] = vi.mocked(api.generateImage).mock.calls[0]
   expect(request).toMatchObject({ randomSeed: false, strengths: { weight: -5 }, testSet: { label: 'Weight -5' } })
   expect(screen.getAllByText(/Generating image 1 of 2/).length).toBeGreaterThan(0)
+  // The test can't be changed or left part-way through the run
+  expect(screen.getByRole('button', { name: 'Leave A/B test' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Edit values' })).toBeDisabled()
 
   first.resolve(historyItem({ id: 8, seed: 5, set_label: 'Weight -5' }))
   expect(await screen.findByRole('heading', { name: 'A/B test results' })).toBeInTheDocument()

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useContext, useMemo, useState } from 'react'
+import { lazy, useContext, useMemo, useState } from 'react'
 import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { useCharacter } from '../../../../../lib/characters'
 import type { BuilderModeData, GenerationSettings, Limits, ModelInfo } from '../../../../../types'
@@ -11,6 +11,7 @@ import { modesForCharacter, parseModes } from '../../../../../lib/promptBuilder/
 import { parseSpec, specFromText, specText, stateFromSpec, type PromptSpec } from '../../../../../lib/promptBuilder/spec'
 import type { InsertMode } from '../../../../../shared/promptBuilder/PromptBuilderDialog'
 import { DialogLoading } from '../../../../../shared/ui/ui'
+import { LazyPart } from '../../../../../shared/ui/LazyPart'
 import { WandSparkles } from 'lucide-react'
 import { t, type MessageKey } from '../../../../../i18n'
 
@@ -83,7 +84,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
         <WandSparkles /> {t('create.promptBuilder')}
       </button>
       {builder && (
-        <Suspense fallback={<DialogLoading />}>
+        <LazyPart dialog fallback={<DialogLoading />}>
         <PromptBuilderDialog
           model={model}
           modes={builderModes}
@@ -95,7 +96,7 @@ export function PromptEditor({ settings, model, limits, builderModes, locked, on
           onClose={() => setBuilder(null)}
           onConfirm={insertBuilt}
         />
-        </Suspense>
+        </LazyPart>
       )}
       <PromptBox
         settings={settings}
