@@ -132,7 +132,7 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
   render(<App />)
 
   await userEvent.click(await screen.findByRole('button', { name: /Prompt builder/ }))
-  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const dialog = await screen.findByRole('dialog', { name: 'Prompt builder' })
   await chooseOption(within(dialog).getByLabelText('Who'), 'Man')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 
@@ -151,7 +151,7 @@ it('fills the Write box from the prompt builder dialog, then generates with it',
 
 async function buildPromptFor(who: string) {
   await userEvent.click(await screen.findByRole('button', { name: /Prompt builder/ }))
-  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const dialog = await screen.findByRole('dialog', { name: 'Prompt builder' })
   await chooseOption(within(dialog).getByLabelText('Who'), who)
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
 }
@@ -190,7 +190,7 @@ it('opens a changed JSON prompt in the builder with its choices', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: 'Edit in builder' }))
 
-  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const dialog = await screen.findByRole('dialog', { name: 'Prompt builder' })
   expect(within(dialog).getByLabelText('Built prompt')).toHaveTextContent('A photograph of an adult woman in her late 20s.')
 })
 
@@ -257,7 +257,7 @@ it('drops "nsfw" from the negative prompt when an explicit prompt is appended', 
   await userEvent.type(screen.getByLabelText('Prompt'), 'soft light')
 
   await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
-  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const dialog = await screen.findByRole('dialog', { name: 'Prompt builder' })
   await chooseOption(within(dialog).getByLabelText('Who'), 'Woman')
   await chooseOption(within(dialog).getByLabelText('Age'), 'Early 30s')
   await userEvent.click(within(dialog).getByRole('radio', { name: 'Explicit (18+)' }))
@@ -423,7 +423,7 @@ it('does not add the look again to a prompt the builder wrote for the character'
 
   await chooseOption(await screen.findByLabelText('Character'), 'Ava')
   await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
-  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const dialog = await screen.findByRole('dialog', { name: 'Prompt builder' })
   const built = within(dialog).getByLabelText('Built prompt').textContent
   await userEvent.click(within(dialog).getByRole('button', { name: 'Use this prompt' }))
   expect(screen.getByText("Your prompt already has Ava's look.")).toBeInTheDocument()

@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { loadLanguage, t } from '../i18n'
-import { HistoryPage } from '../pages/history/HistoryPage'
-import { CharactersPage } from '../pages/characters/CharactersPage'
 import { CharactersProvider } from '../shared/characters/CharactersProvider'
 import { CreatePage } from '../pages/create/CreatePage'
 import type { PromptMode } from '../pages/create/SettingsPanel'
@@ -29,6 +27,10 @@ import { CompareDialog } from '../shared/images/CompareDialog'
 import { useAbTest } from './useAbTest'
 import { Images, Sparkles, UsersRound, WandSparkles, type LucideIcon } from 'lucide-react'
 
+
+// History and Characters load the first time they are opened, so Create, the first screen, loads less
+const HistoryPage = lazy(() => import('../pages/history/HistoryPage').then((module) => ({ default: module.HistoryPage })))
+const CharactersPage = lazy(() => import('../pages/characters/CharactersPage').then((module) => ({ default: module.CharactersPage })))
 
 function Loading() {
   return (
@@ -170,16 +172,20 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
         />
         {view === 'characters' && (
           <main className="min-h-0 flex-1 overflow-y-auto">
+            <Suspense fallback={<Loading />}>
             <CharactersPage
               maxSeed={catalog.limits.max_seed}
               onUse={(character) => openInCreate({ ...settings, ...characterSettings(character) })}
               onShowImages={(character) => setView('history', `?character=${character.id}`)}
             />
+            </Suspense>
           </main>
         )}
         {view === 'history' && (
           <main className="min-h-0 flex-1 overflow-y-auto">
-            <HistoryPage models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
+            <Suspense fallback={<Loading />}>
+              <HistoryPage models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
+            </Suspense>
           </main>
         )}
         {abTest.results && <CompareDialog items={abTest.results} labelOf={(id) => findModel(catalog, id).label} title={t('create.abResultsTitle')} onClose={abTest.closeResults} />}

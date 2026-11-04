@@ -52,7 +52,7 @@ describe('the catalog the app works from', () => {
 
 const purposes = async () => {
   await userEvent.click(screen.getByRole('button', { name: /Prompt builder/ }))
-  const dialog = screen.getByRole('dialog', { name: 'Prompt builder' })
+  const dialog = await screen.findByRole('dialog', { name: 'Prompt builder' })
   const names = within(dialog).getAllByRole('radio').map((radio) => radio.textContent)
   await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
   return names

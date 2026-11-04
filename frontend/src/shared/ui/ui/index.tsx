@@ -14,6 +14,15 @@ export function Section({ title, aside, children }: { title: string; aside?: Rea
   )
 }
 
+/** Shown while a dialog's code loads the first time it is opened, so the click is never answered by nothing. */
+export function DialogLoading() {
+  return (
+    <div role="status" aria-busy="true" aria-label={t('common.loading')} className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <Spinner className="size-8 text-white" />
+    </div>
+  )
+}
+
 export function Spinner({ className = 'size-5' }: { className?: string }) {
   return (
     <span
