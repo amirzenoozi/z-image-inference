@@ -40,7 +40,7 @@ import custom_clothes
 from custom_clothes import CustomGarment
 from palette import PaletteColour
 from prompt_spec import PromptSpec
-from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, NewImage
+from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, ItemPosition, NewImage
 from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, AddonKind, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint
 from resolutions import CATEGORIES, PRESETS, Category
 
@@ -607,6 +607,15 @@ def history(
 ) -> HistoryPage:
     items, total = history_store.page(offset, limit, filters)
     return HistoryPage(items=items, total=total)
+
+
+@app.get("/api/history/{item_id}/position")
+def history_position(item_id: int, filters: HistoryFilter = Depends(history_filter)) -> ItemPosition:
+    """An image and its place in History's list with these filters, so a link can open it; 404 when the list leaves it out."""
+    found = history_store.position(item_id, filters)
+    if found is None:
+        raise HTTPException(404, i18n.t("imageNotFound"))
+    return found
 
 
 @app.get("/api/history/sets/{set_id}")

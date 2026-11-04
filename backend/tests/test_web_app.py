@@ -681,6 +681,17 @@ def test_history_records_the_slider_strengths_a_render_used(client: TestClient, 
     assert model_server.calls[-1]["strengths"] == {"weight": -3.5}
 
 
+def test_a_link_finds_where_an_image_is_in_history_with_its_filters(client: TestClient, model_server: FakeModelServer) -> None:
+    cat = generate(client, prompt="a cat").json()["id"]
+    generate(client, prompt="a dog")
+    newest_cat = generate(client, prompt="a cat on a sofa").json()["id"]
+    assert client.get(f"/api/history/{cat}/position").json() | {"item": None} == {"item": None, "index": 2, "total": 3}
+    found = client.get(f"/api/history/{cat}/position?q=cat").json()
+    assert (found["item"]["id"], found["index"], found["total"]) == (cat, 1, 2)
+    assert client.get(f"/api/history/{newest_cat}/position?q=dog").status_code == 404
+    assert client.get("/api/history/999/position").status_code == 404
+
+
 SET_ID = "0b6f6a52-1c4e-4b7e-9d2a-5f3c8e1a7b90"
 
 

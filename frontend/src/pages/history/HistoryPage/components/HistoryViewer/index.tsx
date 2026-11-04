@@ -32,6 +32,8 @@ interface Props {
   labelOf: (id: string) => string
   /** Called when the viewer moves, so History can show the page it is on. */
   onIndexChange: (index: number) => void
+  /** Called once each image the viewer shows has loaded, so History's address names it. */
+  onShow: (item: HistoryItem) => void
   /** Called after a star or delete, so History reloads what it shows. */
   onListChanged: () => void
   onReuse: (item: HistoryItem) => void
@@ -148,7 +150,7 @@ function useArmedDelete(onConfirmed: () => void): [boolean, () => void] {
   return [armed, press]
 }
 
-export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListChanged, onReuse, onVary, onEdited, onClose }: Props) {
+export function HistoryViewer({ filters, start, labelOf, onIndexChange, onShow, onListChanged, onReuse, onVary, onEdited, onClose }: Props) {
   const [index, setIndex] = useState(start.index)
   const image = useImageAt(filters, index, start)
   const area = useRef<HTMLDivElement>(null)
@@ -208,6 +210,9 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
   )
 
   const item = image.state.status === 'settled' ? image.state.value : null
+  useEffect(() => {
+    if (item) onShow(item)
+  }, [item, onShow])
   const remove = async (target: HistoryItem) => {
     setDeleteState({ status: 'deleting' })
     try {

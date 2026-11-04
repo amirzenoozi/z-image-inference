@@ -7,7 +7,8 @@ import { errorMessage } from '../../../lib/hooks'
 import { secondaryButtonClass } from '../../../lib/styles'
 import type { HistoryFilters, HistoryItem, HistoryPageData, Loadable, ModelInfo } from '../../../types'
 import { CompareDialog } from '../../../shared/images/CompareDialog'
-import { HistoryViewer, type ViewerStart } from './components/HistoryViewer'
+import { HistoryViewer } from './components/HistoryViewer'
+import { useViewerAddress, type LinkState } from './useViewerAddress'
 import { HistoryCleanUp } from './components/HistoryCleanUp'
 import { HistoryFilterBar } from './components/HistoryFilters'
 import { HistoryGrid } from './components/HistoryGrid'
@@ -64,8 +65,8 @@ export function HistoryPage({ models, onReuse, onVary }: Props) {
   // Kept across filter changes, so two images found by different searches can be compared
   const [selection, setSelection] = useState<HistoryItem[] | null>(null)
   const [comparing, setComparing] = useState<[HistoryItem, HistoryItem] | null>(null)
-  // The viewer belongs to the filters it opened with; it closes if Back or Forward changes them
-  const [viewing, setViewing] = useState<(ViewerStart & { filtersKey: string }) | null>(null)
+  const viewer = useViewerAddress({ address, go, hideSensitive: !adultShown, pageSize: PAGE_SIZE })
+  const { viewing } = viewer
   // Bumped after the viewer stars or deletes, so the page behind it reloads
   const [listVersion, setListVersion] = useState(0)
   const filtersKey = JSON.stringify(filters)
@@ -73,33 +74,28 @@ export function HistoryPage({ models, onReuse, onVary }: Props) {
   const top = useRef<HTMLDivElement>(null)
 
   // A filter change starts again from the first page; typing a search updates the current Back entry instead of adding one
-  const changeFilters = (next: HistoryFilters) => go({ filters: next, page: 1 }, next.search === filters.search ? 'push' : 'replace')
+  const changeFilters = (next: HistoryFilters) => go({ filters: next, page: 1, image: null }, next.search === filters.search ? 'push' : 'replace')
   const changePage = useCallback(
     (number: number, change: AddressChange = 'push') => {
-      go({ filters, page: number }, change)
+      // A page change of its own (the last page emptied by a delete) keeps the viewer open on its image
+      go({ filters, page: number, image: address.image }, change)
       top.current?.scrollIntoView({ block: 'start' })
     },
-    [filters, go],
+    [filters, address.image, go],
   )
   const clearFilters = () => {
-    go({ filters: NO_FILTERS, page: 1 })
+    go({ filters: NO_FILTERS, page: 1, image: null })
     setFiltersVersion((n) => n + 1)
   }
   const compare = () => {
     if (selection?.length === 2) setComparing([selection[0], selection[1]])
   }
-  // The page behind the viewer follows it, so closing the viewer shows where it ended
   // A saved edit is the newest image: filters are cleared so it is in the list, and the viewer opens on it
   const openEdited = async (item: HistoryItem) => {
     setListVersion((n) => n + 1)
     const newest = await fetchHistory(0, 1, NO_FILTERS, !adultShown).catch(() => null)
-    go({ filters: NO_FILTERS, page: 1 })
     setFiltersVersion((n) => n + 1)
-    setViewing({ index: 0, item, total: newest?.total ?? 1, filtersKey: JSON.stringify(NO_FILTERS) })
-  }
-  const followViewer = (index: number) => {
-    const pageOfImage = Math.floor(index / PAGE_SIZE) + 1
-    if (pageOfImage !== page) go({ filters, page: pageOfImage })
+    viewer.open({ index: 0, item, total: newest?.total ?? 1 }, NO_FILTERS)
   }
 
   return (
@@ -120,28 +116,43 @@ export function HistoryPage({ models, onReuse, onVary }: Props) {
         filters={filters}
         pageNumber={page}
         labelOf={labelOf}
-        onOpen={(item, indexOnPage, total) => setViewing({ index: (page - 1) * PAGE_SIZE + indexOnPage, item, total, filtersKey })}
+        onOpen={(item, indexOnPage, total) => viewer.open({ index: (page - 1) * PAGE_SIZE + indexOnPage, item, total })}
         onClearFilters={clearFilters}
         selectedIds={selection?.map((item) => item.id) ?? null}
         onSelect={(item) => setSelection((current) => toggleInSelection(current ?? [], item))}
         onPageChange={changePage}
       />
       {comparing && <CompareDialog items={comparing} labelOf={labelOf} onClose={() => setComparing(null)} />}
+      <LinkedImageNote link={viewer.link} onRetry={viewer.retry} onDismiss={viewer.dismiss} />
       {viewing?.filtersKey === filtersKey && (
         <HistoryViewer
           key={`${viewing.filtersKey}-${viewing.item.id}`}
           filters={filters}
           start={viewing}
           labelOf={labelOf}
-          onIndexChange={followViewer}
+          onIndexChange={viewer.follow}
+          onShow={viewer.show}
           onListChanged={() => setListVersion((n) => n + 1)}
           onReuse={onReuse}
           onVary={onVary}
           onEdited={(item) => void openEdited(item)}
-          onClose={() => setViewing(null)}
+          onClose={viewer.close}
         />
       )}
     </div>
+  )
+}
+
+/** Opening the image a link names: a placeholder while it is looked up, a note when it isn't there, or the error with Retry. */
+function LinkedImageNote({ link, onRetry, onDismiss }: { link: LinkState; onRetry: () => void; onDismiss: () => void }) {
+  if (link.status === 'loading') return <p role="status" aria-busy="true" className="text-sm text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>
+  if (link.status === 'failed') return <ErrorNotice message={link.error} onRetry={onRetry} />
+  if (link.status !== 'missing') return null
+  return (
+    <p role="status" className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+      {t('history.imageMissing', { id: link.id })}
+      <button type="button" onClick={onDismiss} className="font-semibold">{t('common.close')}</button>
+    </p>
   )
 }
 
