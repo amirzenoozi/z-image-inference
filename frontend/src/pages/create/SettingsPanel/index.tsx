@@ -1,4 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
+import type { AbTestControls } from '../../../App/useAbTest'
+import { testProblem, testableSliders, type AbTest } from '../../../lib/abTest'
+import { LookSlidersContext } from '../../../shared/lookSliders/LookSlidersContext'
+import { AbTestBar } from './components/AbTestBar'
+import { AbTestDialog } from './components/AbTestDialog'
+import { FlaskConical } from 'lucide-react'
 import type { Catalog, GenerationSettings, Loadable, ModelInfo, ModelStatusReport } from '../../../types'
 import { useCharacter } from '../../../lib/characters'
 import { addsCharacterLook, promptToSend, type SentPrompt } from '../../../lib/characterPrompt'
@@ -6,7 +12,7 @@ import { isServerDown } from '../../../lib/modelStatus'
 import { parseModes } from '../../../lib/promptBuilder/modes'
 import { characterSettings, differsFromDefaults, findModel, modelDefaults, switchModel } from '../../../lib/settings'
 import { useTooltip } from '../../../lib/useTooltip'
-import { tabClass } from '../../../lib/styles'
+import { secondaryButtonClass, tabClass } from '../../../lib/styles'
 import { CharacterPicker } from './components/CharacterPicker'
 import { ChatPanel } from './components/ChatPanel'
 import { AddonsPanel } from './components/AddonsPanel'
@@ -34,6 +40,7 @@ interface Props {
   onChatPrompt: (prompt: string) => void
   modelStatus: Loadable<ModelStatusReport>
   onModelStatusChanged: () => void
+  abTest: AbTestControls
 }
 
 export function SettingsPanel(props: Props) {
@@ -42,7 +49,11 @@ export function SettingsPanel(props: Props) {
   const character = useCharacter(settings.characterId)
   const builderModes = useMemo(() => parseModes(catalog.builder_modes).modes, [catalog.builder_modes])
   const sent = promptToSend(settings, character, model, builderModes)
-  const reason = blockedReason(settings, model, isServerDown(props.modelStatus)) ?? sentProblem(sent, settings, catalog.limits.max_prompt_length)
+  const { test } = props.abTest
+  const testSliders = testableSliders(model, useContext(LookSlidersContext))
+  const [settingUpTest, setSettingUpTest] = useState(false)
+  const reason =
+    blockedReason(settings, model, isServerDown(props.modelStatus)) ?? sentProblem(sent, settings, catalog.limits.max_prompt_length) ?? testReason(test, settings, testSliders, builderModes)
   // The same rule for the button and for ⌘/Ctrl + Enter in the prompt box
   const generate = () => {
     if (reason === null && !generating) onGenerate()
@@ -62,6 +73,18 @@ export function SettingsPanel(props: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-7 overflow-y-auto p-4 sm:p-5">
+        <AbTestBar
+          test={test}
+          left={props.abTest.left}
+          model={model}
+          busy={generating}
+          onEdit={() => setSettingUpTest(true)}
+          onLeave={props.abTest.leave}
+          onUndoLeave={props.abTest.undoLeave}
+        />
+        {settingUpTest && (
+          <AbTestDialog settings={settings} model={model} modes={builderModes} sliders={testSliders} test={test} onSave={props.abTest.start} onClose={() => setSettingUpTest(false)} />
+        )}
         <Section title={t('create.sectionModel')}>
           <ModelPicker models={catalog.models} categories={catalog.model_categories} selectedId={model.id} status={props.modelStatus} onSelect={selectModel} onStatusChanged={props.onModelStatusChanged} />
           {defaultsHintFor === model.id && <DefaultsHint model={model} onApply={applyDefaults} onDismiss={() => setDefaultsHintFor(null)} />}
@@ -92,7 +115,7 @@ export function SettingsPanel(props: Props) {
           <SamplingControls settings={settings} model={model} limits={catalog.limits} lastSeed={lastSeed} onChange={patch} />
         </Section>
       </div>
-      <GenerateBar reason={reason} generating={generating} onGenerate={generate} />
+      <GenerateBar reason={reason} generating={generating} test={test} progress={props.abTest.progress} onGenerate={generate} onSetUpTest={() => setSettingUpTest(true)} />
     </div>
   )
 }
@@ -107,6 +130,11 @@ function blockedReason(settings: GenerationSettings, model: ModelInfo, serverDow
   if (!settings.prompt.trim()) return t('create.writePromptFirst')
   if (settings.startImage && !model.supports_variations) return t('create.cantStartFromImage', { model: model.label })
   return null
+}
+
+/** Why the A/B test can't run with these settings, or null (also null outside a test). */
+function testReason(test: AbTest | null, settings: GenerationSettings, sliders: ReturnType<typeof testableSliders>, modes: ReturnType<typeof parseModes>['modes']): string | null {
+  return test ? testProblem(test, settings, sliders, modes) : null
 }
 
 /** A JSON prompt that can't be written, or a written prompt over the limit: the look a character adds, or a long JSON prompt. */
@@ -141,9 +169,12 @@ interface PromptSectionProps extends Props {
 
 function PromptSection(props: PromptSectionProps) {
   const { catalog, settings, mode, onModeChange, generating, onGenerate, model, patch, addsLook } = props
+  // A prompt from chat replaces the one an A/B test compares
+  const testing = props.abTest.test !== null
+  const tabTitle = (enabled: boolean) => (enabled ? undefined : t(testing ? 'create.abLocked' : 'create.chatNeedsKey'))
   const modes: { id: PromptMode; label: string; enabled: boolean }[] = [
     { id: 'direct', label: t('create.modeWrite'), enabled: true },
-    { id: 'chat', label: t('create.modeChat'), enabled: catalog.chat_available },
+    { id: 'chat', label: t('create.modeChat'), enabled: catalog.chat_available && !testing },
   ]
   return (
     <Section title={t('create.sectionPrompt')}>
@@ -156,7 +187,7 @@ function PromptSection(props: PromptSectionProps) {
             role="tab"
             aria-selected={mode === id}
             disabled={!enabled}
-            title={enabled ? undefined : t('create.chatNeedsKey')}
+            title={tabTitle(enabled)}
             onClick={() => onModeChange(id)}
             className={`rounded-lg py-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
               tabClass(mode === id)
@@ -169,7 +200,7 @@ function PromptSection(props: PromptSectionProps) {
       {mode === 'direct' && (
         <PromptEditor settings={settings} model={model} limits={catalog.limits} builderModes={catalog.builder_modes} locked={generating} onChange={patch} onSubmit={onGenerate} />
       )}
-      {mode === 'chat' && <ChatPanel busy={generating} onPromptReady={props.onChatPrompt} />}
+      {mode === 'chat' && !props.abTest.test && <ChatPanel busy={generating} onPromptReady={props.onChatPrompt} />}
       {settings.startImage && <StartImageBlock startImage={settings.startImage} model={model} onChange={(startImage) => patch({ startImage })} />}
     </Section>
   )
@@ -179,21 +210,45 @@ function PromptSection(props: PromptSectionProps) {
  * Blocked, it stays hoverable and focusable (aria-disabled rather than disabled), so its tooltip can say why;
  * a disabled button gets no hover or focus at all.
  */
-function GenerateBar({ reason, generating, onGenerate }: { reason: string | null; generating: boolean; onGenerate: () => void }) {
+interface GenerateBarProps {
+  reason: string | null
+  generating: boolean
+  test: AbTest | null
+  progress: AbTestControls['progress']
+  onGenerate: () => void
+  onSetUpTest: () => void
+}
+
+function generateLabel(generating: boolean, test: AbTest | null, progress: AbTestControls['progress']): string {
+  if (progress) return t('create.abGenerating', { index: progress.index, total: progress.total })
+  if (generating) return t('create.generating')
+  return test ? t('create.abGenerate', { count: test.versions.length }) : t('create.generate')
+}
+
+function GenerateBar({ reason, generating, test, progress, onGenerate, onSetUpTest }: GenerateBarProps) {
   const { trigger, tooltip } = useTooltip(reason ?? '')
+  const busy = generating || progress !== null
   return (
     <div className="border-t border-zinc-200 bg-white/80 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
+      <div className="flex gap-2">
+      {/* Once a test is on, its bar edits it */}
+      {!test && (
+        <button type="button" onClick={onSetUpTest} disabled={busy} className={`${secondaryButtonClass} flex shrink-0 items-center gap-1.5 rounded-xl disabled:opacity-50`}>
+          <FlaskConical /> {t('create.abTest')}
+        </button>
+      )}
       <button
         type="button"
         onClick={onGenerate}
-        aria-disabled={reason !== null || generating}
+        aria-disabled={reason !== null || busy}
         aria-description={reason ?? undefined}
         {...(reason ? trigger : {})}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white shadow-sm transition not-aria-disabled:hover:bg-violet-500 aria-disabled:opacity-50"
       >
-        {generating && <Spinner className="size-4" />}
-        {generating ? t('create.generating') : t('create.generate')}
+        {busy && <Spinner className="size-4" />}
+        {generateLabel(generating, test, progress)}
       </button>
+      </div>
       {/* Touch screens have no hover tooltip, so the reason is written out; screen readers get it from aria-description */}
       {reason && <p aria-hidden="true" className="mt-2 hidden text-center text-xs text-zinc-500 pointer-coarse:block dark:text-zinc-400">{reason}</p>}
       {tooltip}

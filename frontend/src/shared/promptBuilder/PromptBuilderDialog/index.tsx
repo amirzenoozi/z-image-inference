@@ -17,6 +17,7 @@ import { AppearanceStep, BodyStep, CameraStep, CharacterLookSliders, FinishStep,
 import { t, type MessageKey } from '../../../i18n'
 import { IconButton } from '../../ui/IconButton'
 import { Dices, Lock, LockOpen } from 'lucide-react'
+import { AbTestContext } from '../../abTest/AbTestContext'
 
 export type InsertMode = 'replace' | 'append'
 
@@ -81,6 +82,8 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
   const sliders = slidersOf(useContext(LookSlidersContext), model)
   const result = useMemo(() => buildPrompt(withLook, mode, model.prompt_style), [withLook, mode, model.prompt_style])
 
+  // An A/B test changes one choice between images, so nothing that picks again at random runs during one
+  const testing = useContext(AbTestContext) !== null
   const steps = stepsFor(mode, character)
   const step = steps.find((candidate) => candidate.id === stepId) ?? steps[0]
   const set = (patch: Partial<BuilderState>) => setState((current) => ({ ...current, ...patch }))
@@ -111,18 +114,20 @@ export function PromptBuilderDialog({ model, modes: modeData, character, onChara
             <StepHeading
               step={step}
               canSurprise={!(character && step.id === 'subject')}
+              testing={testing}
               locked={state.lockedSteps.includes(step.id)}
               onSurprise={() => surpriseWithLook((looked) => surpriseStep(looked, step.id, newSeed(), mode))}
               onToggleLock={() => setState((current) => toggleLock(current, step.id))}
             />
             {/* The steps offer what fits the character, so a woman's Outfit has bras and dresses her with a top */}
-            <StepContent step={step} character={character} onCharacterSaved={onCharacterSaved} state={withLook} mode={mode} set={set} setOutfit={setOutfit} />
+            <StepContent step={step} character={character} onCharacterSaved={testing ? null : onCharacterSaved} state={withLook} mode={mode} set={set} setOutfit={setOutfit} />
           </section>
           <PreviewPane
             result={result}
             styleNote={styleNote(model, mode)}
             maxPromptLength={maxPromptLength}
             canReroll={hasRandomChoice(state)}
+            testing={testing}
             onSurprise={() => surpriseWithLook((looked) => surprise(looked, newSeed(), mode))}
             onReroll={() => set({ rollSeed: newSeed() })}
             onReset={() => setState(switchMode(emptyBuilderState(), mode))}
@@ -143,7 +148,8 @@ function withCharacterMoves(state: BuilderState, character: Character | null): B
 interface StepContentProps extends StepProps {
   step: Step
   character: Character | null
-  onCharacterSaved: (character: Character) => void
+  /** Null while saving a new character is off (an A/B test keeps its character). */
+  onCharacterSaved: ((character: Character) => void) | null
 }
 
 function StepContent({ step, character, onCharacterSaved, ...props }: StepContentProps) {
@@ -160,7 +166,7 @@ function StepContent({ step, character, onCharacterSaved, ...props }: StepConten
   return (
     <>
       <step.Component {...props} />
-      <SaveAsCharacter state={props.state} onSaved={onCharacterSaved} />
+      {onCharacterSaved && <SaveAsCharacter state={props.state} onSaved={onCharacterSaved} />}
     </>
   )
 }
@@ -205,28 +211,33 @@ interface PreviewPaneProps {
   styleNote: string
   maxPromptLength: number
   canReroll: boolean
+  /** An A/B test is on: Surprise me, Reroll and Reset are off. */
+  testing: boolean
   onSurprise: () => void
   onReroll: () => void
   onReset: () => void
 }
 
-function PreviewPane({ result, styleNote, maxPromptLength, canReroll, onSurprise, onReroll, onReset }: PreviewPaneProps) {
+function PreviewPane({ result, styleNote, maxPromptLength, canReroll, testing, onSurprise, onReroll, onReset }: PreviewPaneProps) {
+  const lockedTitle = testing ? t('create.abLocked') : undefined
   return (
     <aside aria-label={t('builder.preview')} className="flex min-h-0 flex-col gap-3 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-950/60">
       <button
         type="button"
         onClick={onSurprise}
-        className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+        disabled={testing}
+        title={lockedTitle}
+        className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2 text-sm font-semibold text-white shadow-sm not-disabled:hover:opacity-90 disabled:opacity-50"
       >
         <Dices /> {t('builder.surprise')}
       </button>
       <div className="flex items-center justify-between text-xs">
         <h3 className="font-semibold text-zinc-700 dark:text-zinc-200">{t('builder.preview')}</h3>
         <span className="flex gap-3">
-          <button type="button" onClick={onReroll} disabled={!canReroll} title={t('builder.rerollHint')} className="text-violet-600 disabled:text-zinc-400 dark:text-violet-400">
+          <button type="button" onClick={onReroll} disabled={!canReroll || testing} title={lockedTitle ?? t('builder.rerollHint')} className="text-violet-600 disabled:text-zinc-400 dark:text-violet-400">
             {t('builder.reroll')}
           </button>
-          <button type="button" onClick={onReset} className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+          <button type="button" onClick={onReset} disabled={testing} title={lockedTitle} className="text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-200">
             {t('builder.resetAll')}
           </button>
         </span>
@@ -299,6 +310,8 @@ interface StepHeadingProps {
   canSurprise: boolean
   /** Surprise me leaves the step as it is, and its own Surprise me is off. */
   locked: boolean
+  /** An A/B test is on, so the step's own Surprise me is off. */
+  testing: boolean
   onSurprise: () => void
   onToggleLock: () => void
 }
@@ -307,7 +320,7 @@ const headingButtonClass =
   'flex size-8 items-center justify-center rounded-full text-violet-600 hover:bg-violet-50 disabled:opacity-40 disabled:hover:bg-transparent pointer-coarse:size-11 dark:text-violet-300 dark:hover:bg-violet-950/40'
 
 /** The step's title, its own Surprise me, which picks again only this step's choices, and the lock against Surprise me. */
-function StepHeading({ step, canSurprise, locked, onSurprise, onToggleLock }: StepHeadingProps) {
+function StepHeading({ step, canSurprise, locked, testing, onSurprise, onToggleLock }: StepHeadingProps) {
   const name = t(step.label)
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
@@ -317,7 +330,7 @@ function StepHeading({ step, canSurprise, locked, onSurprise, onToggleLock }: St
           <IconButton label={t(locked ? 'builder.unlockStep' : 'builder.lockStep', { step: name })} aria-pressed={locked} onClick={onToggleLock} className={headingButtonClass}>
             {locked ? <Lock /> : <LockOpen />}
           </IconButton>
-          <IconButton label={t('builder.surpriseStep', { step: name })} onClick={onSurprise} disabled={locked} className={headingButtonClass}>
+          <IconButton label={testing ? t('create.abLocked') : t('builder.surpriseStep', { step: name })} onClick={onSurprise} disabled={locked || testing} className={headingButtonClass}>
             <Dices />
           </IconButton>
         </div>

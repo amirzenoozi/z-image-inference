@@ -1,4 +1,6 @@
-import { useId, type ReactNode } from 'react'
+import { useContext, useId, type ReactNode } from 'react'
+import { lockedBuilderFields } from '../../../../../lib/abTest'
+import { AbTestContext } from '../../../../abTest/AbTestContext'
 import { optionTitle, t, type MessageKey } from '../../../../../i18n'
 import { INHERIT_SCENE, NOT_SET, RANDOM, REMOVE } from '../../../../../lib/promptBuilder/build'
 import { fieldLabelClass, tabClass } from '../../../../../lib/styles'
@@ -24,6 +26,8 @@ interface ChoiceSelectProps {
   allowInherit?: boolean
   allowRandom?: boolean
   onChange: (value: string) => void
+  /** The builder field it sets, so an A/B test can lock it (lib/abTest). */
+  field?: string
 }
 
 const SPECIAL_LABELS: Record<string, MessageKey> = {
@@ -41,11 +45,19 @@ function choiceGroups({ groups, allowRemove = false, allowInherit = false, allow
   ]
 }
 
+/** During an A/B test Random is off, since it would change the shared choices between images. */
+function useRandomAllowed(allowRandom: boolean | undefined): boolean {
+  const testing = useContext(AbTestContext) !== null
+  return (allowRandom ?? true) && !testing
+}
+
 export function ChoiceSelect(props: ChoiceSelectProps) {
-  const { label, value, onChange } = props
-  const groups = choiceGroups(props)
+  const { label, value, onChange, field } = props
+  const test = useContext(AbTestContext)
+  const groups = choiceGroups({ ...props, allowRandom: useRandomAllowed(props.allowRandom) })
   const known = groups.some((group) => group.options.some((option) => option.value === value))
-  return <Select label={label} value={known ? value : NOT_SET} groups={groups} onChange={onChange} />
+  const locked = field !== undefined && lockedBuilderFields(test).has(field)
+  return <Select label={label} value={known ? value : NOT_SET} groups={groups} onChange={onChange} lockedNote={locked ? t('create.abLocked') : undefined} />
 }
 
 interface MultiChoiceSelectProps extends Omit<ChoiceSelectProps, 'value' | 'onChange'> {
@@ -55,7 +67,7 @@ interface MultiChoiceSelectProps extends Omit<ChoiceSelectProps, 'value' | 'onCh
 
 /** A choice that takes several options; Not set is having none, so it is left out of the list. */
 export function MultiChoiceSelect({ values, onChange, ...props }: MultiChoiceSelectProps) {
-  const groups = choiceGroups({ ...props, value: NOT_SET, onChange: () => {} })
+  const groups = choiceGroups({ ...props, allowRandom: useRandomAllowed(props.allowRandom), value: NOT_SET, onChange: () => {} })
   const withoutNotSet = groups.map((group) => ({ ...group, options: group.options.filter((option) => option.value !== NOT_SET) }))
   return <MultiSelect label={props.label} values={values} groups={withoutNotSet} placeholder={t('builder.choiceNotSet')} onChange={onChange} />
 }

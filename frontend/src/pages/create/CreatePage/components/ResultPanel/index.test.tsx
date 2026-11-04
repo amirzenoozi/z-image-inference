@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
+import type { TestProgress } from '../../../../../App/useAbTest'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../../../../../api'
@@ -13,8 +14,8 @@ vi.mock('../../../../../api', async (importOriginal) => ({
   fetchJobProgress: vi.fn(),
 }))
 
-function renderResult(state: GenerationState) {
-  const handlers = { onRetry: vi.fn(), onCancel: vi.fn(), onUseSeed: vi.fn() }
+function renderResult(state: GenerationState, testProgress: TestProgress | null = null) {
+  const handlers = { onRetry: vi.fn(), onCancel: vi.fn(), onUseSeed: vi.fn(), testProgress }
   const view = render(<ResultPanel state={state} models={catalog.models} {...handlers} />)
   return { ...handlers, rerender: (next: GenerationState) => view.rerender(<ResultPanel state={next} models={catalog.models} {...handlers} />) }
 }
@@ -132,4 +133,9 @@ it('shows how long the image took, and nothing for images made before times were
 
   rerender({ status: 'settled', item: historyItem({ duration_seconds: null }) })
   expect(screen.queryByText(/^\d+s$/)).not.toBeInTheDocument()
+})
+
+it('says which image of an A/B test is rendering, and what it tries', () => {
+  renderResult(pending({ request: { ...initialSettings(catalog), testSet: { id: 'set', label: 'Weight 2' } } }), { index: 2, total: 3 })
+  expect(screen.getByText(/Generating image 2 of 3… Weight 2/)).toBeInTheDocument()
 })

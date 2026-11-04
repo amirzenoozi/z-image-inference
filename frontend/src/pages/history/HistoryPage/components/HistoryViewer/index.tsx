@@ -1,5 +1,7 @@
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
+import { CompareSetButton } from './components/CompareSetButton'
 import { language, t } from '../../../../../i18n'
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type Ref, type RefObject } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type Ref, type RefObject } from 'react'
 import { IconButton, IconLink } from '../../../../../shared/ui/IconButton'
 import { deleteHistoryItem, downloadUrl, fetchHistory, imageUrl } from '../../../../../api'
 import { errorMessage } from '../../../../../lib/hooks'
@@ -277,7 +279,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onListCh
                 deleteError={deleteState.status === 'failed' ? deleteState.error : null}
                 armed={armed}
                 actions={
-                  <ViewerActions onVary={() => onVary(item)} onReuse={() => onReuse(item)} />
+                  <ViewerActions setId={item.set_id} labelOf={labelOf} onVary={() => onVary(item)} onReuse={() => onReuse(item)} />
                 }
               />
             )}
@@ -464,13 +466,25 @@ function ViewerDetails({ item, label, markError, deleteError, armed, actions }: 
   )
 }
 
-function ViewerActions({ onVary, onReuse }: { onVary: () => void; onReuse: () => void }) {
+interface ViewerActionsProps {
+  /** The A/B test the image came from, or null. */
+  setId: string | null
+  labelOf: (id: string) => string
+  onVary: () => void
+  onReuse: () => void
+}
+
+function ViewerActions({ setId, labelOf, onVary, onReuse }: ViewerActionsProps) {
+  // Both replace the prompt in Create, which an A/B test locks
+  const testing = useContext(AbTestContext) !== null
+  const lockedTitle = testing ? t('create.abLocked') : undefined
   return (
     <>
-      <button type="button" onClick={onVary} className={secondaryButtonClass}>
+      {setId && <CompareSetButton setId={setId} labelOf={labelOf} />}
+      <button type="button" onClick={onVary} disabled={testing} title={lockedTitle} className={`${secondaryButtonClass} disabled:opacity-50`}>
         {t('history.makeVariations')}
       </button>
-      <button type="button" onClick={onReuse} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500">
+      <button type="button" onClick={onReuse} disabled={testing} title={lockedTitle} className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white not-disabled:hover:bg-violet-500 disabled:opacity-50">
         {t('history.reuseSettings')}
       </button>
     </>

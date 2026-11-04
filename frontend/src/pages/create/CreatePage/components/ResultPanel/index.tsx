@@ -1,4 +1,7 @@
 import { downloadUrl, imageUrl } from '../../../../../api'
+import { useContext } from 'react'
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
+import type { TestProgress } from '../../../../../App/useAbTest'
 import { formatDuration, useCopyToClipboard, useElapsedSeconds } from '../../../../../lib/hooks'
 import { useJobProgress } from '../../../../../lib/jobProgress'
 import type { GenerationState, HistoryItem, JobPhase, JobProgress, ModelInfo } from '../../../../../types'
@@ -13,6 +16,8 @@ interface Props {
   models: ModelInfo[]
   onRetry: () => void
   onCancel: () => void
+  /** Which image of an A/B test is being made, or null outside one. */
+  testProgress: TestProgress | null
   onUseSeed: (seed: number) => void
 }
 
@@ -22,11 +27,11 @@ function modelLabel(models: ModelInfo[], id: string): string {
   return models.find((model) => model.id === id)?.label ?? id
 }
 
-export function ResultPanel({ state, models, onRetry, onCancel, onUseSeed }: Props) {
+export function ResultPanel({ state, models, onRetry, onCancel, testProgress, onUseSeed }: Props) {
   return (
     <div className="flex h-full min-h-[24rem] items-center justify-center p-4 sm:p-6">
       {state.status === 'idle' && <EmptyResult />}
-      {state.status === 'pending' && <PendingResult key={state.jobId} state={state} models={models} onCancel={onCancel} />}
+      {state.status === 'pending' && <PendingResult key={state.jobId} state={state} models={models} testProgress={testProgress} onCancel={onCancel} />}
       {state.status === 'failed' && (
         <div className="w-full max-w-md">
           <ErrorNotice message={state.error} onRetry={onRetry} />
@@ -47,7 +52,14 @@ function EmptyResult() {
   )
 }
 
-function PendingResult({ state, models, onCancel }: { state: PendingState; models: ModelInfo[]; onCancel: () => void }) {
+interface PendingResultProps {
+  state: PendingState
+  models: ModelInfo[]
+  testProgress: TestProgress | null
+  onCancel: () => void
+}
+
+function PendingResult({ state, models, testProgress, onCancel }: PendingResultProps) {
   const { request } = state
   const elapsed = useElapsedSeconds(state.startedAt)
   const progress = useJobProgress(state.jobId)
@@ -60,6 +72,7 @@ function PendingResult({ state, models, onCancel }: { state: PendingState; model
       >
         <Spinner className="size-8 text-violet-500" />
       </div>
+      <TestProgressNote progress={testProgress} label={request.testSet?.label} />
       <p role="status" className="text-center text-sm text-zinc-600 dark:text-zinc-300">
         {t('create.generatingWith', { width: request.width, height: request.height, model: model?.label ?? request.modelId })}{' '}
         <span className="font-semibold tabular-nums">{formatDuration(elapsed)}</span>
@@ -70,6 +83,16 @@ function PendingResult({ state, models, onCancel }: { state: PendingState; model
         {state.cancelling ? t('create.cancelling') : t('common.cancel')}
       </button>
     </div>
+  )
+}
+
+/** Which image of an A/B test is being made, and what it tries; nothing outside a test. */
+function TestProgressNote({ progress, label }: { progress: TestProgress | null; label: string | undefined }) {
+  if (!progress) return null
+  return (
+    <p className="text-center text-sm font-semibold text-violet-700 dark:text-violet-300">
+      {t('create.abGenerating', { index: progress.index, total: progress.total })} {label}
+    </p>
   )
 }
 
@@ -110,6 +133,8 @@ function StepBar({ step, total }: { step: number; total: number }) {
 function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: string; onUseSeed: (seed: number) => void }) {
   const [copied, copy] = useCopyToClipboard()
   const copySeed = () => copy(String(item.seed))
+  // An A/B test keeps one seed for every image
+  const seedLocked = useContext(AbTestContext) !== null
   return (
     <figure className="flex w-full max-w-3xl flex-col items-center gap-4">
       <img
@@ -128,7 +153,7 @@ function SettledResult({ item, label, onUseSeed }: { item: HistoryItem; label: s
           <button type="button" onClick={copySeed} className={secondaryButtonClass}>
             {copied ? t('create.copied') : t('create.copySeed')}
           </button>
-          <button type="button" onClick={() => onUseSeed(item.seed)} className={secondaryButtonClass}>
+          <button type="button" onClick={() => onUseSeed(item.seed)} disabled={seedLocked} title={seedLocked ? t('create.abLocked') : undefined} className={`${secondaryButtonClass} disabled:opacity-50`}>
             {t('create.useThisSeed')}
           </button>
         </div>

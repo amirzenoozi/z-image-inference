@@ -1,9 +1,10 @@
-import { CLOTHING_COLORS, POSES } from '../../../lib/promptBuilder/data'
-import { FACELESS_POSES, realismOptions } from '../../../lib/promptBuilder/faceless'
+import { CLOTHING_COLORS } from '../../../lib/promptBuilder/data'
+import { realismOptions } from '../../../lib/promptBuilder/faceless'
 import { accessoryOptions } from '../../../lib/promptBuilder/intimates'
 import { areaChoice, areaGroups, colourItem, wearItem, type BodyArea } from '../../../lib/promptBuilder/outfitMenu'
-import { CARDIO_BOXING, GYM_WORKOUTS, PILATES_STRETCHES, SPICY_POSES, YOGA_POSES, outfitOptions } from '../../../lib/promptBuilder/fitness'
+import { outfitOptions } from '../../../lib/promptBuilder/fitness'
 import { EXPLICIT_PIERCINGS, INTIMACY_CUES, NUDITY_LEVELS, PIERCINGS, SKIN_DETAILS, TATTOOS } from '../../../lib/promptBuilder/extraData'
+import { poseGroups } from '../../../lib/promptBuilder/choiceGroups'
 import { choicesFor, partnerActions, type BuilderState, type OutfitState } from '../../../lib/promptBuilder/build'
 import { explicitDetailOptions } from '../../../lib/promptBuilder/rules'
 import { picksOf, withPicks } from '../../../lib/promptBuilder/multiChoice'
@@ -12,11 +13,16 @@ import { alwaysClothed, isAdultMode, isSafeMode, type BuilderMode } from '../../
 import { t, type MessageKey } from '../../../i18n'
 import { useContext } from 'react'
 import { lookStrength, withStrength, withoutStrength } from '../../../lib/lookSliders'
+import { lockedBuilderFields, sliderLocked } from '../../../lib/abTest'
+import { AbTestContext } from '../../abTest/AbTestContext'
 import type { AddonInfo, Character } from '../../../types'
 import { LookSliderField } from '../../lookSliders/LookSliderField'
 import { LookSliderGroup } from '../../lookSliders/LookSliderGroup'
 import { LookSlidersContext } from '../../lookSliders/LookSlidersContext'
 import { CheckboxGroup, ChoiceSelect, FieldGrid, MultiChoiceSelect, Segmented, StepIntro, TextField } from './components/fields'
+
+// Offered outside the steps too, so the same choice is picked with the same control (an A/B test's values)
+export { ChoiceSelect }
 
 export interface StepProps {
   state: BuilderState
@@ -36,8 +42,8 @@ export function SubjectStep({ state, mode, set }: StepProps) {
     <>
       <StepIntro>{t('builder.introSubject')}</StepIntro>
       <FieldGrid>
-        <ChoiceSelect label={t('builder.fieldWho')} value={state.who} groups={options('who')} onChange={(who) => set({ who })} />
-        <ChoiceSelect label={t('builder.fieldAge')} value={state.age} groups={options('age')} onChange={(age) => set({ age })} />
+        <ChoiceSelect field="who" label={t('builder.fieldWho')} value={state.who} groups={options('who')} onChange={(who) => set({ who })} />
+        <ChoiceSelect field="age" label={t('builder.fieldAge')} value={state.age} groups={options('age')} onChange={(age) => set({ age })} />
         <ChoiceSelect label={t('builder.fieldEthnicity')} value={state.ethnicity} groups={options('ethnicity')} onChange={(ethnicity) => set({ ethnicity })} />
         <TextField label={t('builder.fieldSubjectExtra')} value={state.subject} placeholder={t('builder.placeholderSubject')} onChange={(subject) => set({ subject })} wide />
       </FieldGrid>
@@ -53,9 +59,9 @@ export function AppearanceStep({ state, mode, set }: StepProps) {
         <ChoiceSelect label={t('builder.fieldEyeColour')} value={state.eyeColor} groups={options('eyeColor')} onChange={(eyeColor) => set({ eyeColor })} />
         <ChoiceSelect label={t('builder.fieldExpression')} value={state.expression} groups={options('expression')} onChange={(expression) => set({ expression })} />
         <MultiChoiceSelect label={t('builder.fieldMakeup')} values={picksOf(state, 'makeup')} groups={options('makeup')} onChange={(picks) => set(withPicks(state, 'makeup', picks))} />
-        <ChoiceSelect label={t('builder.fieldSkinTone')} value={state.skinTone} groups={options('skinTone')} onChange={(skinTone) => set({ skinTone })} />
+        <ChoiceSelect field="skinTone" label={t('builder.fieldSkinTone')} value={state.skinTone} groups={options('skinTone')} onChange={(skinTone) => set({ skinTone })} />
         <CheckboxGroup label={t('builder.fieldSkinDetails')} options={SKIN_DETAILS} value={state.skinDetails} onChange={(skinDetails) => set({ skinDetails })} />
-        <ChoiceSelect label={t('builder.fieldHairLength')} value={state.hairLength} groups={options('hairLength')} onChange={(hairLength) => set({ hairLength })} />
+        <ChoiceSelect field="hairLength" label={t('builder.fieldHairLength')} value={state.hairLength} groups={options('hairLength')} onChange={(hairLength) => set({ hairLength })} />
         <ChoiceSelect label={t('builder.fieldHairColour')} value={state.hairColor} groups={options('hairColor')} onChange={(hairColor) => set({ hairColor })} />
         <ChoiceSelect label={t('builder.fieldHairstyle')} value={state.hairstyle} groups={options('hairstyle')} onChange={(hairstyle) => set({ hairstyle })} />
         <FacialHair state={state} mode={mode} set={set} />
@@ -72,7 +78,7 @@ export function BodyStep({ state, mode, set }: StepProps) {
   return (
     <>
       <FieldGrid>
-        <ChoiceSelect label={t('builder.fieldBodyType')} value={state.bodyType} groups={options('bodyType')} onChange={(bodyType) => set({ bodyType })} />
+        <ChoiceSelect field="bodyType" label={t('builder.fieldBodyType')} value={state.bodyType} groups={options('bodyType')} onChange={(bodyType) => set({ bodyType })} />
         <ChoiceSelect label={t('builder.fieldHeight')} value={state.height} groups={options('height')} onChange={(height) => set({ height })} />
         {choicesFor('bust', state, mode).length > 0 && <ChoiceSelect label={t('builder.fieldBust')} value={state.bust} groups={options('bust')} onChange={(bust) => set({ bust })} />}
         <ChoiceSelect label={t('builder.fieldHips')} value={state.hips} groups={options('hips')} onChange={(hips) => set({ hips })} />
@@ -130,8 +136,15 @@ function useShownSliders(ids: readonly string[]): AddonInfo[] {
 }
 
 /** A step's downloaded look sliders, under its choices; moving one picks the nearest option, and picking an option moves it. */
+/** Why a look slider can't move now (an A/B test compares it), or undefined. */
+function useSliderLockNote(): (addonId: string) => string | undefined {
+  const locked = lockedBuilderFields(useContext(AbTestContext))
+  return (addonId) => (sliderLocked(locked, addonId) ? t('create.abLocked') : undefined)
+}
+
 function StepLook({ ids, state, set }: { ids: readonly string[]; state: BuilderState; set: StepProps['set'] }) {
   const shown = useShownSliders(ids)
+  const lockNote = useSliderLockNote()
   if (shown.length === 0) return null
   return (
     <LookSliderGroup>
@@ -143,6 +156,7 @@ function StepLook({ ids, state, set }: { ids: readonly string[]; state: BuilderS
           defaultValue={lookStrength(addon.id, withoutStrength(state, addon.id))}
           onChange={(value) => set(withStrength(state, addon.id, value))}
           onReset={() => set(withoutStrength(state, addon.id))}
+          lockedNote={lockNote(addon.id)}
         />
       ))}
     </LookSliderGroup>
@@ -152,6 +166,7 @@ function StepLook({ ids, state, set }: { ids: readonly string[]; state: BuilderS
 /** With a character chosen: its look sliders, which start at its look and change this prompt only. */
 export function CharacterLookSliders({ state, set, character }: Pick<StepProps, 'state' | 'set'> & { character: Character }) {
   const shown = useShownSliders([...BODY_LOOK, ...FACE_LOOK])
+  const lockNote = useSliderLockNote()
   if (shown.length === 0) return null
   const unmove = (addonId: string) => Object.fromEntries(Object.entries(state.lookMoved).filter(([id]) => id !== addonId))
   return (
@@ -164,6 +179,7 @@ export function CharacterLookSliders({ state, set, character }: Pick<StepProps, 
           defaultValue={lookStrength(addon.id, character.traits)}
           onChange={(value) => set({ lookMoved: { ...state.lookMoved, [addon.id]: value } })}
           onReset={() => set({ lookMoved: unmove(addon.id) })}
+          lockedNote={lockNote(addon.id)}
         />
       ))}
     </LookSliderGroup>
@@ -196,25 +212,6 @@ export function OutfitStep({ state, mode, setOutfit }: StepProps) {
   )
 }
 
-const POSE_GROUPS: readonly { label: MessageKey; poses: Readonly<Record<string, string>> }[] = [
-  { label: 'builder.groupGym', poses: GYM_WORKOUTS },
-  { label: 'builder.groupYoga', poses: YOGA_POSES },
-  { label: 'builder.groupPilates', poses: PILATES_STRETCHES },
-  { label: 'builder.groupCardio', poses: CARDIO_BOXING },
-  { label: 'builder.groupFlattering', poses: SPICY_POSES },
-  { label: 'builder.groupFaceless', poses: FACELESS_POSES },
-]
-
-/** Everyday poses first, then each kind of workout and the faceless ones, then the explicit ones; a group with nothing to offer is left out. */
-function poseGroups(state: BuilderState, mode: BuilderMode) {
-  const poses = choicesFor('pose', state, mode)
-  const grouped = POSE_GROUPS.map((group) => ({ label: t(group.label), options: poses.filter((pose) => pose in group.poses) }))
-  const inGroup = (pose: string) => POSE_GROUPS.some((group) => pose in group.poses)
-  const explicit = poses.filter((pose) => !POSES.includes(pose) && !inGroup(pose))
-  const groups = [{ options: poses.filter((pose) => POSES.includes(pose)) }, ...grouped, { label: t('builder.groupExplicit'), options: explicit }]
-  return groups.filter((group) => group.options.length > 0)
-}
-
 function actionGroups(state: BuilderState, mode: BuilderMode) {
   const actions = choicesFor('explicitAction', state, mode)
   const partner = new Set(partnerActions(state.who, state.nudity))
@@ -225,7 +222,7 @@ function actionGroups(state: BuilderState, mode: BuilderMode) {
 export function PoseStep({ state, mode, set }: StepProps) {
   return (
     <FieldGrid>
-      <ChoiceSelect label={t('builder.fieldPose')} value={state.pose} groups={poseGroups(state, mode)} onChange={(pose) => set({ pose })} />
+      <ChoiceSelect field="pose" label={t('builder.fieldPose')} value={state.pose} groups={poseGroups(state, mode)} onChange={(pose) => set({ pose })} />
       {choicesFor('explicitAction', state, mode).length > 0 && (
         <ChoiceSelect label={t('builder.fieldExplicitAction')} value={state.explicitAction} groups={actionGroups(state, mode)} onChange={(explicitAction) => set({ explicitAction })} />
       )}
@@ -290,7 +287,7 @@ function ShownChoices({ fields, state, mode, set, note }: ShownChoicesProps) {
   return (
     <>
       {shown.map(({ field, label }) => (
-        <ChoiceSelect key={field} label={t(label)} value={state[field]} groups={optionsOf(state, mode)(field)} onChange={(value) => set({ [field]: value })} />
+        <ChoiceSelect key={field} field={field} label={t(label)} value={state[field]} groups={optionsOf(state, mode)(field)} onChange={(value) => set({ [field]: value })} />
       ))}
       {note && shown.length > 0 && <p className="text-[11px] text-zinc-500 sm:col-span-2 dark:text-zinc-400">{note}</p>}
     </>
@@ -316,9 +313,9 @@ export function SceneStep({ state, mode, set }: StepProps) {
   const options = optionsOf(state, mode)
   return (
     <FieldGrid>
-      <ChoiceSelect label={t('builder.fieldScene')} value={state.sceneType} groups={options('sceneType')} onChange={(sceneType) => set({ sceneType })} />
-      <ChoiceSelect label={t('builder.fieldTimeOfDay')} value={state.timeOfDay} groups={options('timeOfDay')} onChange={(timeOfDay) => set({ timeOfDay })} />
-      <ChoiceSelect label={t('builder.fieldWeather')} value={state.weather} groups={options('weather')} onChange={(weather) => set({ weather })} />
+      <ChoiceSelect field="sceneType" label={t('builder.fieldScene')} value={state.sceneType} groups={options('sceneType')} onChange={(sceneType) => set({ sceneType })} />
+      <ChoiceSelect field="timeOfDay" label={t('builder.fieldTimeOfDay')} value={state.timeOfDay} groups={options('timeOfDay')} onChange={(timeOfDay) => set({ timeOfDay })} />
+      <ChoiceSelect field="weather" label={t('builder.fieldWeather')} value={state.weather} groups={options('weather')} onChange={(weather) => set({ weather })} />
       <MultiChoiceSelect label={t('builder.fieldLighting')} values={picksOf(state, 'lightingSetup')} groups={options('lightingSetup')} allowInherit onChange={(picks) => set(withPicks(state, 'lightingSetup', picks))} />
       <TextField label={t('builder.fieldEnvironment')} value={state.environment} placeholder={t('builder.placeholderEnvironment')} onChange={(environment) => set({ environment })} wide />
       <TextField label={t('builder.fieldExtraLighting')} value={state.lightingCustom} placeholder={t('builder.placeholderLighting')} onChange={(lightingCustom) => set({ lightingCustom })} wide />
@@ -330,11 +327,11 @@ export function CameraStep({ state, mode, set }: StepProps) {
   const options = optionsOf(state, mode)
   return (
     <FieldGrid>
-      <ChoiceSelect label={t('builder.fieldPhotoStyle')} value={state.photoStyle} groups={options('photoStyle')} onChange={(photoStyle) => set({ photoStyle })} />
-      <ChoiceSelect label={t('builder.fieldShotType')} value={state.shotType} groups={options('shotType')} onChange={(shotType) => set({ shotType })} />
-      <ChoiceSelect label={t('builder.fieldCameraAngle')} value={state.cameraAngle} groups={options('cameraAngle')} onChange={(cameraAngle) => set({ cameraAngle })} />
-      <ChoiceSelect label={t('builder.fieldLens')} value={state.lens} groups={options('lens')} onChange={(lens) => set({ lens })} />
-      <ChoiceSelect label={t('builder.fieldDepthOfField')} value={state.depthOfField} groups={options('depthOfField')} onChange={(depthOfField) => set({ depthOfField })} />
+      <ChoiceSelect field="photoStyle" label={t('builder.fieldPhotoStyle')} value={state.photoStyle} groups={options('photoStyle')} onChange={(photoStyle) => set({ photoStyle })} />
+      <ChoiceSelect field="shotType" label={t('builder.fieldShotType')} value={state.shotType} groups={options('shotType')} onChange={(shotType) => set({ shotType })} />
+      <ChoiceSelect field="cameraAngle" label={t('builder.fieldCameraAngle')} value={state.cameraAngle} groups={options('cameraAngle')} onChange={(cameraAngle) => set({ cameraAngle })} />
+      <ChoiceSelect field="lens" label={t('builder.fieldLens')} value={state.lens} groups={options('lens')} onChange={(lens) => set({ lens })} />
+      <ChoiceSelect field="depthOfField" label={t('builder.fieldDepthOfField')} value={state.depthOfField} groups={options('depthOfField')} onChange={(depthOfField) => set({ depthOfField })} />
       <ImageFilterFields state={state} options={options} set={set} />
     </FieldGrid>
   )
@@ -348,7 +345,7 @@ function ImageFilterFields({ state, options, set }: Pick<StepProps, 'state' | 's
         <h4 id="image-filter-heading" className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{t('builder.sectionImageFilter')}</h4>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('builder.introImageFilter')}</p>
       </section>
-      <ChoiceSelect label={t('builder.fieldImageFilter')} value={state.imageFilter} groups={options('imageFilter')} onChange={(imageFilter) => set({ imageFilter })} />
+      <ChoiceSelect field="imageFilter" label={t('builder.fieldImageFilter')} value={state.imageFilter} groups={options('imageFilter')} onChange={(imageFilter) => set({ imageFilter })} />
       <TextField label={t('builder.fieldDateStamp')} value={state.dateStamp} placeholder={t('builder.placeholderDateStamp')} onChange={(dateStamp) => set({ dateStamp })} />
     </>
   )
@@ -359,7 +356,7 @@ export function FinishStep({ state, mode, set }: StepProps) {
   return (
     <FieldGrid>
       <TextField label={t('builder.fieldMood')} value={state.mood} placeholder={t('builder.placeholderMood')} onChange={(mood) => set({ mood })} />
-      <ChoiceSelect label={t('builder.fieldColourGrading')} value={state.colorGrading} groups={options('colorGrading')} onChange={(colorGrading) => set({ colorGrading })} />
+      <ChoiceSelect field="colorGrading" label={t('builder.fieldColourGrading')} value={state.colorGrading} groups={options('colorGrading')} onChange={(colorGrading) => set({ colorGrading })} />
       <CheckboxGroup label={t('builder.fieldRealism')} options={realismOptions(mode)} value={state.realism} onChange={(realism) => set({ realism })} />
       <TextField label={t('builder.fieldExtraDetails')} value={state.extraDetails} placeholder={t('builder.placeholderExtraDetails')} onChange={(extraDetails) => set({ extraDetails })} wide />
       <TextField label={t('builder.fieldExtraNegative')} value={state.negativePrompt} placeholder={t('builder.placeholderNegative')} onChange={(negativePrompt) => set({ negativePrompt })} wide />

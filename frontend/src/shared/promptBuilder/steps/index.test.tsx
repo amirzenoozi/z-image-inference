@@ -7,7 +7,9 @@ import { parseModes } from '../../../lib/promptBuilder/modes'
 import { builderModes, character, weightSlider } from '../../../test/fixtures'
 import { chooseOption } from '../../../test/select'
 import { LookSlidersContext } from '../../lookSliders/LookSlidersContext'
-import { BodyStep, CharacterLookSliders } from '.'
+import type { AbTest } from '../../../lib/abTest'
+import { AbTestContext } from '../../abTest/AbTestContext'
+import { BodyStep, CameraStep, CharacterLookSliders } from '.'
 
 const mode = parseModes(builderModes).modes.find((each) => each.id === 'general')!
 
@@ -71,4 +73,29 @@ it('resets a moved slider back to what its choice says', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Reset Weight' }))
   expect(onState).toHaveBeenLastCalledWith(expect.objectContaining({ bodyType: 'slim build', strengths: {} }))
   expect(screen.getByRole('slider', { name: 'Weight slider' })).toHaveValue('-2')
+})
+
+it('turns off, during an A/B test, the slider it compares and the choice linked to it', () => {
+  const test: AbTest = { settings: [{ kind: 'slider', addonId: 'weight' }], versions: [[-4], [6]] }
+  render(
+    <AbTestContext.Provider value={test}>
+      <LookSlidersContext.Provider value={[weightSlider]}>
+        <Body initial={{ ...emptyBuilderState(), who: 'woman', age: 'late 20s', bodyType: 'slim build' }} onState={vi.fn()} />
+      </LookSlidersContext.Provider>
+    </AbTestContext.Provider>,
+  )
+  expect(screen.getByRole('slider', { name: 'Weight slider' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: /Body type/ })).toBeDisabled()
+})
+
+it('turns off, during an A/B test, the choice it compares and Random in the others', async () => {
+  const test: AbTest = { settings: [{ kind: 'choice', field: 'cameraAngle' }], versions: [['eye level'], ['slightly low angle']] }
+  render(
+    <AbTestContext.Provider value={test}>
+      <CameraStep state={{ ...emptyBuilderState(), who: 'woman', age: 'late 20s' }} mode={mode} set={vi.fn()} setOutfit={vi.fn()} />
+    </AbTestContext.Provider>,
+  )
+  expect(screen.getByRole('button', { name: /Camera angle/ })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: /Shot type/ }))
+  expect(screen.queryByRole('option', { name: 'Random' })).not.toBeInTheDocument()
 })

@@ -96,6 +96,8 @@ export async function generateImage(settings: SentSettings, jobId: string, signa
       strengths: settings.strengths,
       prompt_spec: settings.promptSpec ?? null,
       safe_only: settings.safeOnly ?? false,
+      set_id: settings.testSet?.id ?? null,
+      set_label: settings.testSet?.label ?? null,
     },
     signal,
   )
@@ -131,6 +133,12 @@ export async function fetchHistory(offset: number, limit: number, filters: Histo
   params.set('limit', String(limit))
   const resp = await request(`/api/history?${params}`, { signal })
   return resp.json() as Promise<HistoryPageData>
+}
+
+/** An A/B test's images, in the order they were made; `hideSensitive` leaves out sensitive ones, as History does. */
+export async function fetchHistorySet(setId: string, hideSensitive: boolean, signal?: AbortSignal): Promise<HistoryItem[]> {
+  const query = hideSensitive ? '?hide_sensitive=true' : ''
+  return (await request(`/api/history/sets/${encodeURIComponent(setId)}${query}`, { signal })).json() as Promise<HistoryItem[]>
 }
 
 /** A zip of the images matching the filters, each with its prompts and settings; the browser downloads it. */

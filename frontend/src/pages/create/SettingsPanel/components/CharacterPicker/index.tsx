@@ -1,3 +1,5 @@
+import { useContext } from 'react'
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { useCharacters } from '../../../../../lib/characters'
 import type { Character, ModelInfo } from '../../../../../types'
 import { Select } from '../../../../../shared/form/Select'
@@ -17,6 +19,8 @@ interface Props {
 /** The character the next images are made for: Generate adds its look to the prompt, and History can filter by it. */
 export function CharacterPicker({ characterId, model, addsLook, onChange }: Props) {
   const { characters, reload } = useCharacters()
+  // An A/B test compares images of one character
+  const testing = useContext(AbTestContext) !== null
   if (characters.status === 'failed') return <ErrorNotice message={t('create.charactersLoadFailed', { error: characters.error })} onRetry={reload} />
   if (characters.status === 'pending') {
     return <div aria-busy="true" aria-label={t('create.loadingCharacters')} className="h-9 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
@@ -31,6 +35,7 @@ export function CharacterPicker({ characterId, model, addsLook, onChange }: Prop
         value={characterId === null ? NONE : String(characterId)}
         groups={[{ options: [{ value: NONE, label: t('create.noCharacter') }, ...characters.value.map((character) => ({ value: String(character.id), label: character.name }))] }]}
         onChange={pick}
+        lockedNote={testing ? t('create.abLocked') : undefined}
       />
       {chosen && <LookNote character={chosen} addsLook={addsLook} />}
       {chosen && <FaceLockNote character={chosen} model={model} />}

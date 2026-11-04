@@ -2,7 +2,7 @@ import { Field, Label, Listbox, ListboxButton, ListboxOption, ListboxOptions } f
 import { controlHeight, fieldFrameClass, fieldLabelClass } from '../../../lib/styles'
 import { Check, ChevronDown } from 'lucide-react'
 
-const buttonClass = `${fieldFrameClass} ${controlHeight} flex w-full items-center justify-between gap-2 px-3 text-left data-open:border-violet-500 data-open:ring-2 data-open:ring-violet-500/30`
+const buttonClass = `${fieldFrameClass} ${controlHeight} flex w-full items-center justify-between gap-2 px-3 text-left data-open:border-violet-500 data-open:ring-2 data-open:ring-violet-500/30 data-disabled:cursor-not-allowed data-disabled:opacity-50`
 const optionsClass =
   'z-[60] max-h-72 w-(--button-width) min-w-44 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-lg outline-none dark:border-zinc-700 dark:bg-zinc-900'
 
@@ -25,12 +25,14 @@ interface Props {
   /** Keeps the label for screen readers only, for selects whose purpose is clear from where they are. */
   hideLabel?: boolean
   className?: string
+  /** Set while the choice can't be changed (an A/B test locks it): why, shown on hover. */
+  lockedNote?: string
 }
 
-export function Select({ label, value, groups, onChange, hideLabel = false, className = '' }: Props) {
+export function Select({ label, value, groups, onChange, hideLabel = false, className = '', lockedNote }: Props) {
   const selected = groups.flatMap((group) => group.options).find((option) => option.value === value)
   return (
-    <Field className={className}>
+    <Field className={className} disabled={lockedNote !== undefined} title={lockedNote}>
       <Label className={hideLabel ? 'sr-only' : `${fieldLabelClass} mb-1 block`}>{label}</Label>
       <Listbox value={value} onChange={onChange}>
         <ListboxButton className={buttonClass}>

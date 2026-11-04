@@ -57,6 +57,11 @@ const PHRASE_SLIDERS: Record<string, PhraseSlider> = {
   'natural-look': { high: { above: 4, phrase: 'a natural look with minimal makeup and real skin texture' } },
 }
 
+/** The builder choice a slider is linked to (it picks the nearest option), or null for one that adds a phrase instead. */
+export function linkedField(addonId: string): TraitField | null {
+  return TRAIT_SLIDERS[addonId]?.field ?? null
+}
+
 export function sliderAddons(model: ModelInfo): AddonInfo[] {
   return model.addons.filter((addon) => addon.kind === 'slider')
 }

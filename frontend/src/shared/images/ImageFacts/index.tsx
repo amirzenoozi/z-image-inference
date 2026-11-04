@@ -1,7 +1,7 @@
 import { imageFacts } from '../../../lib/imageFacts'
 import type { HistoryItem } from '../../../types'
 
-/** `others` marks every fact the other image does not share, for comparing two images. */
+/** `others`: the facts every compared image shares; any other fact is marked as differing. */
 export function ImageFacts({ item, label, others }: { item: HistoryItem; label: string; others?: ReadonlySet<string> }) {
   return (
     <ul className="flex flex-wrap gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">

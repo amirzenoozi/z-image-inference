@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { AbTestContext } from '../../../shared/abTest/AbTestContext'
+import { useContext, useState } from 'react'
 import { deleteCharacter, imageUrl } from '../../../api'
 import { t, tn } from '../../../i18n'
 import { GENDERS, genderLabel, matchesGender, useGenderFilter, type Gender } from '../../../lib/characterFilter'
@@ -130,6 +131,8 @@ interface CardProps {
 }
 
 function CharacterCard({ character, onUse, onShowImages, onEdit, onDelete }: CardProps) {
+  // Using a character replaces Create's prompt and character, which an A/B test locks
+  const testing = useContext(AbTestContext) !== null
   return (
     <li aria-label={character.name} className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <CharacterCover character={character} />
@@ -140,7 +143,7 @@ function CharacterCard({ character, onUse, onShowImages, onEdit, onDelete }: Car
           <p className="mt-1 text-[11px] text-zinc-400 tabular-nums">{cardFacts(character)}</p>
         </div>
         <div className="mt-auto flex items-center gap-1">
-          <button type="button" onClick={onUse} className="mr-auto rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-500">
+          <button type="button" onClick={onUse} disabled={testing} title={testing ? t('create.abLocked') : undefined} className="mr-auto rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white not-disabled:hover:bg-violet-500 disabled:opacity-50">
             {t('common.use')}
           </button>
           <IconButton label={t('characters.showImages')} onClick={onShowImages} disabled={character.image_count === 0} className={cardIconClass}>

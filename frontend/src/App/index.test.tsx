@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
 import App from './.'
-import { catalog, character, deferred, historyItem } from '../test/fixtures'
+import { catalog, character, deferred, fastModel, historyItem, weightSlider } from '../test/fixtures'
 import { initialSettings } from '../lib/settings'
 import type { HistoryItem } from '../types'
 import { chooseOption } from '../test/select'
@@ -33,6 +33,7 @@ beforeEach(() => {
   vi.mocked(api.fetchPalette).mockResolvedValue([])
   vi.mocked(api.fetchHistory).mockResolvedValue({ items: [], total: 0 })
   vi.mocked(api.fetchCharacters).mockResolvedValue([])
+  localStorage.removeItem('z-image-studio.ab-test.v2')
 })
 
 it('generates exactly once and shows the image only after it arrives', async () => {
@@ -549,10 +550,52 @@ it('writes out why Generate is blocked under the button, for touch screens that 
   render(<App />)
   const generate = await screen.findByRole('button', { name: 'Generate' })
   expect(generate).toHaveAttribute('aria-disabled', 'true')
-  const reason = generate.parentElement?.querySelector('p')
+  // The A/B test button sits beside Generate, so the reason is under the row of both
+  const bar = () => generate.parentElement?.parentElement
+  const reason = bar()?.querySelector('p')
   expect(reason).toHaveTextContent(/prompt/i)
   expect(reason).toHaveClass('hidden', 'pointer-coarse:block')
 
   await userEvent.type(screen.getByLabelText('Prompt'), 'a fox')
-  expect(generate.parentElement?.querySelector('p')).toBeNull()
+  expect(bar()?.querySelector('p')).toBeNull()
+})
+
+it('runs an A/B test: one seed, one image per version in turn, with what it locks off, then compares the images', async () => {
+  vi.mocked(api.fetchCatalog).mockResolvedValue({ ...catalog, models: [{ ...fastModel, addons: [...fastModel.addons, weightSlider] }, ...catalog.models.slice(1)] })
+  const ready = { status: 'ready' as const, size_bytes: 1 }
+  vi.mocked(api.fetchModelStatus).mockResolvedValue({ server_running: true, models: { 'z-image-turbo': ready, weight: ready }, free_bytes: 1e11 })
+  const first = deferred<HistoryItem>()
+  vi.mocked(api.generateImage).mockReturnValueOnce(first.promise).mockResolvedValueOnce(historyItem({ id: 9, seed: 5, set_label: 'Weight 5' }))
+  render(<App />)
+
+  await userEvent.type(await screen.findByLabelText('Prompt'), 'a woman in a garden')
+  await userEvent.click(screen.getByRole('button', { name: 'A/B test' }))
+  await chooseOption(await screen.findByRole('button', { name: /Add a setting/ }), 'Weight')
+  fireEvent.change(screen.getByRole('slider', { name: 'Weight (A) slider' }), { target: { value: '-5' } })
+  fireEvent.change(screen.getByRole('slider', { name: 'Weight (B) slider' }), { target: { value: '5' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Start test' }))
+  expect(screen.getByText(/A\/B test: Weight, 2 versions/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Change' })).toBeDisabled()
+  expect(screen.getByLabelText('Seed')).toBeDisabled()
+  expect(screen.getByRole('tab', { name: /Chat/ })).toBeDisabled()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Generate 2 images' }))
+  expect(api.generateImage).toHaveBeenCalledTimes(1)
+  const [request] = vi.mocked(api.generateImage).mock.calls[0]
+  expect(request).toMatchObject({ randomSeed: false, strengths: { weight: -5 }, testSet: { label: 'Weight -5' } })
+  expect(screen.getAllByText(/Generating image 1 of 2/).length).toBeGreaterThan(0)
+
+  first.resolve(historyItem({ id: 8, seed: 5, set_label: 'Weight -5' }))
+  expect(await screen.findByRole('heading', { name: 'A/B test results' })).toBeInTheDocument()
+  const second = vi.mocked(api.generateImage).mock.calls[1][0]
+  expect(second).toMatchObject({ seed: request.seed, strengths: { weight: 5 }, testSet: { id: request.testSet?.id, label: 'Weight 5' } })
+})
+
+it('leaves an A/B test with Undo to bring it back, and unlocks what it locked', async () => {
+  localStorage.setItem('z-image-studio.ab-test.v2', JSON.stringify({ settings: [{ kind: 'slider', addonId: 'weight' }], versions: [[-4], [6]] }))
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Leave A/B test' }))
+  expect(screen.getByRole('button', { name: 'Change' })).toBeEnabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: 'Leave A/B test' })).toBeInTheDocument()
 })

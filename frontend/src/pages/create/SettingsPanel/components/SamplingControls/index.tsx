@@ -1,3 +1,5 @@
+import { useContext } from 'react'
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import type { GenerationSettings, Limits, ModelInfo } from '../../../../../types'
 import { IconButton } from '../../../../../shared/ui/IconButton'
 import { fieldButtonClass, fieldLabelClass } from '../../../../../lib/styles'
@@ -91,14 +93,20 @@ interface SeedControlProps {
   onChange: (patch: SamplingPatch) => void
 }
 
+function lastSeedTitle(lastSeed: number | null): string {
+  return lastSeed === null ? t('create.generateFirst') : t('create.useSeedNumber', { seed: lastSeed })
+}
+
 function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps) {
   const rollDice = () => onChange({ seed: Math.floor(Math.random() * limits.max_seed), randomSeed: false })
+  // An A/B test makes every image on one seed
+  const locked = useContext(AbTestContext) !== null
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" title={locked ? t('create.abLocked') : undefined}>
       <div className={`flex items-center justify-between ${fieldLabelClass}`}>
         <label htmlFor="seed-input">{t('create.seed')}</label>
         <label className="flex cursor-pointer items-center gap-2">
-          <Checkbox checked={settings.randomSeed} onChange={(event) => onChange({ randomSeed: event.target.checked })} />
+          <Checkbox checked={settings.randomSeed} disabled={locked} onChange={(event) => onChange({ randomSeed: event.target.checked })} />
           {t('create.randomEachTime')}
         </label>
       </div>
@@ -109,18 +117,18 @@ function SeedControl({ settings, limits, lastSeed, onChange }: SeedControlProps)
           min={0}
           max={limits.max_seed}
           value={settings.seed}
-          disabled={settings.randomSeed}
+          disabled={settings.randomSeed || locked}
           onChange={(text) => onChange({ seed: clamp(Math.trunc(Number(text) || 0), 0, limits.max_seed) })}
           className="min-w-0 flex-1"
         />
-        <IconButton label={t('create.pickRandomSeed')} onClick={rollDice} className={fieldButtonClass}>
+        <IconButton label={t('create.pickRandomSeed')} onClick={rollDice} disabled={locked} className={fieldButtonClass}>
           <Dices />
         </IconButton>
         <button
           type="button"
           onClick={() => lastSeed !== null && onChange({ seed: lastSeed, randomSeed: false })}
-          disabled={lastSeed === null}
-          title={lastSeed === null ? t('create.generateFirst') : t('create.useSeedNumber', { seed: lastSeed })}
+          disabled={lastSeed === null || locked}
+          title={locked ? undefined : lastSeedTitle(lastSeed)}
           className={`${fieldButtonClass} whitespace-nowrap`}
         >
           {t('create.useLast')}
