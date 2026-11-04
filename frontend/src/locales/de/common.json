@@ -30,5 +30,6 @@
   "unlockTitle": "Wort eingeben",
   "unlockLabel": "Wort",
   "unlockConfirm": "OK",
-  "unlockWrong": "Das ist nicht das Wort."
+  "unlockWrong": "Das ist nicht das Wort.",
+  "partNotLoaded": "Dieser Teil der App konnte nicht geladen werden, vermutlich weil die App aktualisiert wurde, während diese Seite offen war. Lade die Seite neu, um fortzufahren."
 }

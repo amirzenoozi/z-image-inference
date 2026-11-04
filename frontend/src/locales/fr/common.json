@@ -30,5 +30,6 @@
   "unlockTitle": "Saisissez le mot",
   "unlockLabel": "Mot",
   "unlockConfirm": "OK",
-  "unlockWrong": "Ce n’est pas le bon mot."
+  "unlockWrong": "Ce n’est pas le bon mot.",
+  "partNotLoaded": "Cette partie de l’app n’a pas pu se charger, sans doute parce que l’app a été mise à jour pendant que cette page était ouverte. Rechargez la page pour continuer."
 }

@@ -30,5 +30,6 @@
   "unlockTitle": "Inserisci la parola",
   "unlockLabel": "Parola",
   "unlockConfirm": "OK",
-  "unlockWrong": "Non è la parola giusta."
+  "unlockWrong": "Non è la parola giusta.",
+  "partNotLoaded": "Questa parte dell’app non è stata caricata, probabilmente perché l’app è stata aggiornata mentre questa pagina era aperta. Ricarica la pagina per continuare."
 }
