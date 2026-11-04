@@ -1,3 +1,4 @@
+import { isTopDialog } from '../../../../../shared/ui/topDialog'
 import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { CompareSetButton } from './components/CompareSetButton'
 import { language, t } from '../../../../../i18n'
@@ -113,14 +114,22 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 /** Keys act like the viewer's buttons; they do nothing while typing or with a modifier held. */
-function useViewerKeys(actions: Record<string, () => void>) {
+const hasModifier = (event: KeyboardEvent) => event.metaKey || event.ctrlKey || event.altKey
+
+/** A key for the viewer: not typed into a field, without a modifier, and with no other dialog open over the viewer. */
+function isViewerKey(event: KeyboardEvent, within: HTMLElement | null): boolean {
+  return !isTyping(event.target) && !hasModifier(event) && isTopDialog(within)
+}
+
+/** `within`: an element of the viewer, so its keys pause while another dialog is open over it. */
+function useViewerKeys(actions: Record<string, () => void>, within: RefObject<HTMLElement | null>) {
   const latest = useRef(actions)
   useEffect(() => {
     latest.current = actions
   })
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return
+      if (!isViewerKey(event, within.current)) return
       const action = latest.current[event.key.length === 1 ? event.key.toLowerCase() : event.key]
       if (!action) return
       event.preventDefault()
@@ -128,7 +137,7 @@ function useViewerKeys(actions: Record<string, () => void>) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [within])
 }
 
 /** Delete by key needs a second press within a few seconds, so one stray key never removes an image. */
@@ -207,6 +216,7 @@ export function HistoryViewer({ filters, start, labelOf, onIndexChange, onShow, 
           Delete: pressDelete,
           Backspace: pressDelete,
         },
+    area,
   )
 
   const item = image.state.status === 'settled' ? image.state.value : null

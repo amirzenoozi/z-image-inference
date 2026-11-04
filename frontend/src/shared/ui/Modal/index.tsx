@@ -1,5 +1,6 @@
 import { t } from '../../../i18n'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { isTopDialog } from '../topDialog'
 import { IconButton } from '../IconButton'
 import { X } from 'lucide-react'
 
@@ -31,8 +32,10 @@ interface Props {
 
 /** Every dialog: a header with the title and a close button, the content, then the actions. Only the content scrolls. */
 export function Modal({ title, onClose, children, actions, actionsNote, size = 'md' }: Props) {
+  const dialog = useRef<HTMLDivElement>(null)
+  // With a dialog open over this one, Escape closes only that one
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    const closeOnEscape = (event: KeyboardEvent) => event.key === 'Escape' && isTopDialog(dialog.current) && onClose()
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [onClose])
@@ -40,6 +43,7 @@ export function Modal({ title, onClose, children, actions, actionsNote, size = '
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-label={title}

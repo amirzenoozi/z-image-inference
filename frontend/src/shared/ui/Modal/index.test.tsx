@@ -60,3 +60,23 @@ it('has no footer when the dialog has no actions', () => {
   renderModal(false)
   expect(screen.queryByRole('group', { name: 'Dialog actions' })).not.toBeInTheDocument()
 })
+
+it('closes only the dialog on top with Escape, then the one under it', async () => {
+  const closeUnder = vi.fn()
+  const closeTop = vi.fn()
+  const { rerender } = render(
+    <Modal title="Image details" onClose={closeUnder}>
+      <Modal title="Compare images" onClose={closeTop}>
+        compare
+      </Modal>
+    </Modal>,
+  )
+  await userEvent.keyboard('{Escape}')
+  expect(closeTop).toHaveBeenCalledOnce()
+  expect(closeUnder).not.toHaveBeenCalled()
+
+  rerender(<Modal title="Image details" onClose={closeUnder}>details</Modal>)
+  await userEvent.keyboard('{Escape}')
+  expect(closeUnder).toHaveBeenCalledOnce()
+  expect(closeTop).toHaveBeenCalledOnce()
+})
