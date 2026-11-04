@@ -133,7 +133,7 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   return (
     // The prompt builder and the character dialog offer the look sliders that are downloaded
     <LookSlidersContext.Provider value={sliders}>
-      // On phones the views sit in a bar at the bottom, so the page leaves room for it
+      {/* On phones the views sit in a bar at the bottom, so the page leaves room for it */}
       <div className="flex h-dvh flex-col pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] sm:pb-0">
         <Header view={view} onViewChange={setView} unseenResult={unseen} onTitleTap={unlock.onTitleTap} />
         {unlock.dialog}
