@@ -4,6 +4,7 @@ import type { Catalog, GenerationSettings, GenerationState, Loadable, ModelStatu
 import { ResultPanel } from './components/ResultPanel'
 import { SettingsPanel, type PromptMode } from '../SettingsPanel'
 import { PaneSwitch, type Pane } from './components/PaneSwitch'
+import type { AbTestControls } from '../../../App/useAbTest'
 
 interface Props {
   catalog: Catalog
@@ -15,6 +16,7 @@ interface Props {
   lastSeed: number | null
   modelStatus: Loadable<ModelStatusReport>
   onModelStatusChanged: () => void
+  abTest: AbTestControls
   onGenerate: () => void
   onChatPrompt: (prompt: string) => void
   /** Kept mounted while another page shows, so a render in progress and the settings stay as they are. */
@@ -65,6 +67,7 @@ export function CreatePage({ catalog, settings, onSettingsChange, generation, hi
           lastSeed={props.lastSeed}
           modelStatus={props.modelStatus}
           onModelStatusChanged={props.onModelStatusChanged}
+          abTest={props.abTest}
           onGenerate={props.onGenerate}
           onChatPrompt={props.onChatPrompt}
         />
@@ -75,6 +78,7 @@ export function CreatePage({ catalog, settings, onSettingsChange, generation, hi
           models={catalog.models}
           onRetry={generation.retry}
           onCancel={generation.cancel}
+          testProgress={props.abTest.progress}
           onUseSeed={(seed) => onSettingsChange({ ...settings, seed, randomSeed: false })}
         />
       </section>

@@ -8,7 +8,7 @@ function isCancelled(error: unknown): boolean {
   return error instanceof ApiError && error.status === CANCELLED_STATUS
 }
 
-/** `onFailure` runs when the server answers with an error, not when the user cancels. */
+/** `onFailure` runs when the server answers with an error, not when the user cancels. `run` resolves to the saved image, or null when it failed or was cancelled. */
 export function useGeneration(onSuccess: (item: HistoryItem) => void, onFailure: () => void = () => {}) {
   const [state, setState] = useState<GenerationState>({ status: 'idle' })
   // What the result area showed before the current generation, restored when it is cancelled
@@ -20,17 +20,21 @@ export function useGeneration(onSuccess: (item: HistoryItem) => void, onFailure:
   }, [])
 
   const run = useCallback(
-    async (request: SentSettings) => {
+    async (request: SentSettings): Promise<HistoryItem | null> => {
       const jobId = newJobId()
       setState({ status: 'pending', startedAt: Date.now(), request, jobId, cancelling: false })
       try {
         const item = await generateImage(request, jobId)
         settle({ status: 'settled', item })
         onSuccess(item)
+        return item
       } catch (error) {
-        if (isCancelled(error)) return setState(lastOutcome.current)
-        settle({ status: 'failed', error: errorMessage(error), request })
-        onFailure()
+        if (isCancelled(error)) setState(lastOutcome.current)
+        else {
+          settle({ status: 'failed', error: errorMessage(error), request })
+          onFailure()
+        }
+        return null
       }
     },
     [onSuccess, onFailure, settle],

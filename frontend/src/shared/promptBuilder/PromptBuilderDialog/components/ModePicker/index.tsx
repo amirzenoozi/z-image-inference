@@ -1,3 +1,5 @@
+import { useContext } from 'react'
+import { AbTestContext } from '../../../../abTest/AbTestContext'
 import { t } from '../../../../../i18n'
 import { modeDescription, modeLabel, type BuilderMode } from '../../../../../lib/promptBuilder/modes'
 import { chipClass } from '../../../../../lib/styles'
@@ -10,6 +12,8 @@ interface Props {
 }
 
 export function ModePicker({ modes, current, problems, onSelect }: Props) {
+  // An A/B test keeps the purpose its prompt was made in
+  const locked = useContext(AbTestContext) !== null
   return (
     <div className="mb-4 space-y-2">
       <div role="radiogroup" aria-label={t('builder.purpose')} className="flex gap-2 overflow-x-auto pb-1">
@@ -19,9 +23,10 @@ export function ModePicker({ modes, current, problems, onSelect }: Props) {
             type="button"
             role="radio"
             aria-checked={mode.id === current}
-            title={modeDescription(mode)}
+            title={locked ? t('create.abLocked') : modeDescription(mode)}
+            disabled={locked}
             onClick={() => onSelect(mode)}
-            className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium ${chipClass(mode.id === current)}`}
+            className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60 ${chipClass(mode.id === current)}`}
           >
             {modeLabel(mode)}
           </button>

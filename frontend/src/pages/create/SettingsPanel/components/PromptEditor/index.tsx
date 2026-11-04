@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { useCharacter } from '../../../../../lib/characters'
 import type { BuilderModeData, GenerationSettings, Limits, ModelInfo } from '../../../../../types'
 import { isModEnter } from '../../../../../lib/keyboard'
@@ -188,19 +189,21 @@ interface PromptViewSwitchProps {
 
 /** Shows the prompt as JSON or as text; a typed prompt becomes JSON the first time, and the JSON is kept from then on. */
 function PromptViewSwitch({ shown, canShowJson, onView }: PromptViewSwitchProps) {
+  // A typed prompt turned into JSON would drop out of a slider test's look, so the switch waits for the test to end
+  const locked = useContext(AbTestContext) !== null
   const views: { id: PromptView; label: string; enabled: boolean }[] = [
     { id: 'json', label: t('create.viewJson'), enabled: canShowJson },
     { id: 'text', label: t('create.viewText'), enabled: true },
   ]
   return (
-    <div role="radiogroup" aria-label={t('create.promptView')} className="flex gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800/70">
+    <div role="radiogroup" aria-label={t('create.promptView')} title={locked ? t('create.abLocked') : undefined} className="flex gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800/70">
       {views.map(({ id, label, enabled }) => (
         <button
           key={id}
           type="button"
           role="radio"
           aria-checked={shown === id}
-          disabled={!enabled}
+          disabled={!enabled || locked}
           onClick={() => onView(id)}
           className={`rounded-md px-2.5 py-0.5 font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${tabClass(shown === id)}`}
         >

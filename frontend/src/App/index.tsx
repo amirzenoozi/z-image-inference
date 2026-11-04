@@ -23,7 +23,10 @@ import { characterSettings, findModel, loadSettings, saveSettings, settingsFromI
 import { askToNotify, useRenderAlerts } from '../lib/renderAlerts'
 import { useUnseenResult } from '../lib/unseenResult'
 import { useView, type View } from '../lib/view'
-import type { Catalog, GenerationSettings, HistoryItem } from '../types'
+import type { Catalog, GenerationSettings, HistoryItem, SentSettings } from '../types'
+import { AbTestContext } from '../shared/abTest/AbTestContext'
+import { CompareDialog } from '../shared/images/CompareDialog'
+import { useAbTest } from './useAbTest'
 import { Images, Sparkles, UsersRound, WandSparkles, type LucideIcon } from 'lucide-react'
 
 
@@ -114,17 +117,24 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   const generating = generation.state.status === 'pending'
   const sliders = useMemo(() => downloadedSliders(catalog, modelStatus), [catalog, modelStatus])
   const character = useCharacter(settings.characterId)
-  const generateWith = (next: GenerationSettings) => {
-    if (generating || !next.prompt.trim()) return
+  /** Renders one image; resolves to it, or null when it can't start, fails or is cancelled. */
+  const generateWith = (next: GenerationSettings, testSet?: SentSettings['testSet']): Promise<HistoryItem | null> => {
+    if (generating || !next.prompt.trim()) return Promise.resolve(null)
     askToNotify()
     const model = findModel(catalog, next.modelId)
     const sent = promptToSend(next, character, model, builderModes)
-    if (sent.status !== 'ready') return
+    if (sent.status !== 'ready') return Promise.resolve(null)
     // A model hidden by the lock falls back to the first one shown, so the request names that one too
-    const request = { ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text' as const, promptSpec: sent.spec, safeOnly: !adultShown }
-    void generation.run({ ...request, addons: addonsToSend(model, next.addons, modelStatus), strengths: strengthsToSend(model, (id) => renderStrength(id, sent, next, character, model), modelStatus) })
+    const request = { ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text' as const, promptSpec: sent.spec, safeOnly: !adultShown, testSet }
+    return generation.run({ ...request, addons: addonsToSend(model, next.addons, modelStatus), strengths: strengthsToSend(model, (id) => renderStrength(id, sent, next, character, model), modelStatus) })
   }
+  const abTest = useAbTest({
+    settings, setSettings, model: findModel(catalog, settings.modelId), modes: builderModes, maxSeed: catalog.limits.max_seed, generate: generateWith,
+  })
+  const testRunning = abTest.controls.test !== null
+  // Reusing an image or a character replaces the prompt, which an A/B test locks; its buttons are off too
   const openInCreate = (next: GenerationSettings) => {
+    if (testRunning) return
     setSettings(next)
     setMode('direct')
     setView('create')
@@ -133,6 +143,7 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   return (
     // The prompt builder and the character dialog offer the look sliders that are downloaded
     <LookSlidersContext.Provider value={sliders}>
+      <AbTestContext.Provider value={abTest.controls.test}>
       {/* On phones the views sit in a bar at the bottom, so the page leaves room for it */}
       <div className="flex h-dvh flex-col pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] sm:pb-0">
         <Header view={view} onViewChange={setView} unseenResult={unseen} onTitleTap={unlock.onTitleTap} />
@@ -147,12 +158,13 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
           lastSeed={lastSeed}
           modelStatus={modelStatus}
           onModelStatusChanged={refreshModelStatus}
-          onGenerate={() => generateWith(settings)}
+          abTest={abTest.controls}
+          onGenerate={() => void (testRunning ? abTest.run() : generateWith(settings))}
           onChatPrompt={(prompt) => {
             // Grok's prompt is new, so it doesn't have the character's look yet
             const next: GenerationSettings = { ...settings, prompt, promptFormat: 'text', lookIncluded: null }
             setSettings(next)
-            generateWith(next)
+            void generateWith(next)
           }}
           hidden={view !== 'create'}
         />
@@ -170,7 +182,9 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
             <HistoryPage models={catalog.models} onReuse={(item) => openInCreate(settingsFromItem(item, catalog))} onVary={(item) => openInCreate(variationSettings(item, catalog))} />
           </main>
         )}
+        {abTest.results && <CompareDialog items={abTest.results} labelOf={(id) => findModel(catalog, id).label} title={t('create.abResultsTitle')} onClose={abTest.closeResults} />}
       </div>
+      </AbTestContext.Provider>
     </LookSlidersContext.Provider>
   )
 }

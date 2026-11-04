@@ -13,7 +13,7 @@ from resolutions import CATEGORY_CONDITIONS, Category
 from sensitive import is_sensitive
 
 DB_PATH = PROJECT_DIR / "history.db"
-COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec, strengths"
+COLUMNS = "id, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec, strengths, set_id, set_label"
 # Columns added after the first release, with the value existing rows get
 ADDED_COLUMNS: dict[str, str] = {
     # Rows saved before models could be switched all came from the default model
@@ -44,6 +44,9 @@ ADDED_COLUMNS: dict[str, str] = {
     "prompt_spec": "TEXT",
     # The slider add-ons' strengths, as a JSON object by add-on id; empty for none
     "strengths": "TEXT NOT NULL DEFAULT '{}'",
+    # An A/B test's images share a set id (made by the browser); the label says what each one tried, such as "Weight -2"
+    "set_id": "TEXT",
+    "set_label": "TEXT",
 }
 # Character columns added after characters were first released
 ADDED_CHARACTER_COLUMNS: dict[str, str] = {
@@ -78,6 +81,8 @@ class HistoryItem:
     addons: list[str]
     prompt_spec: str | None
     strengths: dict[str, float]
+    set_id: str | None
+    set_label: str | None
 
     def to_dict(self) -> dict[str, str | int | float | list[str] | dict[str, float] | None]:
         return asdict(self)
@@ -109,6 +114,8 @@ class HistoryFilter:
     # The image's shape, as the resolution picker groups sizes
     category: Category | None = None
     character_id: int | None = None
+    # One A/B test's images
+    set_id: str | None = None
     # Sensitive images left out, while adult content is locked
     hide_sensitive: bool = False
 
@@ -118,6 +125,9 @@ class HistoryFilter:
         if self.character_id is not None:
             conditions.append("character_id = ?")
             params.append(self.character_id)
+        if self.set_id is not None:
+            conditions.append("set_id = ?")
+            params.append(self.set_id)
         if self.model:
             conditions.append("model = ?")
             params.append(self.model)
@@ -165,6 +175,9 @@ class NewImage:
     prompt_spec: str | None = None
     # The slider add-ons' strengths; an edited copy keeps its original's
     strengths: dict[str, float] = field(default_factory=dict)
+    # The A/B test it belongs to, and what it tried
+    set_id: str | None = None
+    set_label: str | None = None
 
 
 @contextmanager
@@ -228,16 +241,16 @@ def add_missing_columns(conn: sqlite3.Connection, table: str, columns: dict[str,
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
 
-Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int, str, str | None, str]
+Row = tuple[int, str | None, str, int, int, int, int, float | None, str, str, float | None, int, int | None, int | None, float | None, int | None, int | None, int, str, str | None, str, str | None, str | None]
 
 
 def to_item(row: Row) -> HistoryItem:
     id_, prompt, negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, favourite, *links = row
-    edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec, strengths = links
+    edited_from, varied_from, change, character_id, face_from, sensitive, addons, prompt_spec, strengths, set_id, set_label = links
     return HistoryItem(
         id_, prompt or "", negative_prompt, seed, width, height, steps, guidance, model, created_at, duration_seconds, bool(favourite),
         edited_from, varied_from, change, character_id, face_from, bool(sensitive), [addon for addon in addons.split(",") if addon],
-        prompt_spec, json.loads(strengths),
+        prompt_spec, json.loads(strengths), set_id, set_label,
     )
 
 
@@ -245,12 +258,14 @@ def add(image: NewImage) -> HistoryItem:
     with connection() as conn:
         cursor = conn.execute(
             """INSERT INTO images (image_data, prompt, negative_prompt, seed, width, height, steps, guidance, model, duration_seconds,
-                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons, prompt_spec, strengths)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                  edited_from, varied_from, change, character_id, face_from, sensitive, image_checked, addons, prompt_spec, strengths,
+                                  set_id, set_label)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (encode_for_storage(image.png), image.prompt, image.negative_prompt, image.seed, image.width, image.height,
              image.steps, image.guidance, image.model, image.duration_seconds, image.edited_from, image.varied_from, image.change,
              image.character_id, image.face_from, int(is_sensitive(image.prompt) if image.sensitive is None else image.sensitive),
-             int(image.image_checked), ",".join(image.addons), image.prompt_spec, json.dumps(image.strengths)),
+             int(image.image_checked), ",".join(image.addons), image.prompt_spec, json.dumps(image.strengths),
+             image.set_id, image.set_label),
         )
         row = conn.execute(f"SELECT {COLUMNS} FROM images WHERE id = ?", (cursor.lastrowid,)).fetchone()
     return to_item(row)

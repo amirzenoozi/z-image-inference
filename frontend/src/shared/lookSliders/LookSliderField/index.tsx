@@ -13,25 +13,30 @@ interface Props {
   defaultValue: number
   onChange: (value: number) => void
   onReset: () => void
+  /** Shown instead of the slider's own name, such as an A/B test's value letter. */
+  name?: string
+  /** Set while the slider can't be moved (an A/B test compares it): why, shown on hover. */
+  lockedNote?: string
 }
 
 /**
  * One look slider, the same in Create's Look section, the prompt builder and the character dialog: on one line its name, its range
  * around the bar (with a mark at 0), its strength, and a reset once it is moved.
  */
-export function LookSliderField({ addon, value, defaultValue, onChange, onReset }: Props) {
+export function LookSliderField({ addon, value, defaultValue, onChange, onReset, name, lockedNote }: Props) {
   if (!addon.slider) return null
   const { minimum, maximum, step } = addon.slider
-  const label = addonLabel(addon.id, addon.label)
+  const label = name ?? addonLabel(addon.id, addon.label)
+  const locked = lockedNote !== undefined
   const at = (strength: number) => ({ left: `calc(0.5rem + (100% - 1rem) * ${(strength - minimum) / (maximum - minimum)})` }) as CSSProperties
   return (
-    <div className="flex items-center gap-2 py-2 text-xs">
+    <div title={lockedNote} className={`flex items-center gap-2 py-2 text-xs ${locked ? 'opacity-50' : ''}`}>
       <span className="w-24 shrink-0 truncate font-medium text-zinc-600 dark:text-zinc-300">{label}</span>
       <span aria-hidden="true" className="w-5 text-right text-[11px] text-zinc-400 tabular-nums dark:text-zinc-500">{minimum}</span>
       {/* The 0 mark sits under the bar and comes first, so the handle is drawn over it */}
       <div className="relative flex h-7 flex-1 items-center">
         {minimum < 0 && maximum > 0 && <span aria-hidden="true" data-mark="zero" className="pointer-events-none absolute top-[calc(50%+5px)] h-1.5 w-px -translate-x-1/2 bg-zinc-400 dark:bg-zinc-500" style={at(0)} />}
-        <Slider label={t('create.sliderLabel', { label })} min={minimum} max={maximum} step={step} value={value} onChange={(text) => onChange(Number(text))} className="relative w-full" />
+        <Slider label={t('create.sliderLabel', { label })} min={minimum} max={maximum} step={step} value={value} disabled={locked} onChange={(text) => onChange(Number(text))} className="relative w-full" />
       </div>
       <span aria-hidden="true" className="w-5 text-[11px] text-zinc-400 tabular-nums dark:text-zinc-500">{maximum}</span>
       <span className="w-6 text-right font-medium text-zinc-800 tabular-nums dark:text-zinc-100">{value}</span>
@@ -39,7 +44,7 @@ export function LookSliderField({ addon, value, defaultValue, onChange, onReset 
       <IconButton
         label={t('create.lookResetSlider', { label })}
         onClick={onReset}
-        style={value === defaultValue ? { visibility: 'hidden' } : undefined}
+        style={value === defaultValue || locked ? { visibility: 'hidden' } : undefined}
         className="shrink-0 text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400"
       >
         <RotateCcw />

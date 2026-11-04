@@ -172,6 +172,9 @@ export interface HistoryItem {
   strengths: Record<string, number>
   /** The JSON prompt the text was written from, as saved (read it with parseSpec); null for a prompt written as text. */
   prompt_spec: string | null
+  /** An A/B test's images share a set id, and each says what it tried (such as "Weight -2"); null for other images. */
+  set_id: string | null
+  set_label: string | null
 }
 
 /** The prompt builder's identity choices a character keeps, named as in the builder's state. */
@@ -308,6 +311,8 @@ export interface SentSettings extends GenerationSettings {
   promptSpec?: PromptSpec
   /** Adult content is locked in this browser, so the server keeps the render safe for work. */
   safeOnly?: boolean
+  /** One image of an A/B test: the set it belongs to, and what it tried. */
+  testSet?: { id: string; label: string }
 }
 
 export interface StartImage {

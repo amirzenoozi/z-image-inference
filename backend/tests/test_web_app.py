@@ -681,6 +681,25 @@ def test_history_records_the_slider_strengths_a_render_used(client: TestClient, 
     assert model_server.calls[-1]["strengths"] == {"weight": -3.5}
 
 
+SET_ID = "0b6f6a52-1c4e-4b7e-9d2a-5f3c8e1a7b90"
+
+
+def test_an_ab_test_s_images_are_saved_as_one_set_in_the_order_they_were_made(client: TestClient, model_server: FakeModelServer) -> None:
+    first = generate(client, prompt="a woman", set_id=SET_ID, set_label="Weight -2").json()
+    generate(client, prompt="a man")
+    second = generate(client, prompt="a woman", set_id=SET_ID, set_label="Weight 4").json()
+    assert (first["set_id"], first["set_label"]) == (SET_ID, "Weight -2")
+    assert "set_id" not in model_server.calls[-1] and "set_label" not in model_server.calls[-1]
+    in_set = client.get(f"/api/history/sets/{SET_ID}").json()
+    assert [item["id"] for item in in_set] == [first["id"], second["id"]]
+
+
+@pytest.mark.parametrize("fields", [{"set_id": SET_ID}, {"set_label": "Weight 4"}, {"set_id": "not-an-id", "set_label": "Weight 4"}])
+def test_an_ab_test_image_needs_a_valid_set_id_and_a_label(client: TestClient, model_server: FakeModelServer, fields: dict[str, str]) -> None:
+    assert generate(client, prompt="a woman", **fields).status_code == 422
+    assert model_server.calls == []
+
+
 def test_history_records_the_addons_a_render_used_and_an_edited_copy_keeps_them(client: TestClient, model_server: FakeModelServer) -> None:
     model_server.body = {"image_base64": base64.b64encode(png_bytes()).decode(), "seed": 1, "model": "z-image-turbo", "seconds": 1.0, "addons": ["tattoo"]}
     item = generate(client, prompt="a tattooed man", addons=["tattoo"]).json()

@@ -51,6 +51,7 @@ FRONTEND_DIST = paths.FRONTEND_DIST
 THUMBNAIL_SIDE = 384
 MAX_PAGE_SIZE = 100
 MAX_SEARCH_LENGTH = 200
+MAX_SET_LABEL_LENGTH = 200
 MAX_CHAT_MESSAGES = 50
 # History images never change: ids are not reused after a delete
 IMMUTABLE = {"Cache-Control": "private, max-age=31536000, immutable"}
@@ -401,6 +402,9 @@ class WebGenerateRequest(GenerateRequest):
     prompt_spec: PromptSpec | None = None
     # The browser's adult content lock is on: the render is kept safe for work, as when ADULT_CONTENT is off
     safe_only: bool = False
+    # An A/B test's images share a set id, and each says what it tried
+    set_id: str | None = Field(default=None, pattern=JOB_ID_PATTERN)
+    set_label: str | None = Field(default=None, min_length=1, max_length=MAX_SET_LABEL_LENGTH)
     # The web app loads the start image and the face image itself; image data from the browser is refused
     init_image: None = None
     face_image: None = None
@@ -408,6 +412,12 @@ class WebGenerateRequest(GenerateRequest):
 
     def has_start_image(self) -> bool:
         return self.source_image_id is not None
+
+    @model_validator(mode="after")
+    def check_set(self) -> "WebGenerateRequest":
+        if (self.set_id is None) != (self.set_label is None):
+            raise ValueError(i18n.t("setNeedsBoth"))
+        return self
 
 
 def start_image_fields(req: WebGenerateRequest) -> dict[str, str]:
@@ -441,7 +451,7 @@ def face_to_lock(req: WebGenerateRequest, character: Character | None) -> FaceTo
 
 def model_server_request(req: WebGenerateRequest, face: FaceToLock | None, keep_safe: bool) -> GenerateRequest:
     """The request for the model server: the start image and the face loaded here, and safe-for-work negatives when needed."""
-    fields = req.model_dump(exclude={"source_image_id", "character_id", "prompt_spec", "safe_only"}) | start_image_fields(req)
+    fields = req.model_dump(exclude={"source_image_id", "character_id", "prompt_spec", "safe_only", "set_id", "set_label"}) | start_image_fields(req)
     if face:
         fields |= {"face_image": base64.b64encode(face.png).decode(), "face_strength": face.strength}
     if keep_safe:
@@ -509,7 +519,7 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
         varied_from=req.source_image_id, change=req.change, character_id=req.character_id,
         face_from=face.image_id if face else None,
         sensitive=True if nsfw else None, image_checked=nsfw is not None, addons=tuple(rendered.addons), strengths=rendered.strengths,
-        prompt_spec=req.prompt_spec.to_json() if req.prompt_spec else None,
+        prompt_spec=req.prompt_spec.to_json() if req.prompt_spec else None, set_id=req.set_id, set_label=req.set_label,
     ))
 
 
@@ -597,6 +607,14 @@ def history(
 ) -> HistoryPage:
     items, total = history_store.page(offset, limit, filters)
     return HistoryPage(items=items, total=total)
+
+
+@app.get("/api/history/sets/{set_id}")
+def history_set(set_id: Annotated[str, PathParam(pattern=JOB_ID_PATTERN)], hide_sensitive: bool = False) -> list[HistoryItem]:
+    """An A/B test's images, in the order they were made; sensitive ones are left out as History leaves them out."""
+    filters = HistoryFilter(set_id=set_id, hide_sensitive=hide_sensitive or not adult_content.enabled())
+    items, _ = history_store.page(0, MAX_PAGE_SIZE, filters)
+    return sorted(items, key=lambda item: item.id)
 
 
 @app.get("/api/history/export")

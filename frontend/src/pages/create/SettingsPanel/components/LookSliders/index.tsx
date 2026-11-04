@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
+import { lockedBuilderFields, sliderLocked } from '../../../../../lib/abTest'
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { t } from '../../../../../i18n'
 import { updateCharacter } from '../../../../../api'
 import { lookWithMoved } from '../../../../../lib/characterPrompt'
@@ -28,6 +30,7 @@ type SaveState = 'idle' | 'saving' | 'failed'
 export function LookSliders({ model, characterId, promptFormat, moved, status, onChange }: Props) {
   const { characters, reload } = useCharacters()
   const [saveState, setSaveState] = useState<SaveState>('idle')
+  const lockedFields = lockedBuilderFields(useContext(AbTestContext))
   if (status.status !== 'settled' || promptFormat === 'json') return null
   const sliders = sliderAddons(model).filter((addon) => status.value.models[addon.id]?.status === 'ready')
   if (sliders.length === 0) return null
@@ -66,6 +69,7 @@ export function LookSliders({ model, characterId, promptFormat, moved, status, o
           defaultValue={defaultOf(addon.id)}
           onChange={(value) => onChange({ ...moved, [addon.id]: value })}
           onReset={() => onChange(unmove(addon.id))}
+          lockedNote={sliderLocked(lockedFields, addon.id) ? t('create.abLocked') : undefined}
         />
       ))}
       {character && <SaveDefaults character={character} disabled={!anyMoved || saveState === 'saving'} onSave={() => void save(character)} />}

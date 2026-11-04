@@ -1,3 +1,5 @@
+import { useContext } from 'react'
+import { AbTestContext } from '../../../../../shared/abTest/AbTestContext'
 import { useState } from 'react'
 import { isServerDown } from '../../../../../lib/modelStatus'
 import type { Loadable, ModelCategory, ModelInfo, ModelStatusReport } from '../../../../../types'
@@ -59,11 +61,13 @@ interface SelectedModelProps {
 }
 
 function SelectedModel({ model, status, serverDown, onChange }: SelectedModelProps) {
+  // An A/B test's images all come from one model
+  const locked = useContext(AbTestContext) !== null
   return (
     <div role="group" aria-label={t('create.selectedModel')} className="rounded-xl border border-violet-500 bg-violet-50/60 p-3 dark:bg-violet-950/40">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-violet-900 dark:text-violet-100">{model.label}</span>
-        <button type="button" onClick={onChange} className={`${secondaryButtonClass} shrink-0 bg-white py-1 text-xs dark:bg-zinc-900`}>
+        <button type="button" onClick={onChange} disabled={locked} title={locked ? t('create.abLocked') : undefined} className={`${secondaryButtonClass} shrink-0 bg-white py-1 text-xs disabled:opacity-50 dark:bg-zinc-900`}>
           {t('create.change')}
         </button>
       </div>
