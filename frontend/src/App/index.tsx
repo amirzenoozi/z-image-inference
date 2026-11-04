@@ -5,10 +5,8 @@ import { CreatePage } from '../pages/create/CreatePage'
 import type { PromptMode } from '../pages/create/SettingsPanel'
 import { ErrorNotice, Spinner } from '../shared/ui/ui'
 import { useCharacter, useCharacters } from '../lib/characters'
-import { promptToSend, renderStrength } from '../lib/characterPrompt'
+import { renderRequest } from '../lib/renderRequest'
 import { LookSlidersContext, downloadedSliders } from '../shared/lookSliders/LookSlidersContext'
-import { addonsToSend } from '../lib/addons'
-import { strengthsToSend } from '../lib/lookSliders'
 import { useGeneration } from '../lib/generation'
 import { useCatalog } from '../lib/hooks'
 import { catalogFor, useAdultContent } from '../lib/adultContent'
@@ -123,12 +121,8 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   const generateWith = (next: GenerationSettings, testSet?: SentSettings['testSet']): Promise<HistoryItem | null> => {
     if (generating || !next.prompt.trim()) return Promise.resolve(null)
     askToNotify()
-    const model = findModel(catalog, next.modelId)
-    const sent = promptToSend(next, character, model, builderModes)
-    if (sent.status !== 'ready') return Promise.resolve(null)
-    // A model hidden by the lock falls back to the first one shown, so the request names that one too
-    const request = { ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text' as const, promptSpec: sent.spec, safeOnly: !adultShown, testSet }
-    return generation.run({ ...request, addons: addonsToSend(model, next.addons, modelStatus), strengths: strengthsToSend(model, (id) => renderStrength(id, sent, next, character, model), modelStatus) })
+    const made = renderRequest(next, { catalog, character, modes: builderModes, modelStatus, safeOnly: !adultShown }, testSet)
+    return made.status === 'ready' ? generation.run(made.request) : Promise.resolve(null)
   }
   const abTest = useAbTest({
     settings, setSettings, model: findModel(catalog, settings.modelId), modes: builderModes, maxSeed: catalog.limits.max_seed, generate: generateWith,

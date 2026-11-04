@@ -76,31 +76,32 @@ export async function removeModel(modelId: string): Promise<void> {
 }
 
 /** `jobId` lets the caller follow the generation with fetchJobProgress and stop it with cancelJob. */
+/** The body of a render request, the same from Create and from the render script (scripts/renderSpecs.ts). */
+export function generateBody(settings: SentSettings, jobId: string | null) {
+  return {
+    model: settings.modelId,
+    prompt: settings.prompt,
+    negative_prompt: settings.negativePrompt,
+    width: settings.width,
+    height: settings.height,
+    steps: settings.steps,
+    guidance: settings.guidance,
+    seed: settings.randomSeed ? null : settings.seed,
+    job_id: jobId,
+    source_image_id: settings.startImage?.id ?? null,
+    change: settings.startImage?.change ?? null,
+    character_id: settings.characterId,
+    addons: settings.addons,
+    strengths: settings.strengths,
+    prompt_spec: settings.promptSpec ?? null,
+    safe_only: settings.safeOnly ?? false,
+    set_id: settings.testSet?.id ?? null,
+    set_label: settings.testSet?.label ?? null,
+  }
+}
+
 export async function generateImage(settings: SentSettings, jobId: string, signal?: AbortSignal): Promise<HistoryItem> {
-  const resp = await postJson(
-    '/api/generate',
-    {
-      model: settings.modelId,
-      prompt: settings.prompt,
-      negative_prompt: settings.negativePrompt,
-      width: settings.width,
-      height: settings.height,
-      steps: settings.steps,
-      guidance: settings.guidance,
-      seed: settings.randomSeed ? null : settings.seed,
-      job_id: jobId,
-      source_image_id: settings.startImage?.id ?? null,
-      change: settings.startImage?.change ?? null,
-      character_id: settings.characterId,
-      addons: settings.addons,
-      strengths: settings.strengths,
-      prompt_spec: settings.promptSpec ?? null,
-      safe_only: settings.safeOnly ?? false,
-      set_id: settings.testSet?.id ?? null,
-      set_label: settings.testSet?.label ?? null,
-    },
-    signal,
-  )
+  const resp = await postJson('/api/generate', generateBody(settings, jobId), signal)
   return resp.json() as Promise<HistoryItem>
 }
 
