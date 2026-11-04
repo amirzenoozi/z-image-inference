@@ -24,6 +24,7 @@ vi.mock('../../../api', async (importOriginal) => ({
   fetchModelStatus: vi.fn(),
   fetchJobProgress: vi.fn(),
   fetchHistoryPosition: vi.fn(),
+  fetchHistorySet: vi.fn(),
 }))
 
 const fetchHistory = vi.mocked(api.fetchHistory)
@@ -893,4 +894,20 @@ describe('the image in the address', () => {
     expect(window.location.search).toBe('')
     expect(api.fetchHistoryPosition).not.toHaveBeenCalled()
   })
+})
+
+it('pauses the viewer’s keys while an A/B set is compared over it, and Escape closes only the comparison', async () => {
+  const images = [historyItem({ id: 2, prompt: 'image 2', set_id: 'set', set_label: 'Weight 6' }), historyItem({ id: 1, prompt: 'image 1', set_id: 'set', set_label: 'Weight -4' })]
+  fetchHistory.mockImplementation(async (offset: number, limit: number) => ({ items: images.slice(offset, offset + limit), total: images.length }))
+  vi.mocked(api.fetchHistorySet).mockResolvedValue([...images].reverse())
+  renderHistory()
+  await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Compare A/B set' }))
+  expect(await screen.findByRole('dialog', { name: 'A/B test results' })).toBeInTheDocument()
+
+  await userEvent.keyboard('{ArrowRight}')
+  expect(window.location.search).toBe('?image=2')
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog', { name: 'A/B test results' })).not.toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: 'Image details' })).toBeInTheDocument()
 })
