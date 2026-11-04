@@ -30,5 +30,6 @@
   "unlockTitle": "Escribe la palabra",
   "unlockLabel": "Palabra",
   "unlockConfirm": "Aceptar",
-  "unlockWrong": "Esa no es la palabra."
+  "unlockWrong": "Esa no es la palabra.",
+  "partNotLoaded": "Esta parte de la app no se pudo cargar, probablemente porque la app se actualizó mientras esta página estaba abierta. Recarga la página para continuar."
 }

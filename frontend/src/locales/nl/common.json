@@ -30,5 +30,6 @@
   "unlockTitle": "Voer het woord in",
   "unlockLabel": "Woord",
   "unlockConfirm": "OK",
-  "unlockWrong": "Dat is niet het woord."
+  "unlockWrong": "Dat is niet het woord.",
+  "partNotLoaded": "Dit deel van de app kon niet laden, waarschijnlijk omdat de app is bijgewerkt terwijl deze pagina openstond. Laad de pagina opnieuw om verder te gaan."
 }
