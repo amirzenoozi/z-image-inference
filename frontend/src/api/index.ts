@@ -1,4 +1,4 @@
-import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings } from '../types'
+import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, ItemPosition, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings } from '../types'
 import { t } from '../i18n'
 
 export class ApiError extends Error {
@@ -133,6 +133,12 @@ export async function fetchHistory(offset: number, limit: number, filters: Histo
   params.set('limit', String(limit))
   const resp = await request(`/api/history?${params}`, { signal })
   return resp.json() as Promise<HistoryPageData>
+}
+
+/** An image and its place in History's list with these filters; fails with 404 when the list leaves it out. */
+export async function fetchHistoryPosition(id: number, filters: HistoryFilters, hideSensitive: boolean, signal?: AbortSignal): Promise<ItemPosition> {
+  const query = filterParams(filters, hideSensitive).toString()
+  return (await request(`/api/history/${id}/position${query ? `?${query}` : ''}`, { signal })).json() as Promise<ItemPosition>
 }
 
 /** An A/B test's images, in the order they were made; `hideSensitive` leaves out sensitive ones, as History does. */

@@ -1,10 +1,10 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../../../api'
 import { catalog, character, deferred, historyItem } from '../../../test/fixtures'
 import { CharactersContext } from '../../../lib/characters'
-import type { HistoryFilters, HistoryItem, HistoryPageData } from '../../../types'
+import type { HistoryFilters, HistoryItem, HistoryPageData, ItemPosition } from '../../../types'
 import { SEARCH_DELAY_MS } from './components/HistoryFilters'
 import { NO_FILTERS } from '../../../lib/historyFilters'
 import { HistoryPage, PAGE_SIZE } from './.'
@@ -23,6 +23,7 @@ vi.mock('../../../api', async (importOriginal) => ({
   saveEdit: vi.fn(),
   fetchModelStatus: vi.fn(),
   fetchJobProgress: vi.fn(),
+  fetchHistoryPosition: vi.fn(),
 }))
 
 const fetchHistory = vi.mocked(api.fetchHistory)
@@ -151,7 +152,7 @@ it('goes back a page when the only image on the last page is deleted', async () 
   const dialog = screen.getByRole('dialog', { name: 'Image details' })
   expect(await within(dialog).findByRole('img', { name: 'image 2' })).toBeInTheDocument()
   expect(within(dialog).getByText(`${PAGE_SIZE} of ${PAGE_SIZE}`)).toBeInTheDocument()
-  expect(window.location.search).toBe('')
+  expect(window.location.search).toBe('?image=2')
   expect(await screen.findByText(`${PAGE_SIZE} images`)).toBeInTheDocument()
 })
 
@@ -568,11 +569,11 @@ it('crosses into the next page, showing a placeholder while that image loads, an
   expect(within(viewer()).queryByRole('img')).not.toBeInTheDocument()
   await act(async () => next.resolve(await serve(PAGE_SIZE, 1, NO_FILTERS, false)))
   expect(shownImage()).toHaveAccessibleName('image 2')
-  expect(window.location.search).toBe('?page=2')
+  expect(window.location.search).toBe('?page=2&image=2')
 
   await userEvent.keyboard('{ArrowLeft}')
   expect(shownImage()).toHaveAccessibleName('image 3')
-  expect(window.location.search).toBe('')
+  expect(window.location.search).toBe('?image=3')
 })
 
 it('stars with F, once', async () => {
@@ -732,7 +733,7 @@ it('edits an image and saves it as a new one, then opens the new image with the 
   expect(api.saveEdit).toHaveBeenCalledExactlyOnceWith(2, { quarter_turns: 1, flip_horizontal: false, flip_vertical: false, crop: { x: 0, y: 112, width: 512, height: 288 } })
   expect(await screen.findByRole('dialog', { name: 'Image details' })).toBeInTheDocument()
   expect(await screen.findByText(/Edited from image #2/)).toBeInTheDocument()
-  expect(window.location.search).toBe('')
+  expect(window.location.search).toBe('?image=3')
   expect(screen.getByLabelText('Search prompts')).toHaveValue('')
 })
 
@@ -846,4 +847,50 @@ it('marks an image as sensitive from the viewer once the server confirms, and th
 
   await userEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(await within(await screen.findByRole('button', { name: 'Open: a red fox' })).findByText('Sensitive')).toBeInTheDocument()
+})
+
+describe('the image in the address', () => {
+  beforeEach(() => window.history.replaceState(null, '', '/history'))
+
+  it('opens the image a link names where the list puts it, after a placeholder while it is looked up', async () => {
+    window.history.replaceState(null, '', '/history?image=12')
+    fetchHistory.mockResolvedValue(page(30, 40))
+    const position = deferred<ItemPosition>()
+    vi.mocked(api.fetchHistoryPosition).mockReset().mockReturnValue(position.promise)
+    renderHistory()
+
+    expect(await screen.findByText('Loading…')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Image details' })).not.toBeInTheDocument()
+    await act(async () => position.resolve({ item: historyItem({ id: 12, prompt: 'image 12' }), index: 11, total: 40 }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Image details' })
+    expect(within(dialog).getByRole('img', { name: 'image 12' })).toBeInTheDocument()
+    expect(within(dialog).getByText('12 of 40')).toBeInTheDocument()
+    expect(api.fetchHistoryPosition).toHaveBeenCalledExactlyOnceWith(12, NO_FILTERS, false, expect.any(AbortSignal))
+  })
+
+  it('says so when the linked image isn’t there, and drops it from the address', async () => {
+    window.history.replaceState(null, '', '/history?image=999')
+    fetchHistory.mockResolvedValue(page(2))
+    vi.mocked(api.fetchHistoryPosition).mockReset().mockRejectedValue(new api.ApiError('Image not found', 404))
+    renderHistory()
+
+    expect(await screen.findByText("Image #999 isn't in History, or the filters hide it.")).toBeInTheDocument()
+    expect(window.location.search).toBe('')
+  })
+
+  it('names the open image, and Back closes the viewer without looking anything up', async () => {
+    serveHistory(2)
+    vi.mocked(api.fetchHistoryPosition).mockReset()
+    renderHistory()
+    await userEvent.click(await screen.findByRole('button', { name: 'Open: image 2' }))
+    expect(window.location.search).toBe('?image=2')
+    await userEvent.keyboard('{ArrowRight}')
+    await waitFor(() => expect(window.location.search).toBe('?image=1'))
+
+    await act(async () => window.history.back())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Image details' })).not.toBeInTheDocument())
+    expect(window.location.search).toBe('')
+    expect(api.fetchHistoryPosition).not.toHaveBeenCalled()
+  })
 })

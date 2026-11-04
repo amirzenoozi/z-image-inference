@@ -5,32 +5,40 @@ import { isCategory } from '../categories'
 export interface HistoryAddress {
   filters: HistoryFilters
   page: number
+  /** The image open in the viewer, so a link or a reload opens it again; null with the viewer closed. */
+  image: number | null
 }
 
 /** 'push' adds a Back entry; 'replace' updates the current one, for changes too small to step back through. */
 export type AddressChange = 'push' | 'replace'
 
-/** Reads the page and filters from a query string; values that make no sense fall back to their defaults. */
+const positiveId = (value: string | null): number | null => {
+  const id = Number(value)
+  return value !== null && Number.isInteger(id) && id > 0 ? id : null
+}
+
+/** Reads the page, filters and open image from a query string; values that make no sense fall back to their defaults. */
 function readAddress(search: string, models: ModelInfo[]): HistoryAddress {
   const params = new URLSearchParams(search)
   const model = params.get('model')
   const ratio = params.get('ratio') ?? ''
   const page = Number(params.get('page'))
-  const character = Number(params.get('character'))
+  const character = positiveId(params.get('character'))
   return {
     filters: {
       model: models.some((candidate) => candidate.id === model) ? model : null,
       search: (params.get('q') ?? '').trim(),
       favouritesOnly: params.get('favourites') === '1',
       ratio: isCategory(ratio) ? ratio : null,
-      character: Number.isInteger(character) && character > 0 ? character : null,
+      character,
     },
     page: Number.isInteger(page) && page > 1 ? page : 1,
+    image: positiveId(params.get('image')),
   }
 }
 
 /** The query string for an address, with only what differs from plain History. */
-function queryOf({ filters, page }: HistoryAddress): string {
+function queryOf({ filters, page, image }: HistoryAddress): string {
   const params = new URLSearchParams()
   if (page > 1) params.set('page', String(page))
   if (filters.search) params.set('q', filters.search)
@@ -38,6 +46,7 @@ function queryOf({ filters, page }: HistoryAddress): string {
   if (filters.ratio) params.set('ratio', filters.ratio)
   if (filters.character !== null) params.set('character', String(filters.character))
   if (filters.favouritesOnly) params.set('favourites', '1')
+  if (image !== null) params.set('image', String(image))
   const query = params.toString()
   return query ? `?${query}` : ''
 }

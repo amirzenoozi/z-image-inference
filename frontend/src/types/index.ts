@@ -326,6 +326,13 @@ export interface ChatMessage {
 }
 
 /** Every piece of loaded data is pending, failed or settled; settled data may still be empty. */
+/** An image and where History's list puts it with the current filters, for opening it from a link. */
+export interface ItemPosition {
+  item: HistoryItem
+  index: number
+  total: number
+}
+
 export type Loadable<T> =
   | { status: 'pending' }
   | { status: 'failed'; error: string }

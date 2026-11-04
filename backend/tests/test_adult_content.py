@@ -73,6 +73,7 @@ def test_sensitive_images_are_hidden_while_adult_content_is_off(client: TestClie
     assert [item["id"] for item in client.get("/api/history").json()["items"]] == [plain]
     assert client.get(f"/api/history/{sensitive}/image").status_code == 404
     assert client.get(f"/api/history/{sensitive}/download").status_code == 404
+    assert client.get(f"/api/history/{sensitive}/position").status_code == 404
 
 
 # -- Rendering -----------------------------------------------------------------------------------------------------------

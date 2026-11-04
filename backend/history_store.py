@@ -313,6 +313,27 @@ def item(item_id: int) -> HistoryItem | None:
     return to_item(row) if row else None
 
 
+@dataclass(frozen=True)
+class ItemPosition:
+    item: HistoryItem
+    # Where it is among the images the filters show, newest first, and how many they show
+    index: int
+    total: int
+
+
+def position(item_id: int, filters: HistoryFilter) -> ItemPosition | None:
+    """An image and where History's list puts it; None when it is gone or the filters leave it out."""
+    where, params = filters.where()
+    joiner = " AND" if where else " WHERE"
+    with connection() as conn:
+        row = conn.execute(f"SELECT {COLUMNS} FROM images{where}{joiner} id = ?", (*params, item_id)).fetchone()
+        if row is None:
+            return None
+        newer = conn.execute(f"SELECT COUNT(*) FROM images{where}{joiner} id > ?", (*params, item_id)).fetchone()[0]
+        total = conn.execute(f"SELECT COUNT(*) FROM images{where}", params).fetchone()[0]
+    return ItemPosition(to_item(row), newer, total)
+
+
 def set_favourite(item_id: int, favourite: bool) -> HistoryItem | None:
     with connection() as conn:
         conn.execute("UPDATE images SET favourite = ? WHERE id = ?", (int(favourite), item_id))
