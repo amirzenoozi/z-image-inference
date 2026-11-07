@@ -339,6 +339,8 @@ export interface ChatTurn {
   messages: ChatMessage[]
   conversationId: number | null
   parentId: number | null
+  /** Adult content is locked in this browser, so the server checks the question for nudity before answering. */
+  safeOnly: boolean
 }
 
 /** A finished chat answer, and where it is saved. */

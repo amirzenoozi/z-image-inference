@@ -49,7 +49,7 @@ describe('streamChat', () => {
     const updates: string[] = []
     const messages = [{ role: 'user' as const, content: 'a cat' }, { role: 'assistant' as const, content: 'A cat', exchangeId: 11 }, { role: 'user' as const, content: 'at night' }]
 
-    const reply = await streamChat({ messages, conversationId: 5, parentId: 11 }, (text) => updates.push(text))
+    const reply = await streamChat({ messages, conversationId: 5, parentId: 11, safeOnly: true }, (text) => updates.push(text))
 
     expect(reply).toEqual({ text: 'A detailed prompt', conversationId: 5, exchangeId: 12 })
     expect(updates).toEqual(['A detailed ', 'A detailed prompt'])
@@ -57,6 +57,7 @@ describe('streamChat', () => {
       messages: [{ role: 'user', content: 'a cat' }, { role: 'assistant', content: 'A cat' }, { role: 'user', content: 'at night' }],
       conversation_id: 5,
       parent_id: 11,
+      safe_only: true,
     })
   })
 })
