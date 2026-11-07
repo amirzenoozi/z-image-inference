@@ -1,9 +1,9 @@
 import io
 import os
 import base64
-import itertools
 import logging
 import threading
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
@@ -12,7 +12,6 @@ from typing import Annotated, Literal
 from dotenv import load_dotenv
 load_dotenv()
 
-import openai
 import requests
 import uvicorn
 from datetime import date
@@ -36,7 +35,8 @@ from image_edits import EditOutsideImage, EditRecipe, apply_edits
 import history_store
 from sensitive import is_sensitive
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
-from grok_client import GrokClient
+import chat_client
+from chat_client import ChatClient, ChatError
 import adult_content
 import custom_clothes
 from custom_clothes import CustomGarment
@@ -67,7 +67,6 @@ EXAMPLE_PROMPTS = TypeAdapter(dict[str, list[ExamplePrompt]])
 # The prompt builder's purposes; the builder checks the steps and options against its own lists
 PROMPT_MODES_FILE = paths.PROJECT_DIR / "prompt_modes.json"
 
-grok_client = GrokClient()
 
 
 # Brand names, so not translated
@@ -207,6 +206,8 @@ class Catalog(BaseModel):
     resolutions: list[ResolutionInfo]
     categories: list[str]
     chat_available: bool
+    # Who writes the chat's prompts, shown on the chat tab: Grok, or the Ollama model's name (Ollama until one is set)
+    chat_name: str
     limits: Limits
     builder_modes: list[BuilderMode]
     # The UI's language, from APP_LANGUAGE in .env
@@ -326,12 +327,14 @@ def prompt_modes() -> list[BuilderMode]:
 def catalog() -> Catalog:
     examples = example_prompts()
     clothes = custom_clothes.load()
+    chat = chat_client.chat_client()
     return Catalog(
         models=[ModelInfo.from_spec(spec, examples.get(spec.id, [])) for spec in MODELS.values() if adult_content.enabled() or not spec.adult],
         model_categories=[ModelCategoryInfo(id=key, label=label) for key, label in MODEL_CATEGORIES.items()],
         resolutions=[ResolutionInfo(**preset.to_dict()) for preset in PRESETS],
         categories=list(CATEGORIES),
-        chat_available=grok_client.available,
+        chat_available=chat_client.ready_chat() is not None,
+        chat_name=chat.name if chat else "",
         limits=Limits(),
         builder_modes=[mode for mode in prompt_modes() if adult_content.enabled() or not mode.is_adult()],
         language=i18n.language(),
@@ -834,18 +837,35 @@ def delete_character(character_id: int) -> None:
 
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
-    """Stream Grok's rewritten prompt as plain text chunks."""
-    if not grok_client.available:
+    """Stream the chat's rewritten prompt (Grok or the local model) as plain text pieces."""
+    client = chat_client.ready_chat()
+    if client is None:
         raise HTTPException(503, i18n.t("chatUnavailable"))
-    chunks = grok_client.chat_stream([message.model_dump() for message in req.messages])
-    # Pull the first chunk here, so auth and connection errors become a proper error response
+    log.info("Chat with %s: %d message(s)", client.name, len(req.messages))
+    started = time.perf_counter()
+    chunks = client.chat_stream([message.model_dump() for message in req.messages])
+    # Pull the first piece here, so a stopped server, a missing model or a bad key becomes a proper error response
     try:
-        first: Iterator[str] = iter([next(chunks, "")])
-    except (openai.OpenAIError, ValueError) as e:
-        # Only the kind of error: its message can hold part of the API key
-        log.warning("Grok chat failed (%s)", type(e).__name__)
-        raise HTTPException(502, i18n.t("grokError", error=e))
-    return StreamingResponse(itertools.chain(first, chunks), media_type="text/plain; charset=utf-8")
+        first = next(chunks, "")
+    except ChatError as error:
+        log.warning("Chat with %s failed (%s)", client.name, error.reason)
+        raise HTTPException(502, str(error))
+    return StreamingResponse(logged_reply(client, first, chunks, started), media_type="text/plain; charset=utf-8")
+
+
+def logged_reply(client: ChatClient, first: str, rest: Iterator[str], started: float) -> Iterator[str]:
+    """Passes the reply on as it comes, then logs how long it took and how long it was; never what it said."""
+    first_words = time.perf_counter() - started
+    length = len(first)
+    yield first
+    try:
+        for piece in rest:
+            length += len(piece)
+            yield piece
+    except ChatError as error:
+        log.warning("Chat with %s stopped after %d characters (%s)", client.name, length, error.reason)
+        raise
+    log.info("Chat with %s answered %d characters in %.1fs (first words after %.1fs)", client.name, length, time.perf_counter() - started, first_words)
 
 
 if FRONTEND_DIST.exists():

@@ -602,3 +602,13 @@ it('leaves an A/B test with Undo to bring it back, and unlocks what it locked', 
   await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
   expect(screen.getByRole('button', { name: 'Leave A/B test' })).toBeInTheDocument()
 })
+
+it('labels the chat tab plainly and names the chat model only once the tab is open', async () => {
+  vi.mocked(api.fetchCatalog).mockResolvedValue({ ...catalog, chat_available: true, chat_name: 'gemma-3-4b' })
+  render(<App />)
+
+  const tab = await screen.findByRole('tab', { name: 'Chat' })
+  expect(screen.queryByText('gemma-3-4b')).not.toBeInTheDocument()
+  await userEvent.click(tab)
+  expect(screen.getByText('gemma-3-4b').tagName).toBe('EM')
+})

@@ -158,7 +158,7 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
           abTest={abTest.controls}
           onGenerate={() => void (testRunning ? abTest.run() : generateWith(settings))}
           onChatPrompt={(prompt) => {
-            // Grok's prompt is new, so it doesn't have the character's look yet
+            // The chat's prompt is new, so it doesn't have the character's look yet
             const next: GenerationSettings = { ...settings, prompt, promptFormat: 'text', lookIncluded: null }
             setSettings(next)
             void generateWith(next)

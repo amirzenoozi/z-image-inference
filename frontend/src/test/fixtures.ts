@@ -108,6 +108,7 @@ export const catalog: Catalog = {
   ],
   categories: ['square', 'portrait', 'landscape', 'widescreen'],
   chat_available: false,
+  chat_name: 'Grok',
   limits: { min_side: 256, side_step: 16, max_seed: 4294967295, max_prompt_length: 4000 },
 }
 

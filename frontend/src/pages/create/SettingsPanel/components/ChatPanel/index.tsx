@@ -11,12 +11,14 @@ import { t } from '../../../../../i18n'
 type ChatStatus = { status: 'idle' } | { status: 'streaming' } | { status: 'failed'; error: string; retry: ChatMessage[] }
 
 interface Props {
+  /** Who writes the prompt: Grok, or the local model's name, shown in a note above the chat. */
+  name: string
   /** True while an image is being generated; sending waits until it finishes. */
   busy: boolean
   onPromptReady: (prompt: string) => void
 }
 
-export function ChatPanel({ busy, onPromptReady }: Props) {
+export function ChatPanel({ name, busy, onPromptReady }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [chat, setChat] = useState<ChatStatus>({ status: 'idle' })
@@ -55,6 +57,7 @@ export function ChatPanel({ busy, onPromptReady }: Props) {
 
   return (
     <div className="space-y-3">
+      <ChatModelNote name={name} />
       <MessageList messages={messages} streaming={chat.status === 'streaming'} canEdit={!blocked} onEdit={editMessage} />
       {chat.status === 'failed' && <ErrorNotice message={chat.error} onRetry={() => void send(chat.retry)} />}
       <div className="flex gap-2">
@@ -94,6 +97,14 @@ interface MessageListProps {
   streaming: boolean
   canEdit: boolean
   onEdit: (index: number, content: string) => void
+}
+
+function ChatModelNote({ name }: { name: string }) {
+  return (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      {t('create.chatModelNote')} <em>{name}</em>
+    </p>
+  )
 }
 
 function MessageList({ messages, streaming, canEdit, onEdit }: MessageListProps) {

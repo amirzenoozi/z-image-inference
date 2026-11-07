@@ -229,7 +229,7 @@ export function downloadUrl(id: number): string {
   return `/api/history/${id}/download`
 }
 
-/** Streams Grok's rewritten prompt, calling onText with the text so far; resolves with the full prompt. */
+/** Streams the chat's rewritten prompt (Grok or the local model), calling onText with the text so far; resolves with the full prompt. */
 export async function streamChat(
   messages: ChatMessage[],
   onText: (textSoFar: string) => void,
