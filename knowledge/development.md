@@ -68,7 +68,7 @@ z-image-inference/
 │       │   └── promptBuilder/ # The prompt builder dialog and its steps
 │       ├── i18n/, locales/    # Translations
 │       └── lib/               # Logic: settings, API client, prompt builder, edits
-├── docs/                      # This documentation
+├── knowledge/                 # The project's knowledge: one file per area (README.md is the index)
 ├── models/                    # Downloaded models (not in git)
 └── history.db                 # Generated images (not in git)
 ```
