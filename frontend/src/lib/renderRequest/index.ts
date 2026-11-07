@@ -1,4 +1,4 @@
-import type { Catalog, Character, GenerationSettings, Loadable, ModelStatusReport, SentSettings } from '../../types'
+import type { Catalog, Character, GenerationSettings, Loadable, ModelStatusReport, RunLink, SentSettings } from '../../types'
 import { addonsToSend } from '../addons'
 import { promptToSend, renderStrength } from '../characterPrompt'
 import { strengthsToSend } from '../lookSliders'
@@ -23,7 +23,7 @@ export type RenderRequest = { status: 'ready'; request: SentSettings } | { statu
  * isn't in it yet) and the JSON it came from, the model shown, and the add-ons and slider strengths that apply. Create and the
  * render script (scripts/renderSpecs.ts) both send this, so a scripted image is saved exactly as one made in the app.
  */
-export function renderRequest(next: GenerationSettings, context: RequestContext, testSet?: SentSettings['testSet']): RenderRequest {
+export function renderRequest(next: GenerationSettings, context: RequestContext, link: RunLink = {}): RenderRequest {
   const { catalog, character, modes, modelStatus } = context
   // A model hidden by the lock falls back to the first one shown, so the request names that one too
   const model = findModel(catalog, next.modelId)
@@ -31,7 +31,7 @@ export function renderRequest(next: GenerationSettings, context: RequestContext,
   if (sent.status !== 'ready') return sent
   const strengths = strengthsToSend(model, (id) => renderStrength(id, sent, next, character, model), modelStatus)
   const request: SentSettings = {
-    ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text', promptSpec: sent.spec, safeOnly: context.safeOnly, testSet,
+    ...next, modelId: model.id, prompt: sent.prompt, promptFormat: 'text', promptSpec: sent.spec, safeOnly: context.safeOnly, ...link,
     addons: addonsToSend(model, next.addons, modelStatus), strengths,
   }
   return { status: 'ready', request }

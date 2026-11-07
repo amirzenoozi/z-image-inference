@@ -3,14 +3,14 @@ import { beforeEach, expect, it, vi, type Mock } from 'vitest'
 import { catalog, deferred, fastModel, historyItem, weightSlider } from '../test/fixtures'
 import { initialSettings } from '../lib/settings'
 import type { AbTest } from '../lib/abTest'
-import type { GenerationSettings, HistoryItem, SentSettings } from '../types'
+import type { GenerationSettings, HistoryItem, RunLink } from '../types'
 import { useAbTest } from './useAbTest'
 
 const model = { ...fastModel, addons: [...fastModel.addons, weightSlider] }
 const settings = { ...initialSettings(catalog), prompt: 'a woman', seed: 5, randomSeed: false }
 const weight: AbTest = { settings: [{ kind: 'slider', addonId: 'weight' }], versions: [[-4], [2], [6]] }
 
-type Generate = (settings: GenerationSettings, testSet: SentSettings['testSet']) => Promise<HistoryItem | null>
+type Generate = (settings: GenerationSettings, link: RunLink) => Promise<HistoryItem | null>
 
 function renderTest(generate: Mock<Generate>) {
   return renderHook(() => useAbTest({ settings, setSettings: vi.fn(), model, modes: [], maxSeed: 100, generate }))
@@ -33,7 +33,7 @@ it('makes each image in turn under one set id, showing which one while it render
     await act(async () => each.resolve(historyItem({ id: index + 1 })))
   }
   await act(() => run)
-  const sets = generate.mock.calls.map(([, testSet]) => testSet)
+  const sets = generate.mock.calls.map(([, link]) => link.testSet)
   expect(sets.map((testSet) => testSet?.label)).toEqual(['Weight -4', 'Weight 2', 'Weight 6'])
   expect(new Set(sets.map((testSet) => testSet?.id)).size).toBe(1)
   expect(result.current.controls.progress).toBeNull()

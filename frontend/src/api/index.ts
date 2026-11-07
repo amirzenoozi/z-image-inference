@@ -1,4 +1,4 @@
-import type { Catalog, Character, CharacterChanges, ChatMessage, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, ItemPosition, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings } from '../types'
+import type { Catalog, Character, CharacterChanges, ChatReply, ChatTurn, EditRecipe, HistoryFilters, HistoryItem, HistoryPageData, HistorySummary, ItemPosition, JobProgress, PaletteColour, ModelState, ModelStatusReport, SentSettings } from '../types'
 import { t } from '../i18n'
 
 export class ApiError extends Error {
@@ -97,6 +97,7 @@ export function generateBody(settings: SentSettings, jobId: string | null) {
     safe_only: settings.safeOnly ?? false,
     set_id: settings.testSet?.id ?? null,
     set_label: settings.testSet?.label ?? null,
+    chat_exchange_id: settings.chatExchangeId ?? null,
   }
 }
 
@@ -229,13 +230,19 @@ export function downloadUrl(id: number): string {
   return `/api/history/${id}/download`
 }
 
-/** Streams the chat's rewritten prompt (Grok or the local model), calling onText with the text so far; resolves with the full prompt. */
-export async function streamChat(
-  messages: ChatMessage[],
-  onText: (textSoFar: string) => void,
-  signal?: AbortSignal,
-): Promise<string> {
-  const resp = await postJson('/api/chat', { messages }, signal)
+/**
+ * Streams the chat's answer (Grok or the local model), calling onText with the text so far; resolves with the full answer
+ * and where the server saved it.
+ */
+export async function streamChat(turn: ChatTurn, onText: (textSoFar: string) => void, signal?: AbortSignal): Promise<ChatReply> {
+  const body = {
+    messages: turn.messages.map(({ role, content }) => ({ role, content })),
+    conversation_id: turn.conversationId,
+    parent_id: turn.parentId,
+  }
+  const resp = await postJson('/api/chat', body, signal)
+  const conversationId = Number(resp.headers.get('X-Chat-Conversation-Id'))
+  const exchangeId = Number(resp.headers.get('X-Chat-Exchange-Id'))
   if (!resp.body) throw new ApiError(t('create.chatEmptyReply'), resp.status)
   const reader = resp.body.getReader()
   const decoder = new TextDecoder()
@@ -246,5 +253,5 @@ export async function streamChat(
     text += decoder.decode(value, { stream: true })
     onText(text)
   }
-  return text + decoder.decode()
+  return { text: text + decoder.decode(), conversationId, exchangeId }
 }
