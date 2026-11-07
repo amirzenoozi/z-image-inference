@@ -35,6 +35,13 @@ Everything adult (the Glamour, Faceless and Explicit purposes, the Lingerie and 
 
 The browser's lock is a privacy screen for that browser, not security: anyone who can use the web app's API, or this browser's storage, can get past it. `ADULT_CONTENT=off` is the lock that holds.
 
+## Logs
+
+Both servers log to the terminal and to a file in `logs/` in the project folder: `logs/model_server.log` and `logs/web_app.log`. Each file keeps up to 5 MB, with the three files before it as `.1` to `.3`. Every line has a time and a level. They record model loads and unloads with how long they took, each render (model, add-ons, size, steps, seconds) and the History id it was saved as, downloads and the full error when one fails, refused renders and model server errors, and deletes. They never hold your prompts, character names or images.
+
+- **Follow them live:** `tail -f logs/model_server.log logs/web_app.log`
+- **More or less detail:** set `LOG_LEVEL` in `.env` to `DEBUG`, `INFO` (the default), `WARNING` or `ERROR`, and restart both servers.
+
 ## Create
 
 1. **Model**: the sidebar shows the selected model. **Change** opens the model dialog, where models are grouped into **Photorealistic** and **Anime & illustration** tabs. Only downloaded models can be chosen; see [Models](models.md#downloading-and-removing-models).
