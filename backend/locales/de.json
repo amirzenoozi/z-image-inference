@@ -31,7 +31,6 @@
   "noUploadedFace": "Diese Figur hat kein hochgeladenes Gesicht",
   "chatUnavailable": "Chat ist nicht verfügbar: Setze XAI_API_KEY in .env, oder CHAT_PROVIDER=ollama mit OLLAMA_MODEL",
   "chatError": "{name}-Fehler: {error}",
-  "grokError": "Grok-API-Fehler: {error}",
   "ollamaNotRunning": "Ollama läuft nicht: Starte es mit brew services start ollama",
   "ollamaModelMissing": "Das Chatmodell {model} ist nicht heruntergeladen: Führe ollama pull {model} aus",
   "startImageUnreadable": "Das Startbild konnte nicht gelesen werden",
