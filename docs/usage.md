@@ -237,6 +237,23 @@ The model loads with your first message, which takes a few seconds, and unloads 
 2. The reply streams in as it is written; once complete, it becomes your prompt and the image is generated.
 3. Edit one of your messages to branch from there and generate again.
 
+## Safety check and the decision model (Laya)
+
+While adult content is locked, each chat question is first checked by Laya, a small decision model on your Mac, for nudity or sexual content. A refused question is never sent to the chat model, and the chat says so. Laya downloads once (about 800 MB, into `models/laya/`), runs on the CPU so the GPU stays free for images, in its own process that starts only for a check: about 1.5 seconds to start and 0.1 seconds per question, then the process ends and all its memory is given back (`DECISION_KEEP_ALIVE=60` in `.env` keeps it loaded for 60 seconds instead). If it can't run, locked questions are refused until it can. `DECISION_NUDITY_REFUSE_AT` (default `0.52`) is the nudity probability that refuses a question: lower is stricter. `DECISION_MODEL=off` turns it off. Each check is logged with a trace id, never the question.
+
+`POST /api/decide` asks Laya your own questions about any text, and saves nothing:
+
+```bash
+curl -s http://127.0.0.1:7860/api/decide -H 'Content-Type: application/json' -d '{
+  "text": "a fox in a snowy forest",
+  "questions": {
+    "kind":  {"type": "choice", "instructions": "What kind of image is this?", "criteria": {"animal": "animals", "person": "people", "place": "landscapes"}},
+    "night": {"type": "noul", "instructions": "Is it at night?", "criteria": {"true": "night, dark", "false": "day, light"}}
+  }}'
+```
+
+Up to 10 questions; `choice` takes 2 to 20 named criteria, `score` 2 to 20 levels in order, and `noul` (yes or no) optionally `true` and `false` criteria.
+
 ## History
 
 **History** shows every image, newest first, 30 to a page. The address keeps the page and filters, so reload, Back and Forward work as you would expect.

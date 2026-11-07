@@ -90,6 +90,7 @@ Optional, in a `.env` file in the project folder:
 | `CHAT_PROVIDER` | Who writes the chat's prompts: `grok` (default) or `ollama` |
 | `XAI_API_KEY` | Turns on the chat with Grok ([xAI API key](https://x.ai/)) |
 | `OLLAMA_MODEL`, `OLLAMA_URL`, `OLLAMA_KEEP_ALIVE` | The local chat model through Ollama, where Ollama listens (`http://127.0.0.1:11434`), and how long the model stays loaded after the last message (`2m`) |
+| `DECISION_MODEL`, `DECISION_KEEP_ALIVE`, `DECISION_THREADS`, `DECISION_NUDITY_REFUSE_AT` | Laya, the small decision model that checks chat questions for nudity while adult content is locked and answers `POST /api/decide`: `on` (default) or `off`, how long it stays loaded after a task (`0`, unloads at once), its CPU threads (`8`), and the nudity probability that refuses a question (`0.52`; lower is stricter) |
 | `HF_TOKEN` | Hugging Face token, to download FLUX.1-dev (accept its licence on its page first) |
 | `CIVITAI_TOKEN` | Civitai API key, to download the LoRAs hosted there, such as the tattoo add-on |
 | `Z_IMAGE_BITS` | Which Z-Image-Turbo copy to run: `8` (default), `6`, `5`, `4`, `3`, or `original` |
