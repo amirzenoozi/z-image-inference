@@ -10,15 +10,15 @@
 [![Last commit](https://img.shields.io/github/last-commit/amirzenoozi/z-image-inference)](https://github.com/amirzenoozi/z-image-inference/commits/main)
 [![Stars](https://img.shields.io/github/stars/amirzenoozi/z-image-inference?style=social)](https://github.com/amirzenoozi/z-image-inference/stargazers)
 
-[![English](https://img.shields.io/badge/🇬🇧-English-lightgrey)](docs/usage.md#language)
-[![Nederlands](https://img.shields.io/badge/🇳🇱-Nederlands-lightgrey)](docs/usage.md#language)
-[![Italiano](https://img.shields.io/badge/🇮🇹-Italiano-lightgrey)](docs/usage.md#language)
-[![Français](https://img.shields.io/badge/🇫🇷-Français-lightgrey)](docs/usage.md#language)
-[![Deutsch](https://img.shields.io/badge/🇩🇪-Deutsch-lightgrey)](docs/usage.md#language)
-[![Español](https://img.shields.io/badge/🇪🇸-Español-lightgrey)](docs/usage.md#language)
-[![Português](https://img.shields.io/badge/🇧🇷-Português-lightgrey)](docs/usage.md#language)
+[![English](https://img.shields.io/badge/🇬🇧-English-lightgrey)](knowledge/usage.md#language)
+[![Nederlands](https://img.shields.io/badge/🇳🇱-Nederlands-lightgrey)](knowledge/usage.md#language)
+[![Italiano](https://img.shields.io/badge/🇮🇹-Italiano-lightgrey)](knowledge/usage.md#language)
+[![Français](https://img.shields.io/badge/🇫🇷-Français-lightgrey)](knowledge/usage.md#language)
+[![Deutsch](https://img.shields.io/badge/🇩🇪-Deutsch-lightgrey)](knowledge/usage.md#language)
+[![Español](https://img.shields.io/badge/🇪🇸-Español-lightgrey)](knowledge/usage.md#language)
+[![Português](https://img.shields.io/badge/🇧🇷-Português-lightgrey)](knowledge/usage.md#language)
 
-![Z-Image Studio: generate images locally on your Mac, with a fanned stack of sample renders made by the app with Z-Image-Turbo](docs/images/banner.jpg)
+![Z-Image Studio: generate images locally on your Mac, with a fanned stack of sample renders made by the app with Z-Image-Turbo](knowledge/images/banner.jpg)
 
 > Generate images locally on your Mac with Z-Image-Turbo, RealVisXL, two SDXL anime models and MOSS-Image, from a clean web interface, in seven languages. Nothing leaves your machine (unless you turn on the optional Grok chat).
 
@@ -36,7 +36,7 @@ Only Z-Image-Turbo downloads by itself; you add or remove the others from the ap
 
 ## Screenshot
 
-![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](docs/images/create.png)
+![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](knowledge/images/create.png)
 
 ## Highlights
 
@@ -58,7 +58,7 @@ Only Z-Image-Turbo downloads by itself; you add or remove the others from the ap
 - A Mac with Apple Silicon; 24 GB of memory is comfortable (tested on an M5 with 24 GB)
 - macOS, [uv](https://github.com/astral-sh/uv) (it installs Python 3.12+ for you) and [Node.js](https://nodejs.org/) 20+
 - [Homebrew](https://brew.sh) and git (`xcode-select --install`); `make setup` installs gitleaks (secret check) with Homebrew
-- Disk space: about 45 GB for Z-Image-Turbo (its original plus the 8-bit copy it runs), more for each extra model ([sizes](docs/models.md#download-sizes))
+- Disk space: about 45 GB for Z-Image-Turbo (its original plus the 8-bit copy it runs), more for each extra model ([sizes](knowledge/models.md#download-sizes))
 
 ## Quick start
 
@@ -96,9 +96,9 @@ Optional, in a `.env` file in the project folder:
 | `Z_IMAGE_BITS` | Which Z-Image-Turbo copy to run: `8` (default), `6`, `5`, `4`, `3`, or `original` |
 | `MODEL_COMPRESSION` | `on` keeps smaller compressed copies of the other models instead of their originals |
 | `ADULT_CONTENT` | `off` (default) or `on`: the 18+ purposes, adult models and add-ons, and sensitive History images. Off, the app serves none of it and keeps every render safe for work |
-| `ADULT_UNLOCK_WORD` | With `ADULT_CONTENT=on`, a hidden word that keeps adult content hidden in each browser until it is typed on the Create page (see [Adult content lock](docs/usage.md#adult-content-lock)); empty shows it without a word |
+| `ADULT_UNLOCK_WORD` | With `ADULT_CONTENT=on`, a hidden word that keeps adult content hidden in each browser until it is typed on the Create page (see [Adult content lock](knowledge/usage.md#adult-content-lock)); empty shows it without a word |
 
-Restart both servers after changing them. See [Models](docs/models.md) for what each setting changes.
+Restart both servers after changing them. See [Models](knowledge/models.md) for what each setting changes.
 
 ### Keeping secrets and odd branch names out of git
 
@@ -110,12 +110,12 @@ Switching branches prints a checklist of these checks for the new branch (`.gith
 
 ## Documentation
 
-- [Using the app](docs/usage.md): the language, creating images, the prompt builder, prompt weights, the chat (local or Grok), History, the viewer, the editor, variations, characters and the face lock
-- [Models](docs/models.md): the five models, their defaults, downloading and removing them, compression and Z-Image-Turbo's levels
-- [Performance and hardware](docs/performance.md): render times, memory and disk use
-- [How it works](docs/architecture.md): the two servers, the API, storage and technical notes
-- [Development](docs/development.md): running in development, tests and project layout
-- [Troubleshooting](docs/troubleshooting.md)
+- [Using the app](knowledge/usage.md): the language, creating images, the prompt builder, prompt weights, the chat (local or Grok), History, the viewer, the editor, variations, characters and the face lock
+- [Models](knowledge/models.md): the five models, their defaults, downloading and removing them, compression and Z-Image-Turbo's levels
+- [Performance and hardware](knowledge/performance.md): render times, memory and disk use
+- [How it works](knowledge/architecture.md): the two servers, the API, storage and technical notes
+- [Development](knowledge/development.md): running in development, tests and project layout
+- [Troubleshooting](knowledge/troubleshooting.md)
 
 ## A note on content
 
