@@ -34,12 +34,17 @@ class ChatError(Exception):
 
 
 class ChatClient(Protocol):
+    # Shown in the app; provider and model are saved with each exchange
     name: str
+    provider: str
+    model: str
+    # What the chat itself is told; a title request sends its own
+    system_prompt: str
 
     @property
     def available(self) -> bool: ...
 
-    def chat_stream(self, messages: list[Message]) -> Iterator[str]: ...
+    def chat_stream(self, messages: list[Message], system_prompt: str) -> Iterator[str]: ...
 
 
 def with_system_prompt(system_prompt: str, messages: list[Message]) -> list[Message]:
@@ -48,16 +53,19 @@ def with_system_prompt(system_prompt: str, messages: list[Message]) -> list[Mess
 
 class GrokClient:
     name = "Grok"
+    provider = "grok"
+    model = GROK_MODEL
+    system_prompt = system_prompts.GROK
 
     @property
     def available(self) -> bool:
         return bool(os.environ.get("XAI_API_KEY", "").strip())
 
-    def chat_stream(self, messages: list[Message]) -> Iterator[str]:
-        """Stream a rewritten prompt for the conversation, which ends with the user's message."""
+    def chat_stream(self, messages: list[Message], system_prompt: str) -> Iterator[str]:
+        """Stream the answer to the conversation, which ends with the user's message."""
         try:
             client = OpenAI(api_key=os.environ.get("XAI_API_KEY", "").strip(), base_url="https://api.x.ai/v1")
-            response = client.chat.completions.create(model=GROK_MODEL, messages=with_system_prompt(system_prompts.GROK, messages), stream=True)
+            response = client.chat.completions.create(model=GROK_MODEL, messages=with_system_prompt(system_prompt, messages), stream=True)
             for chunk in response:
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
@@ -73,6 +81,9 @@ def keep_alive_value(value: str) -> str | int:
 class OllamaClient:
     """A model on this Mac, served by Ollama; it loads for a chat and unloads after keep_alive without one."""
 
+    provider = "ollama"
+    system_prompt = system_prompts.OLLAMA
+
     def __init__(self, url: str, model: str, keep_alive: str) -> None:
         self.url = url.rstrip("/")
         self.model = model
@@ -83,8 +94,8 @@ class OllamaClient:
     def available(self) -> bool:
         return bool(self.model)
 
-    def chat_stream(self, messages: list[Message]) -> Iterator[str]:
-        body = {"model": self.model, "messages": with_system_prompt(system_prompts.OLLAMA, messages), "stream": True, "keep_alive": self.keep_alive}
+    def chat_stream(self, messages: list[Message], system_prompt: str) -> Iterator[str]:
+        body = {"model": self.model, "messages": with_system_prompt(system_prompt, messages), "stream": True, "keep_alive": self.keep_alive}
         try:
             with requests.post(f"{self.url}/api/chat", json=body, stream=True, timeout=OLLAMA_TIMEOUT) as response:
                 self.check_answer(response)

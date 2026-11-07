@@ -220,6 +220,34 @@ def init_db() -> None:
         add_missing_columns(conn, "characters", ADDED_CHARACTER_COLUMNS)
         # One-time steps already done for this database, such as adding the sample characters
         conn.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        # Saved chats (chat_store.py): each question and its answer, never changed once complete; an edit is a new branch
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS chat_conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS chat_exchanges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id),
+                parent_id INTEGER REFERENCES chat_exchanges(id),
+                question TEXT NOT NULL,
+                answer TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                first_words_ms INTEGER,
+                total_ms INTEGER,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                system_prompt_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                error TEXT,
+                sensitive INTEGER NOT NULL DEFAULT 0,
+                history_id INTEGER
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS chat_exchanges_by_conversation ON chat_exchanges (conversation_id)")
 
 
 def mark_unchecked_images(conn: sqlite3.Connection) -> None:
