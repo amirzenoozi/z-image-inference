@@ -31,6 +31,8 @@
   "noUploadedFace": "Questo personaggio non ha un volto caricato",
   "chatUnavailable": "Chat non disponibile: imposta XAI_API_KEY in .env, oppure CHAT_PROVIDER=ollama con OLLAMA_MODEL",
   "chatError": "Errore di {name}: {error}",
+  "chatNotFound": "Questa chat non è più salvata: cancellala e ricomincia",
+  "chatAnswerNotFound": "La risposta della chat da cui nasce questa immagine non è più salvata",
   "ollamaNotRunning": "Ollama non è in esecuzione: avvialo con brew services start ollama",
   "ollamaModelMissing": "Il modello di chat {model} non è scaricato: esegui ollama pull {model}",
   "startImageUnreadable": "Impossibile leggere l'immagine di partenza",
