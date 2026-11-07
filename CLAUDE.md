@@ -9,6 +9,31 @@ Z-Image-Inference runs image generation models locally on Apple Silicon, with a 
 - **`model_server.py`** (port 8000): loads one model at a time and generates images. All model work runs on one thread (`model_thread`), because MLX only works on the thread that created it.
 - **`main.py`** (port 7860): FastAPI web app. Serves the built UI from `frontend/dist` and the `/api/*` endpoints (catalog, generate, history, chat, model status), and keeps history in `history.db`.
 
+## Knowledge
+
+`knowledge/` holds the project's knowledge, one Markdown file per area; `knowledge/README.md` is the index. Read the file for the area you are working on before changing it, and update it in the same change when how that area works changes (new decisions go in `knowledge/decisions.md`, findings not fixed in `knowledge/roadmap.md`).
+
+| Area | File |
+|---|---|
+| Overview, servers, helper processes, main flows | `knowledge/overview.md` |
+| Design decisions and why | `knowledge/decisions.md` |
+| Setup and every `.env` variable | `knowledge/configuration.md` |
+| Image models and add-ons | `knowledge/models.md` |
+| Every endpoint | `knowledge/api.md` |
+| Every table and column | `knowledge/database.md` |
+| Prompt builder internals | `knowledge/prompt-builder.md` |
+| UI structure and conventions | `knowledge/frontend.md` |
+| Chat (Grok, Ollama, saved chats) | `knowledge/chat.md` |
+| Laya, the decision model | `knowledge/decision-model.md` |
+| Safety, adult content, privacy | `knowledge/safety.md` |
+| Translations | `knowledge/translations.md` |
+| Logging and monitoring | `knowledge/logging.md` |
+| Performance | `knowledge/performance.md` |
+| User guide | `knowledge/usage.md` |
+| Development, tests, hooks | `knowledge/development.md` |
+| Troubleshooting | `knowledge/troubleshooting.md` |
+| Roadmap and open findings | `knowledge/roadmap.md` |
+
 ## Commands
 
 ```bash
