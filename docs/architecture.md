@@ -46,13 +46,13 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | `GET /api/characters`, `POST /api/characters` | list or create characters |
 | `PATCH /api/characters/{id}`, `DELETE /api/characters/{id}` | change a character (only the fields sent, including `face_upload`, a photo as base64), or delete it and keep its images |
 | `GET /api/characters/{id}/face-upload` | a character's uploaded face photo (`?thumb=true` for a small WebP) |
-| `POST /api/chat` | Chat with the local model (Ollama) or Grok, streamed |
+| `POST /api/chat` | Chat with the local model (Ollama) or Grok, streamed; the question and answer are saved, and the `X-Chat-Conversation-Id` and `X-Chat-Exchange-Id` headers say where (send them back as `conversation_id` and `parent_id` to continue) |
 
 The model server's own endpoints (`/generate`, `/jobs/{id}`, `/models/...`, `/health`) are for the web app only.
 
 ## Storage
 
-- **History** is a SQLite database, `history.db`, with each image stored as PNG data alongside its settings, its render time, its colour palette, its favourite star where it came from (an edit or a variation) and the character it was made for. Characters are in the same database, in their own table. New columns are added to older databases automatically.
+- **History** is a SQLite database, `history.db`, with each image stored as PNG data alongside its settings, its render time, its colour palette, its favourite star where it came from (an edit or a variation) and the character it was made for. Characters are in the same database, in their own table, and so are saved chats (`chat_conversations`, each with a title the chat model writes, and `chat_exchanges`, each question with its answer, timings, model and status). New columns are added to older databases automatically.
 - **Models** are in `models/`, one folder each. Compressed copies are built into a `.building` folder and renamed when complete.
 - **Settings** you change in Create are kept in the browser (local storage).
 
