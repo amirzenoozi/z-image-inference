@@ -48,3 +48,6 @@ comparisons/
 
 # Server logs, written by both servers (backend/log_setup.py)
 /logs/
+
+# Obsidian settings, from opening a folder (such as knowledge/) as a vault
+.obsidian/
