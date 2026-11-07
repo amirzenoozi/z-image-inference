@@ -46,6 +46,7 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | `GET /api/characters`, `POST /api/characters` | list or create characters |
 | `PATCH /api/characters/{id}`, `DELETE /api/characters/{id}` | change a character (only the fields sent, including `face_upload`, a photo as base64), or delete it and keep its images |
 | `GET /api/characters/{id}/face-upload` | a character's uploaded face photo (`?thumb=true` for a small WebP) |
+| `POST /api/decide` | ask Laya, the decision model, typed questions about a text (`choice`, `score`, `noul`); answers with probabilities and a `trace_id`, saves nothing |
 | `POST /api/chat` | Chat with the local model (Ollama) or Grok, streamed; the question and answer are saved, and the `X-Chat-Conversation-Id` and `X-Chat-Exchange-Id` headers say where (send them back as `conversation_id` and `parent_id` to continue) |
 
 The model server's own endpoints (`/generate`, `/jobs/{id}`, `/models/...`, `/health`) are for the web app only.
