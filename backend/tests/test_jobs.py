@@ -1,3 +1,4 @@
+import logging
 import threading
 from collections.abc import Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -164,3 +165,14 @@ def test_z_image_progress_counts_only_the_steps_a_variation_runs() -> None:
     reporter.call_in_loop(4, 1, "a cat", mx.zeros(1), config, None)
 
     assert (reporter.progress.step, reporter.progress.total) == (1, 5)
+
+
+def test_a_model_load_and_a_render_are_logged_without_the_prompt(generator: SteppingGenerator, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    generator.allowed.release(3)
+    resp = TestClient(model_server.app).post("/generate", json=request(JOB))
+
+    assert resp.status_code == 200
+    assert f"Loaded {model_server.MODELS[WAI].label} in " in caplog.text
+    assert f"Job {JOB} rendered: {WAI}, 1024x1024, 3 steps, " in caplog.text
+    assert "a cat" not in caplog.text
