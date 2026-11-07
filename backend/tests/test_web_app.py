@@ -17,9 +17,13 @@ from PIL import Image
 
 import chat_client
 import chat_store
+import decision_model
+import decision_store
 import history_store
 import main
 from chat_client import ChatError
+from decision_tasks import NUDITY
+from test_decision_model import FakeLaya, Loads
 from resolutions import CATEGORIES, PRESETS
 
 
@@ -855,3 +859,102 @@ def test_the_image_made_from_a_chat_answer_is_linked_to_it(client: TestClient, m
     unknown = generate(client, chat_exchange_id=999)
     assert unknown.status_code == 422
     assert model_server.calls == [model_server.calls[0]]
+
+
+def laya_says(monkeypatch: pytest.MonkeyPatch, probability: float = 0.1, error: Exception | None = None) -> Loads:
+    loads = Loads(FakeLaya(probability), error)
+    monkeypatch.setattr(decision_model, "runner", decision_model.LayaRunner(loads))
+    return loads
+
+
+def ask_locked(client: TestClient, content: str = "a cat") -> requests.Response:
+    return client.post("/api/chat", json={"messages": [{"role": "user", "content": content}], "safe_only": True})
+
+
+def test_a_locked_chat_question_laya_passes_is_answered_and_the_decision_saved(client: TestClient, chat: FakeChat, monkeypatch: pytest.MonkeyPatch) -> None:
+    laya_says(monkeypatch, 0.1)
+    resp = ask_locked(client)
+
+    assert resp.status_code == 200 and resp.text == "A detailed prompt"
+    exchange_id = int(resp.headers["X-Chat-Exchange-Id"])
+    saved, = decision_store.for_exchange(exchange_id)
+    assert (saved.task, saved.task_version, saved.outcome, saved.answers) == ("nudity", NUDITY.version, "pass", {"nudity": 0.1})
+    assert saved.decide_ms is not None and len(saved.trace_id) == 36
+
+
+def test_a_locked_chat_question_laya_refuses_is_never_answered(client: TestClient, chat: FakeChat, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    laya_says(monkeypatch, 0.9)
+    resp = ask_locked(client, "something explicit")
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "This question was refused by the safety check"
+    trace_id = resp.headers["X-Decision-Trace-Id"]
+    assert chat.received == []
+    exchange, = saved_chat(1).exchanges
+    assert (exchange.status, exchange.answer) == ("refused", "")
+    assert decision_store.for_exchange(exchange.id)[0].outcome == "refuse"
+    assert f"[{trace_id}] Chat question refused by the nudity check" in caplog.text
+    assert "explicit" not in caplog.text
+
+
+def test_a_locked_chat_question_is_refused_when_laya_fails(client: TestClient, chat: FakeChat, monkeypatch: pytest.MonkeyPatch) -> None:
+    laya_says(monkeypatch, error=OSError("disk"))
+    resp = ask_locked(client)
+
+    assert resp.status_code == 503
+    assert chat.received == []
+    exchange, = saved_chat(1).exchanges
+    assert exchange.status == "failed"
+    saved, = decision_store.for_exchange(exchange.id)
+    assert (saved.outcome, saved.answers, saved.decide_ms, saved.trace_id) == ("error", {}, None, resp.headers["X-Decision-Trace-Id"])
+
+
+def test_an_unlocked_chat_and_the_switch_never_load_laya(client: TestClient, chat: FakeChat, monkeypatch: pytest.MonkeyPatch) -> None:
+    loads = laya_says(monkeypatch)
+    assert ask(client, "a cat").status_code == 200
+    monkeypatch.setenv("DECISION_MODEL", "off")
+    assert ask_locked(client).status_code == 200
+    assert loads.count == 0
+
+
+def test_the_free_endpoint_answers_without_saving(client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    laya_says(monkeypatch, 0.07)
+    questions = {
+        "kind": {"type": "choice", "instructions": "What kind of image is this?", "criteria": {"animal": "animals", "place": "places"}},
+        "night": {"type": "noul", "instructions": "Is it at night?", "criteria": {"true": "night", "false": "day"}},
+        "calm": {"type": "score", "instructions": "How calm?", "criteria": ["tense", "calm"]},
+    }
+    resp = client.post("/api/decide", json={"text": "a fox in the snow", "questions": questions})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["answers"]["night"] == {"probability": 0.07}
+    assert body["answers"]["kind"]["choice"] == "animal" and body["answers"]["calm"]["score"] == 1.5
+    assert f"[{body['trace_id']}] free: " in caplog.text and "fox" not in caplog.text
+    with history_store.connection() as conn:
+        assert conn.execute("SELECT count(*) FROM decision_tasks").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("question", [
+    {"type": "choice", "instructions": "Kind?", "criteria": {"only": "one"}},
+    {"type": "score", "instructions": "Calm?", "criteria": {"a": "b", "c": "d"}},
+    {"type": "noul", "instructions": "Night?", "criteria": {"yes": "night", "no": "day"}},
+    {"type": "guess", "instructions": "Kind?"},
+    {"type": "noul", "instructions": ""},
+    {"type": "noul", "instructions": "Night?", "extra": 1},
+])
+def test_the_free_endpoint_checks_each_question(client: TestClient, monkeypatch: pytest.MonkeyPatch, question: dict[str, object]) -> None:
+    loads = laya_says(monkeypatch)
+    assert client.post("/api/decide", json={"text": "a fox", "questions": {"q": question}}).status_code == 422
+    assert loads.count == 0
+
+
+def test_the_free_endpoint_checks_its_limits_and_the_switch(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    laya_says(monkeypatch)
+    one = {"type": "noul", "instructions": "Night?"}
+    assert client.post("/api/decide", json={"text": "a fox", "questions": {f"q{n}": one for n in range(11)}}).status_code == 422
+    assert client.post("/api/decide", json={"text": "a fox", "questions": {"bad id!": one}}).status_code == 422
+    assert client.post("/api/decide", json={"text": "", "questions": {"q": one}}).status_code == 422
+    monkeypatch.setenv("DECISION_MODEL", "off")
+    assert client.post("/api/decide", json={"text": "a fox", "questions": {"q": one}}).status_code == 503

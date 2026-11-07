@@ -1,5 +1,6 @@
 import pytest
 
+import decision_model
 import i18n
 import main
 import nsfw_detector
@@ -24,3 +25,15 @@ def adult_content_on(monkeypatch: pytest.MonkeyPatch) -> None:
     """As the app's own .env has it; the lock's tests switch it off or set a word themselves."""
     monkeypatch.setenv("ADULT_CONTENT", "on")
     monkeypatch.delenv("ADULT_UNLOCK_WORD", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def no_real_laya(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never download or load the real decision model; a test that needs Laya gives its runner a fake."""
+    def refuse() -> decision_model.LayaAgent:
+        raise AssertionError("tests must not load the real Laya")
+    monkeypatch.setattr(decision_model, "load_laya", refuse)
+    monkeypatch.setattr(decision_model, "runner", decision_model.LayaRunner())
+    monkeypatch.delenv("DECISION_MODEL", raising=False)
+    monkeypatch.delenv("DECISION_KEEP_ALIVE", raising=False)
+    monkeypatch.delenv("DECISION_NUDITY_REFUSE_AT", raising=False)

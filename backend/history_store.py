@@ -248,6 +248,20 @@ def init_db() -> None:
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS chat_exchanges_by_conversation ON chat_exchanges (conversation_id)")
+        # Laya's decisions on chat questions (decision_store.py); the free /api/decide endpoint saves nothing
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS decision_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trace_id TEXT NOT NULL UNIQUE,
+                task TEXT NOT NULL,
+                task_version TEXT NOT NULL,
+                chat_exchange_id INTEGER NOT NULL REFERENCES chat_exchanges(id),
+                outcome TEXT NOT NULL,
+                answers TEXT NOT NULL,
+                decide_ms INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
 
 def mark_unchecked_images(conn: sqlite3.Connection) -> None:

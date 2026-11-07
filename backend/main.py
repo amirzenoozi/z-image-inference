@@ -37,7 +37,12 @@ from sensitive import is_sensitive
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 import chat_client
 import chat_store
+import decision_model
+import decision_store
 import system_prompts
+from decision_model import DecisionError
+from decision_store import SavedDecision
+from decision_tasks import NUDITY
 from chat_client import ChatClient, ChatError
 from chat_store import ChatNotFound, ChatSource, NewExchange, Outcome, StartedExchange
 import adult_content
@@ -264,6 +269,8 @@ class ChatRequest(BaseModel):
     # the one before an edited question
     conversation_id: int | None = Field(default=None, ge=1)
     parent_id: int | None = Field(default=None, ge=1)
+    # The browser's adult content lock is on: the question is checked for nudity before the chat model answers
+    safe_only: bool = False
 
     @model_validator(mode="after")
     def ends_with_user(self) -> "ChatRequest":
@@ -305,6 +312,7 @@ def start_image_checks() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("Language %s; adult content is %s", i18n.language(), "on" if adult_content.enabled() else "off")
+    log.info("Decision model (Laya) is %s", "on" if decision_model.enabled() else "off: chat questions are not checked while adult content is locked")
     history_store.init_db()
     character_store.add_samples_once()
     start_image_checks()
@@ -533,7 +541,7 @@ def safe_render_for(req: WebGenerateRequest, character: Character | None) -> tup
     """
     if character is not None and character.face_uploaded:
         return True, character.name
-    return req.safe_only or not adult_content.enabled(), None
+    return adult_content.locked(req.safe_only), None
 
 
 def render_and_save(req: WebGenerateRequest, character: Character | None) -> HistoryItem:
@@ -866,7 +874,12 @@ def chat(req: ChatRequest) -> StreamingResponse:
     client = chat_client.ready_chat()
     if client is None:
         raise HTTPException(503, i18n.t("chatUnavailable"))
+    check_by_laya = adult_content.locked(req.safe_only) and decision_model.enabled()
+    if check_by_laya:
+        decision_model.runner.preload()
     exchange = start_exchange(req, client)
+    if check_by_laya:
+        check_question(exchange, req.messages[-1].content)
     log.info("Chat with %s: %d message(s), exchange #%d in conversation #%d", client.name, len(req.messages), exchange.id, exchange.conversation_id)
     started = time.perf_counter()
     chunks = client.chat_stream([{"role": message.role, "content": message.content} for message in req.messages], client.system_prompt)
@@ -888,6 +901,38 @@ def start_exchange(req: ChatRequest, client: ChatClient) -> StartedExchange:
         return chat_store.start(NewExchange(question=req.messages[-1].content, source=source, conversation_id=req.conversation_id, parent_id=req.parent_id))
     except ChatNotFound as error:
         raise HTTPException(422, str(error))
+
+
+def check_question(exchange: StartedExchange, question: str) -> None:
+    """
+    While adult content is locked, Laya's nudity task decides whether the chat may answer. The decision is saved with
+    the exchange; a refusal, or Laya failing (which refuses too: the check fails closed), ends the exchange unanswered.
+    """
+    started = time.perf_counter()
+    try:
+        decision = decision_model.runner.decide(question, NUDITY.questions, NUDITY.name)
+    except DecisionError as error:
+        save_decision(exchange, error.trace_id, "error", None)
+        end_unanswered(exchange, "failed", started, f"safety check: {error.reason}")
+        raise HTTPException(503, i18n.t("decisionUnavailable"), headers={"X-Decision-Trace-Id": error.trace_id})
+    refused = NUDITY.refuses(decision)
+    save_decision(exchange, decision.trace_id, "refuse" if refused else "pass", decision)
+    if refused:
+        log.warning("[%s] Chat question refused by the %s check (exchange #%d)", decision.trace_id, NUDITY.name, exchange.id)
+        end_unanswered(exchange, "refused", started, None)
+        raise HTTPException(422, i18n.t("questionRefused"), headers={"X-Decision-Trace-Id": decision.trace_id})
+
+
+def save_decision(exchange: StartedExchange, trace_id: str, outcome: decision_store.DecisionOutcome, decision: "decision_model.Decision | None") -> None:
+    answers = {name: answer["probability"] for name, answer in decision.answers.items()} if decision else {}
+    decision_store.save(SavedDecision(
+        trace_id=trace_id, task=NUDITY.name, task_version=NUDITY.version, chat_exchange_id=exchange.id, outcome=outcome,
+        answers=answers, decide_ms=decision.decide_ms if decision else None,
+    ))
+
+
+def end_unanswered(exchange: StartedExchange, status: chat_store.ExchangeStatus, started: float, error: str | None) -> None:
+    chat_store.finish(exchange.id, Outcome(answer="", status=status, first_words_ms=None, total_ms=elapsed_ms(started), error=error))
 
 
 def elapsed_ms(started: float) -> int:
@@ -952,6 +997,57 @@ def title_conversation(client: ChatClient, conversation_id: int, question: str) 
         log.warning("Could not title conversation #%d (%s)", conversation_id, getattr(error, "reason", type(error).__name__))
         return
     log.info("Titled conversation #%d", conversation_id)
+
+
+MAX_DECISION_QUESTIONS = 10
+MAX_CRITERIA = 20
+QuestionId = Annotated[str, StringConstraints(pattern=r"^\w{1,40}$")]
+CriterionText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
+
+
+class DecisionQuestion(BaseModel):
+    """One question for Laya, in its own format: choice and noul take named criteria, score an ordered list of levels."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["choice", "score", "noul"]
+    instructions: str = Field(min_length=1, max_length=500)
+    criteria: dict[CriterionText, CriterionText] | list[CriterionText] | None = None
+
+    @model_validator(mode="after")
+    def check_criteria(self) -> "DecisionQuestion":
+        criteria = self.criteria
+        expected = {"choice": dict, "score": list}.get(self.type)
+        if expected is not None and not (isinstance(criteria, expected) and 2 <= len(criteria) <= MAX_CRITERIA):
+            raise ValueError(i18n.t("decisionCriteria", count=MAX_CRITERIA))
+        if self.type == "noul" and criteria is not None and (not isinstance(criteria, dict) or set(criteria) != {"true", "false"}):
+            raise ValueError(i18n.t("decisionYesNoCriteria"))
+        return self
+
+
+class DecideRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
+    questions: dict[QuestionId, DecisionQuestion] = Field(min_length=1, max_length=MAX_DECISION_QUESTIONS)
+
+
+class DecideResponse(BaseModel):
+    trace_id: str
+    decide_ms: int
+    # Per question: "probability" (noul), or "choice" / "score" with "probabilities"
+    answers: dict[str, dict[str, object]]
+
+
+@app.post("/api/decide")
+def decide(req: DecideRequest) -> DecideResponse:
+    """Asks Laya the questions about the text directly; nothing is saved, and the log has the trace id but not the text."""
+    if not decision_model.enabled():
+        raise HTTPException(503, i18n.t("decisionOff"))
+    questions = {name: question.model_dump(exclude_none=True) for name, question in req.questions.items()}
+    try:
+        decision = decision_model.runner.decide(req.text, questions, "free")
+    except DecisionError as error:
+        raise HTTPException(502, i18n.t("decisionUnavailable"), headers={"X-Decision-Trace-Id": error.trace_id})
+    return DecideResponse(trace_id=decision.trace_id, decide_ms=decision.decide_ms, answers=decision.answers)
 
 
 if FRONTEND_DIST.exists():
