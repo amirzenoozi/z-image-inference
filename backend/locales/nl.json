@@ -40,6 +40,7 @@
   "decisionYesNoCriteria": "De criteria van een ja/nee-vraag moeten precies \"true\" en \"false\" zijn",
   "ollamaNotRunning": "Ollama draait niet: start het met brew services start ollama",
   "ollamaModelMissing": "Het chatmodel {model} is niet gedownload: voer ollama pull {model} uit",
+  "llmUnavailable": "Het lokale model is niet ingesteld: zet OLLAMA_MODEL in .env",
   "startImageUnreadable": "De startafbeelding kon niet worden gelezen",
   "faceImageUnreadable": "De gezichtsafbeelding kon niet worden gelezen",
   "faceLockNoSpace": "Gezicht vastzetten heeft {gb} GB vrije schijfruimte nodig voor de eenmalige download.",

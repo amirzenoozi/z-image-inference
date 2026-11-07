@@ -40,6 +40,7 @@
   "decisionYesNoCriteria": "Los criterios de una pregunta de sí/no deben ser exactamente \"true\" y \"false\"",
   "ollamaNotRunning": "Ollama no se está ejecutando: inícialo con brew services start ollama",
   "ollamaModelMissing": "El modelo de chat {model} no está descargado: ejecuta ollama pull {model}",
+  "llmUnavailable": "El modelo local no está configurado: define OLLAMA_MODEL en .env",
   "startImageUnreadable": "No se pudo leer la imagen de partida",
   "faceImageUnreadable": "No se pudo leer la imagen de la cara",
   "faceLockNoSpace": "Fijar la cara necesita {gb} GB de espacio libre en disco para su descarga única.",

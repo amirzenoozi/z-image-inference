@@ -40,6 +40,7 @@
   "decisionYesNoCriteria": "Die Kriterien einer Ja/Nein-Frage müssen genau \"true\" und \"false\" sein",
   "ollamaNotRunning": "Ollama läuft nicht: Starte es mit brew services start ollama",
   "ollamaModelMissing": "Das Chatmodell {model} ist nicht heruntergeladen: Führe ollama pull {model} aus",
+  "llmUnavailable": "Das lokale Modell ist nicht eingerichtet: Setze OLLAMA_MODEL in .env",
   "startImageUnreadable": "Das Startbild konnte nicht gelesen werden",
   "faceImageUnreadable": "Das Gesichtsbild konnte nicht gelesen werden",
   "faceLockNoSpace": "Die Gesichtsfixierung braucht {gb} GB freien Speicherplatz für ihren einmaligen Download.",

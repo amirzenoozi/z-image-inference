@@ -40,6 +40,7 @@
   "decisionYesNoCriteria": "Les critères d’une question oui/non doivent être exactement \"true\" et \"false\"",
   "ollamaNotRunning": "Ollama n’est pas lancé : démarrez-le avec brew services start ollama",
   "ollamaModelMissing": "Le modèle de discussion {model} n’est pas téléchargé : lancez ollama pull {model}",
+  "llmUnavailable": "Le modèle local n’est pas configuré : définissez OLLAMA_MODEL dans .env",
   "startImageUnreadable": "Impossible de lire l’image de départ",
   "faceImageUnreadable": "Impossible de lire l’image du visage",
   "faceLockNoSpace": "Le verrouillage du visage nécessite {gb} GB d’espace disque libre pour son téléchargement unique.",
