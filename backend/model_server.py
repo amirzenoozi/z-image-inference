@@ -6,6 +6,7 @@ load_dotenv()
 
 import gc
 import json
+import logging
 import shutil
 import asyncio
 import base64
@@ -44,12 +45,15 @@ from pydantic import BaseModel
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from generation_request import MAX_SEED, GenerateRequest
+import log_setup
 from i18n import t
 from prompt_weights import a1111_to_compel
 from model_catalog import ADDONS, ANIME_DESIRE, DEFAULT_MODEL, FLUX_DEV, MODELS, AddonSpec, Source, addon_strength, applied_addons, with_trigger_words, MOSS_IMAGE, REALVIS_XL, WAI_ILLUSTRIOUS, Z_IMAGE, ModelSpec, Z_IMAGE_LEVELS, compression_enabled, runs_compressed, z_image_bits
 from moss_pipeline import MOSSImagePipeline, MOSSImageScheduler, MOSSImageTransformer
 from paths import MODELS_DIR
 
+
+log = logging.getLogger("model_server")
 
 HF_CACHE_DIR = MODELS_DIR / ".hf-cache"
 Z_IMAGE_PATH = MODELS_DIR / "Z-Image-Turbo"
@@ -274,7 +278,7 @@ def ensure_downloaded(repo_id: str, path: Path, allow_patterns: list[str] | None
     marker = download_marker(path)
     if marker.exists():
         return
-    print(f"Downloading {repo_id} to {path}...")
+    log.info("Downloading %s to %s...", repo_id, path)
     snapshot_download(repo_id, local_dir=path, cache_dir=HF_CACHE_DIR, allow_patterns=allow_patterns)
     marker.touch()
 
@@ -283,12 +287,14 @@ def build_once(target: Path, build: Callable[[Path], None]) -> None:
     """Run a one-time build into `target`, unless it is there already."""
     if target.exists():
         return
-    print(f"Creating {target}...")
+    log.info("Creating %s...", target)
+    started = time.perf_counter()
     # Built beside the final folder and renamed when complete, so an interrupted build is never used
     building = target.with_name(f"{target.name}.building")
     shutil.rmtree(building, ignore_errors=True)
     build(building)
     building.rename(target)
+    log.info("Created %s in %.0fs", target, time.perf_counter() - started)
 
 
 def build_z_image_quantized(bits: int, target: Path) -> None:
@@ -390,7 +396,7 @@ def store_as_float16(path: Path, components: list[str]) -> None:
     for file in (f for name in components for f in (path / name).glob("*.safetensors")):
         if not has_float32(file):
             continue
-        print(f"Storing {file.relative_to(path)} as float16...")
+        log.info("Storing %s as float16...", file.relative_to(path))
         tensors = {name: t.to(torch.float16) if t.dtype == torch.float32 else t for name, t in load_file(file).items()}
         temporary = file.with_suffix(".tmp")
         save_file(tensors, temporary, metadata={"format": "pt"})
@@ -560,7 +566,7 @@ def build_moss_text_encoder_q8() -> None:
     original = MOSS_IMAGE_MODEL_PATH / "text_encoder"
     if not original.exists():
         snapshot_download(MOSS_IMAGE.repo_id, local_dir=MOSS_IMAGE_PATH, cache_dir=HF_CACHE_DIR, allow_patterns=["merged-model/text_encoder/*"])
-    print(f"Creating 8-bit text encoder at {MOSS_TEXT_ENCODER_Q8_PATH}...")
+    log.info("Creating 8-bit text encoder at %s...", MOSS_TEXT_ENCODER_Q8_PATH)
     encoder = AutoModel.from_pretrained(original, dtype=torch.bfloat16).eval()
     quantize(encoder, weights=qint8)
     freeze(encoder)
@@ -800,9 +806,21 @@ def model_status(model_id: str) -> ModelStatus:
     return "missing" if download is None else "failed"
 
 
+def logged_download(label: str, download: Callable[[], None]) -> None:
+    """Runs on the download thread, whose failure the UI only sees as a "failed" status, so the traceback is logged here."""
+    log.info("Downloading %s...", label)
+    started = time.perf_counter()
+    try:
+        download()
+    except Exception:
+        log.exception("Downloading %s failed", label)
+        raise
+    log.info("Downloaded %s in %.0fs", label, time.perf_counter() - started)
+
+
 def start_download(model_id: str) -> None:
     if model_status(model_id) in ("missing", "failed"):
-        downloads[model_id] = download_thread.submit(DOWNLOADERS[model_id])
+        downloads[model_id] = download_thread.submit(logged_download, ENTRIES[model_id].label, DOWNLOADERS[model_id])
 
 
 def download_face_lock() -> None:
@@ -817,7 +835,7 @@ def face_lock_problem() -> str | None:
     if download is None or download.done():
         if free_bytes() < FACE_LOCK_BYTES:
             return t("faceLockNoSpace", gb=f"{FACE_LOCK_BYTES / 1e9:.1f}")
-        downloads[FACE_LOCK] = download_thread.submit(download_face_lock)
+        downloads[FACE_LOCK] = download_thread.submit(logged_download, "the face lock", download_face_lock)
     # Files arrive in the folder itself (partial ones under .cache), so its size is the progress
     done = folder_bytes([FACE_LOCK_PATH]) / 1e9
     return t("faceLockDownloading", done=f"{min(done, FACE_LOCK_BYTES / 1e9):.1f}", total=f"{FACE_LOCK_BYTES / 1e9:.1f}")
@@ -890,15 +908,19 @@ def use_model(model_id: str, addons: tuple[AddonSpec, ...] = ()) -> ImageGenerat
     if not is_loaded(model_id, addons):
         loaded_model_id, loaded_addons, loaded_generator = None, (), None
         release_memory()
-        print(f"Loading {MODELS[model_id].label}{''.join(f' + {addon.label}' for addon in addons)}...")
+        label = MODELS[model_id].label + "".join(f" + {addon.label}" for addon in addons)
+        log.info("Loading %s...", label)
+        started = time.perf_counter()
         loaded_generator = BASE_LOADERS[model_id](addons) if addons else LOADERS[model_id]()
         loaded_model_id, loaded_addons = model_id, addons
-        print("Model loaded!")
+        log.info("Loaded %s in %.1fs", label, time.perf_counter() - started)
     return loaded_generator
 
 
 def unload() -> None:
     global loaded_model_id, loaded_addons, loaded_generator
+    if loaded_model_id is not None:
+        log.info("Unloaded %s", MODELS[loaded_model_id].label)
     loaded_model_id, loaded_addons, loaded_generator = None, (), None
     release_memory()
 
@@ -910,6 +932,7 @@ def unload_and_remove(model_id: str) -> None:
     for path in MODEL_FOLDERS[model_id]:
         shutil.rmtree(path, ignore_errors=True)
     downloads.pop(model_id, None)
+    log.info("Removed %s from disk", ENTRIES[model_id].label)
 
 
 def generate_png(model_id: str, addons: tuple[AddonSpec, ...], job: Job, progress: JobProgress) -> RenderedImage:
@@ -925,6 +948,8 @@ def generate_png(model_id: str, addons: tuple[AddonSpec, ...], job: Job, progres
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    bits = z_image_bits()
+    log.info("Z-Image-Turbo runs %s; model compression is %s", f"{bits}-bit" if bits else "the original files", "on" if compression_enabled() else "off")
     # Only the default model downloads by itself; the user chooses the others, to save disk space
     start_download(DEFAULT_MODEL.id)
     if is_downloaded(DEFAULT_MODEL.id):
@@ -935,28 +960,38 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+def not_ready(message: str) -> HTTPException:
+    log.warning("Render refused: %s", message)
+    return HTTPException(503, message)
+
+
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest) -> GenerateResponse:
     if model_status(req.model) != "ready":
-        raise HTTPException(503, not_ready_message(req.model))
+        raise not_ready(not_ready_message(req.model))
     if req.face_image is not None and (problem := face_lock_problem()):
-        raise HTTPException(503, problem)
+        raise not_ready(problem)
     # An automatic add-on not downloaded is left out; the others were asked for, so they must be ready
     addons = tuple(
         addon for addon in applied_addons(req.model, req.addons, req.prompt, req.strengths) if addon.kind != "automatic" or model_status(addon.id) == "ready"
     )
     for addon in addons:
         if model_status(addon.id) != "ready":
-            raise HTTPException(503, not_ready_message(addon.id))
+            raise not_ready(not_ready_message(addon.id))
     job = to_job(req, addons)
     job_id = req.job_id or str(uuid.uuid4())
     progress = jobs[job_id] = JobProgress(total=job.steps)
     try:
         rendered = await asyncio.get_running_loop().run_in_executor(model_thread, generate_png, req.model, addons, job, progress)
     except JobCancelled:
+        log.info("Job %s cancelled", job_id)
         raise HTTPException(409, t("cancelled"))
     finally:
         jobs.pop(job_id, None)
+    log.info(
+        "Job %s rendered: %s%s, %dx%d, %d steps, %.1fs", job_id, req.model, "".join(f" + {addon.id}" for addon in addons),
+        job.width, job.height, job.steps, rendered.seconds,
+    )
     return GenerateResponse(
         image_base64=base64.b64encode(rendered.png).decode("utf-8"), seed=job.seed, model=req.model, seconds=round(rendered.seconds, 1),
         addons=[addon.id for addon in addons],
@@ -1045,4 +1080,5 @@ def health() -> dict[str, str | None]:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    log_setup.configure("model_server")
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_config=None)

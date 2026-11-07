@@ -5,6 +5,7 @@ match, which tests/test_i18n.py checks. Prompts sent to the models are never tra
 """
 
 import json
+import logging
 import os
 from functools import cache
 from pathlib import Path
@@ -18,7 +19,7 @@ LANGUAGES = ("en", "nl", "it", "fr", "de", "es", "pt")
 def language() -> str:
     code = os.environ.get("APP_LANGUAGE", DEFAULT_LANGUAGE).strip().lower()
     if code not in LANGUAGES:
-        print(f"APP_LANGUAGE={code!r} is not one of {', '.join(LANGUAGES)}; using English.")
+        logging.getLogger(__name__).warning("APP_LANGUAGE=%r is not one of %s; using English.", code, ", ".join(LANGUAGES))
         return DEFAULT_LANGUAGE
     return code
 

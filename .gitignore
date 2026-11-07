@@ -45,3 +45,6 @@ comparisons/
 # macOS
 .DS_Store
 ._*
+
+# Server logs, written by both servers (backend/log_setup.py)
+/logs/

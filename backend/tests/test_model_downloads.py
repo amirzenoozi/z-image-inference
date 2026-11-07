@@ -451,3 +451,14 @@ def test_the_tattoo_addon_is_ready_only_with_z_image(download: FakeDownload) -> 
     mark_model_downloaded("z-image-turbo")
 
     assert model_server.model_status(TATTOO) == "ready"
+
+
+def test_a_failed_download_is_logged_with_its_traceback(download: FakeDownload, caplog: pytest.LogCaptureFixture) -> None:
+    download.fail = True
+    download.release.set()
+    TestClient(model_server.app).post(f"/models/{WAI}/download")
+    finish(WAI)
+
+    failure = next(record for record in caplog.records if record.levelname == "ERROR")
+    assert failure.getMessage() == f"Downloading {model_server.ENTRIES[WAI].label} failed"
+    assert failure.exc_info is not None and "network down" in str(failure.exc_info[1])

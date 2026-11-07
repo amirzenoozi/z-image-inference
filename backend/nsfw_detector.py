@@ -1,4 +1,5 @@
 import io
+import logging
 import threading
 from pathlib import Path
 
@@ -29,7 +30,7 @@ def load() -> None:
     """Downloads the classifier once, then loads it on the CPU, leaving the GPU to the image models."""
     global _classifier
     if not download_marker().exists():
-        print(f"Downloading the sensitive-image check ({DETECTOR_REPO})...")
+        logging.getLogger(__name__).info("Downloading the sensitive-image check (%s)...", DETECTOR_REPO)
         snapshot_download(DETECTOR_REPO, local_dir=DETECTOR_PATH, allow_patterns=DETECTOR_FILES)
         download_marker().touch()
     classifier: ImageClassificationPipeline = pipeline("image-classification", model=str(DETECTOR_PATH), device="cpu")
