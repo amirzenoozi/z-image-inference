@@ -110,11 +110,14 @@ Switching branches prints a checklist of these checks for the new branch (`.gith
 
 ## Documentation
 
-- [Using the app](knowledge/usage.md): the language, creating images, the prompt builder, prompt weights, the chat (local or Grok), History, the viewer, the editor, variations, characters and the face lock
-- [Models](knowledge/models.md): the five models, their defaults, downloading and removing them, compression and Z-Image-Turbo's levels
-- [Performance and hardware](knowledge/performance.md): render times, memory and disk use
-- [How it works](knowledge/architecture.md): the two servers, the API, storage and technical notes
-- [Development](knowledge/development.md): running in development, tests and project layout
+Everything about the project is in [`knowledge/`](knowledge/README.md), one file per area. The ones most readers start with:
+
+- [Using the app](knowledge/usage.md): the language, creating images, the prompt builder, prompt weights, the chat (local or Grok), History, the viewer, the editor, variations, characters, the face lock and the safety check
+- [Configuration](knowledge/configuration.md): setup, and every `.env` setting with its default
+- [Models](knowledge/models.md): the six models and their add-ons, defaults, downloading and removing them, compression and Z-Image-Turbo's levels
+- [Performance and hardware](knowledge/performance.md): render times, memory and disk use, including the chat model and Laya
+- [How it works](knowledge/overview.md): the two servers, the helper processes and the main flows; then [the API](knowledge/api.md) and [the database](knowledge/database.md)
+- [Development](knowledge/development.md): running in development, tests, rules and project layout
 - [Troubleshooting](knowledge/troubleshooting.md)
 
 ## A note on content

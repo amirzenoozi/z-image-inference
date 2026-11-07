@@ -16,7 +16,7 @@ The app is in English by default. To change it, set `APP_LANGUAGE` in `.env` in 
 | `es` | Español (Spanish) |
 | `pt` | Português (Portuguese) |
 
-Everything you read is translated: the interface, the prompt builder's menus and purposes, and the app's messages. The prompts themselves stay in English, since the models understand English best: whatever language the builder's menus show, the prompt it writes and sends is English. An unknown code falls back to English, and `main.py` says so in its terminal.
+Everything you read is translated: the interface, the prompt builder's menus and purposes, and the app's messages. The prompts themselves stay in English, since the models understand English best: whatever language the builder's menus show, the prompt it writes and sends is English. An unknown code falls back to English, and the web app says so in its log. How translations are organised: [translations.md](translations.md).
 
 ## Use it on your phone
 
@@ -30,17 +30,19 @@ The app can be added to a phone's home screen and opened full screen, like an ap
 
 Everything adult (the Glamour, Faceless and Explicit purposes, the Lingerie and Swimwear groups of the Top and Bottom menus, the adult models WAI-NSFW-Illustrious, MOSS-Image NSFW and Anime Desire, the add-ons that add nudity or sex, and sensitive History images) sits behind two locks.
 
-1. **`ADULT_CONTENT` in `.env`** (`off` by default, `on` to allow it; restart the web app after a change). Off, the web app itself serves none of it: the catalog leaves it out, History leaves sensitive images out of the list, the counts, the export and every image link, and every render is kept safe for work, as for a character with an uploaded face (a sensitive prompt or start image is refused, safe negatives are added, an adult model is refused, an adult add-on is not applied, and a result the image check finds nudity in is discarded).
+1. **`ADULT_CONTENT` in `.env`** (`off` by default, `on` to allow it; restart the web app after a change). Off, the web app itself serves none of it: the catalog leaves it out, History leaves sensitive images out of the list and its total, the export and every image link (the Clean up counts still include them), and every render is kept safe for work, as for a character with an uploaded face (a sensitive prompt or start image is refused, safe negatives are added, an adult model is refused, an adult add-on is not applied, and a result the image check finds nudity in is discarded).
 2. **A hidden word in `ADULT_UNLOCK_WORD`**, with `ADULT_CONTENT=on`. Each browser then starts locked, and keeps its own state: type the word on the Create page with no text box selected (nothing shows while you type; the browser asks the web app once you pause, so the word itself never reaches the page), or on a phone tap the **Z-Image Studio** title five times and type it in the box that opens. A short notice says "Adult content shown"; typing the word again hides it. While a browser is locked it works as if `ADULT_CONTENT` were off: the adult purposes, models and add-ons are hidden, the other purposes are kept safe for work, History leaves sensitive images out, and Generate asks the web app to keep the result safe. With no word set, what `.env` allows is simply shown.
 
-The browser's lock is a privacy screen for that browser, not security: anyone who can use the web app's API, or this browser's storage, can get past it. `ADULT_CONTENT=off` is the lock that holds.
+The browser's lock is a privacy screen for that browser, not security: anyone who can use the web app's API, or this browser's storage, can get past it. `ADULT_CONTENT=off` is the lock that holds. More on both locks and the safe-for-work rules: [safety.md](safety.md).
 
 ## Logs
 
-Both servers log to the terminal and to a file in `logs/` in the project folder: `logs/model_server.log` and `logs/web_app.log`. Each file keeps up to 5 MB, with the three files before it as `.1` to `.3`. Every line has a time and a level. They record model loads and unloads with how long they took, each render (model, add-ons, size, steps, seconds) and the History id it was saved as, downloads and the full error when one fails, refused renders and model server errors, each chat (which model, how long, how many characters), and deletes. They never hold your prompts, chat messages, character names or images.
+Both servers log to the terminal and to `logs/model_server.log` and `logs/web_app.log` in the project folder. They record what happened (model loads, renders, downloads, chats, safety checks, deletes) with ids and timings, and never hold your prompts, chat messages, character names or images.
 
 - **Follow them live:** `tail -f logs/model_server.log logs/web_app.log`
 - **More or less detail:** set `LOG_LEVEL` in `.env` to `DEBUG`, `INFO` (the default), `WARNING` or `ERROR`, and restart both servers.
+
+What each line means, and how the files rotate: [logging.md](logging.md).
 
 ## Create
 
@@ -58,7 +60,7 @@ Switching models resets steps and guidance to the new model's defaults. Your pro
 
 ## Prompt builder
 
-**Prompt builder** (above the prompt box) opens a dialog that assembles a detailed prompt step by step, with a live preview.
+**Prompt builder** (above the prompt box) opens a dialog that assembles a detailed prompt step by step, with a live preview. How it works inside (rules, clashes, the JSON prompt): [prompt-builder.md](prompt-builder.md).
 
 First pick a **purpose** at the top. Each one shows only the steps it needs, starts from sensible choices (only those you have not set yet), opens the prompt in its own style and writes the parts that matter for it first:
 
@@ -219,40 +221,42 @@ Z-Image-Turbo and MOSS-Image read prompts as natural language and have no weight
 
 ## Chat (optional)
 
-The chat turns a plain description into a detailed prompt. It is written by Grok (online, needs a key) or by a small model on your Mac through Ollama (free and offline), chosen by `CHAT_PROVIDER` in `.env`. The tab is disabled until one is set up, and names the one in use.
+The chat turns a plain description into a detailed prompt, then makes the image. It is written by Grok (online, needs a key) or by a small model on your Mac through Ollama (free and offline), chosen by `CHAT_PROVIDER` in `.env`. The **Chat** tab, beside **Write prompt**, is greyed out until one is set up; once it is, a note above the chat names the model that writes the prompts.
 
 **A local model (Ollama):**
 
 1. Install and start Ollama: `brew install ollama && brew services start ollama` (it starts at login and uses about 50 MB while no model is loaded).
-2. Download a model: `ollama pull hf.co/mlabonne/gemma-3-4b-it-abliterated-GGUF:Q4_K_M` (Gemma 3 4B, uncensored, 4-bit: 2.5 GB on disk, about 2.7 GB of memory while loaded, about 40 words a second).
-3. In `.env`: `CHAT_PROVIDER=ollama` and `OLLAMA_MODEL=` the model's name, then restart `main.py`.
+2. Download a model: `ollama pull hf.co/mlabonne/gemma-3-4b-it-abliterated-GGUF:Q4_K_M` (Gemma 3 4B, uncensored, 4-bit: 2.5 GB on disk, about 2.7 GB of memory while loaded, about 40 tokens a second).
+3. In `.env`: `CHAT_PROVIDER=ollama` and `OLLAMA_MODEL=` the model's name as `ollama list` shows it, then restart the web app.
 
 The model loads with your first message, which takes a few seconds, and unloads `OLLAMA_KEEP_ALIVE` after the last one (`2m` by default; `0` unloads it at once), so it holds no memory between chats. Chatting while an image renders works, but both share the GPU and run slower. `OLLAMA_URL` is where Ollama listens (`http://127.0.0.1:11434` by default).
 
-**Grok:** add an [xAI API key](https://x.ai/) to `.env` (`XAI_API_KEY=`, with `CHAT_PROVIDER=grok`, the default) and restart `main.py`. Your messages are sent to xAI; everything else stays on your Mac.
+**Grok:** add an [xAI API key](https://console.x.ai) to `.env` (`XAI_API_KEY=`, with `CHAT_PROVIDER=grok`, the default) and restart the web app. Your messages are sent to xAI; everything else stays on your Mac.
 
 **Using it:**
 
-1. Choose the **Chat with …** tab and describe the image you want in plain words.
-2. The reply streams in as it is written; once complete, it becomes your prompt and the image is generated.
-3. Edit one of your messages to branch from there and generate again.
+1. Choose the **Chat** tab and describe the image you want in plain words; **Send** (or ⌘/Ctrl + Enter) sends it. Sending waits while an image is rendering.
+2. The reply streams in as it is written. Once complete, it becomes your prompt (as text, with the chosen character's look added in front, as for a typed prompt) and the image is generated at once.
+3. Keep chatting to refine it: each new message continues the same conversation.
+4. Edit one of your messages to branch from there: the chat answers again from that point and generates a new image. The earlier branch stays saved.
+5. If a reply fails, the error shows with **Retry**. **Clear chat** starts a new conversation.
+
+Every question and answer is saved on your Mac, in conversations the chat model gives a short title, and the image made from an answer is linked to it. Clearing History leaves the chats alone. The chat is off while an A/B test runs.
+
+While adult content is locked, each question is checked first; see the next section. How the chat works inside, and where it is saved: [chat.md](chat.md).
 
 ## Safety check and the decision model (Laya)
 
-While adult content is locked, each chat question is first checked by Laya, a small decision model on your Mac, for nudity or sexual content. A refused question is never sent to the chat model, and the chat says so. Laya downloads once (about 800 MB, into `models/laya/`), runs on the CPU so the GPU stays free for images, in its own process that starts only for a check: about 1.5 seconds to start and 0.1 seconds per question, then the process ends and all its memory is given back (`DECISION_KEEP_ALIVE=60` in `.env` keeps it loaded for 60 seconds instead). If it can't run, locked questions are refused until it can. `DECISION_NUDITY_REFUSE_AT` (default `0.52`) is the nudity probability that refuses a question: lower is stricter. `DECISION_MODEL=off` turns it off. Each check is logged with a trace id, never the question.
+While adult content is locked (`ADULT_CONTENT=off` in `.env`, or this browser's hidden-word lock is on), each chat question is first checked by Laya, a small decision model on your Mac, for nudity or a sexual act. A refused question is never sent to the chat model, and the chat says "This question was refused by the safety check". Rephrase it, or unlock adult content if it is allowed on this Mac.
 
-`POST /api/decide` asks Laya your own questions about any text, and saves nothing:
+- **Download**: Laya downloads once, on the first locked question (about 800 MB, into `models/laya/`).
+- **Speed and memory**: it runs on the CPU, so the GPU stays free for images, in its own process that starts only for a check: about 1.5 seconds to start and 0.1 seconds per question. The process then ends and gives all its memory back. `DECISION_KEEP_ALIVE=60` in `.env` keeps it for 60 seconds after its last check instead, for a burst of questions.
+- **If it can't run**, locked questions are refused with "The safety check is unavailable, try again", until it can. See [Troubleshooting](troubleshooting.md).
+- **Strictness**: `DECISION_NUDITY_REFUSE_AT` (default `0.52`) is the nudity probability that refuses a question: lower is stricter.
+- **Off**: `DECISION_MODEL=off` turns Laya off. Locked chat questions are then sent to the chat model without a check.
+- **Privacy**: each check is saved with its question's chat exchange and logged with a trace id and the probability, never the question's text.
 
-```bash
-curl -s http://127.0.0.1:7860/api/decide -H 'Content-Type: application/json' -d '{
-  "text": "a fox in a snowy forest",
-  "questions": {
-    "kind":  {"type": "choice", "instructions": "What kind of image is this?", "criteria": {"animal": "animals", "person": "people", "place": "landscapes"}},
-    "night": {"type": "noul", "instructions": "Is it at night?", "criteria": {"true": "night, dark", "false": "day, light"}}
-  }}'
-```
-
-Up to 10 questions; `choice` takes 2 to 20 named criteria, `score` 2 to 20 levels in order, and `noul` (yes or no) optionally `true` and `false` criteria.
+Laya can also answer your own questions about any text (yes or no, a choice, a score) through `POST /api/decide`, which saves nothing. How Laya works and how to use that endpoint: [decision-model.md](decision-model.md).
 
 ## History
 
@@ -273,11 +277,11 @@ The header shows how much space History uses, and offers:
 
 - **Export** (or **Export these** with a filter on): a zip of the images shown, each PNG with a text file of its prompts and settings, plus `history.json` with every image's details
 - **Clean up**: deletes the images older than 7, 30 or 90 days, showing how many first, and always keeps favourites
-- **Delete all**: removes everything, favourites included
+- **Delete all**: removes every image, favourites included; characters and saved chats stay
 
 Clean up and Delete all also shrink `history.db` on disk.
 
-Images are kept in `history.db` as lossless WebP: the same pixels as the PNG the model made, about 30% smaller. Downloads and the export are still PNG. Images saved before this were PNG; to convert them, stop the web app and run `uv run python backend/tools/recompress_history.py` (`--dry-run` first shows how many there are). It keeps a copy as `history.db.bak`; delete it once you are happy.
+Images are kept in `history.db` as lossless WebP: the same pixels as the PNG the model made, about 30% smaller. Downloads and the export are still PNG. Images saved before this were PNG; to convert them, stop the web app and run `uv run python backend/tools/recompress_history.py` (`--dry-run` first shows how many there are). It keeps a copy as `history.db.bak`; delete it once you are happy. What the database holds: [database.md](database.md).
 
 ### Sensitive images
 
@@ -286,6 +290,8 @@ Images with nudity or sexual content are blurred in History's list, on character
 - An image is marked sensitive when it is saved, if its prompt has words such as *nude*, *naked*, *nsfw*, *explicit*, *topless*, *lingerie* or *sensual* (so images from the 18+ builder purposes are). Images made before this existed are checked once, on the next start.
 - The image itself is checked too, by a small image classifier ([Falconsai/nsfw_image_detection](https://huggingface.co/Falconsai/nsfw_image_detection), 343 MB, downloaded once into `models/nsfw-detector/` on the first start). It catches nudity the prompt didn't ask for, such as a typed prompt with a character whose look describes her body. Images saved before it was ready are checked in the background after a start; it takes a few seconds.
 - No check is perfect, so the eye button on an opened image marks it as sensitive, or as not sensitive, by hand; that always wins. An edited copy keeps its original's setting.
+
+How both checks work: [safety.md](safety.md).
 
 ## Image viewer
 
@@ -387,4 +393,4 @@ A photo can show a real person, so a character with an uploaded face is kept **s
 - every result goes through the image check, and an image that comes out with nudity is discarded, never saved; until the check is ready (a few seconds after the app starts), nothing is rendered for that character;
 - the 18+ purposes are hidden in the prompt builder.
 
-Remove the photo (or switch to a History face) to lift these rules.
+Remove the photo (or switch to a History face) to lift these rules. The full rules: [safety.md](safety.md).
