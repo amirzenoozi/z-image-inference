@@ -12,6 +12,11 @@ def enabled() -> bool:
     return os.environ.get("ADULT_CONTENT", "").strip().lower() == "on"
 
 
+def locked(safe_only: bool) -> bool:
+    """Whether adult content is locked for a request: off in .env, or the browser's lock on (it sends safe_only)."""
+    return safe_only or not enabled()
+
+
 def unlock_word() -> str:
     return os.environ.get("ADULT_UNLOCK_WORD", "").strip()
 

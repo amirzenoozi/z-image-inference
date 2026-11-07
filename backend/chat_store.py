@@ -15,7 +15,8 @@ from history_store import connection
 from i18n import t
 from sensitive import is_sensitive
 
-ExchangeStatus = Literal["streaming", "complete", "failed", "stopped"]
+# refused: a decision task (decision_tasks.py) refused the question, so the chat model was never asked
+ExchangeStatus = Literal["streaming", "complete", "failed", "stopped", "refused"]
 MAX_TITLE_LENGTH = 80
 
 
