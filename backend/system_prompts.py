@@ -21,3 +21,7 @@ Add the composition, setting, lighting, materials, textures and colours.
 Add text to the image only when the user asks for it, such as a poster's title, date or time: then write every word of it in double quotes and say where it appears. Otherwise the image has no text.
 Write one or two paragraphs of plain description.
 Output only the prompt: no title, headings, labels, lists, explanations or notes, and no words like "8K" or "masterpiece"."""
+
+# For a conversation's title, from its first question; any provider's model gets the same one
+TITLE = """Write a short title, at most six words, for this image idea.
+Output only the title: no quotes, no full stop, nothing else."""

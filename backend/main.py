@@ -36,7 +36,10 @@ import history_store
 from sensitive import is_sensitive
 from generation_request import JOB_ID_PATTERN, MAX_PROMPT_LENGTH, MAX_SEED, MIN_SIDE, SIDE_STEP, GenerateRequest
 import chat_client
+import chat_store
+import system_prompts
 from chat_client import ChatClient, ChatError
+from chat_store import ChatNotFound, ChatSource, NewExchange, Outcome, StartedExchange
 import adult_content
 import custom_clothes
 from custom_clothes import CustomGarment
@@ -257,6 +260,10 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1, max_length=MAX_CHAT_MESSAGES)
+    # The saved conversation this continues (none starts a new one), and the exchange it follows: the last answer, or
+    # the one before an edited question
+    conversation_id: int | None = Field(default=None, ge=1)
+    parent_id: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def ends_with_user(self) -> "ChatRequest":
@@ -418,6 +425,8 @@ class WebGenerateRequest(GenerateRequest):
     # An A/B test's images share a set id, and each says what it tried
     set_id: str | None = Field(default=None, pattern=JOB_ID_PATTERN)
     set_label: str | None = Field(default=None, min_length=1, max_length=MAX_SET_LABEL_LENGTH)
+    # The chat answer the prompt came from (the image made right after a chat reply), linked to the image once saved
+    chat_exchange_id: int | None = Field(default=None, ge=1)
     # The web app loads the start image and the face image itself; image data from the browser is refused
     init_image: None = None
     face_image: None = None
@@ -496,11 +505,24 @@ def check_safe_request(req: WebGenerateRequest, name: str | None) -> None:
 @app.post("/api/generate")
 def generate(req: WebGenerateRequest) -> HistoryItem:
     character = character_of(req.character_id)
+    check_chat_answer(req.chat_exchange_id)
     try:
-        return render_and_save(req, character)
+        item = render_and_save(req, character)
     except safe_for_work.NotSafeForWork as error:
         # Its message can quote the prompt and name the character, so only the id is logged
         log.warning("Render refused by the safe-for-work rules (character %s)", req.character_id)
+        raise HTTPException(422, str(error))
+    if req.chat_exchange_id is not None:
+        chat_store.link_image(req.chat_exchange_id, item.id)
+    return item
+
+
+def check_chat_answer(exchange_id: int | None) -> None:
+    if exchange_id is None:
+        return
+    try:
+        chat_store.check_exchange(exchange_id)
+    except ChatNotFound as error:
         raise HTTPException(422, str(error))
 
 
@@ -837,35 +859,99 @@ def delete_character(character_id: int) -> None:
 
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
-    """Stream the chat's rewritten prompt (Grok or the local model) as plain text pieces."""
+    """
+    Stream the chat's answer (Grok or the local model) as plain text pieces, saving the question first and the answer
+    when it ends; the saved ids come back in the X-Chat-Conversation-Id and X-Chat-Exchange-Id headers.
+    """
     client = chat_client.ready_chat()
     if client is None:
         raise HTTPException(503, i18n.t("chatUnavailable"))
-    log.info("Chat with %s: %d message(s)", client.name, len(req.messages))
+    exchange = start_exchange(req, client)
+    log.info("Chat with %s: %d message(s), exchange #%d in conversation #%d", client.name, len(req.messages), exchange.id, exchange.conversation_id)
     started = time.perf_counter()
-    chunks = client.chat_stream([message.model_dump() for message in req.messages])
+    chunks = client.chat_stream([{"role": message.role, "content": message.content} for message in req.messages], client.system_prompt)
     # Pull the first piece here, so a stopped server, a missing model or a bad key becomes a proper error response
     try:
         first = next(chunks, "")
     except ChatError as error:
         log.warning("Chat with %s failed (%s)", client.name, error.reason)
+        chat_store.finish(exchange.id, Outcome(answer="", status="failed", first_words_ms=None, total_ms=elapsed_ms(started), error=error.reason))
         raise HTTPException(502, str(error))
-    return StreamingResponse(logged_reply(client, first, chunks, started), media_type="text/plain; charset=utf-8")
+    headers = {"X-Chat-Conversation-Id": str(exchange.conversation_id), "X-Chat-Exchange-Id": str(exchange.id)}
+    reply = ChatReply(client=client, exchange=exchange, question=req.messages[-1].content, first=first, rest=chunks, started=started)
+    return StreamingResponse(saved_reply(reply), media_type="text/plain; charset=utf-8", headers=headers)
 
 
-def logged_reply(client: ChatClient, first: str, rest: Iterator[str], started: float) -> Iterator[str]:
-    """Passes the reply on as it comes, then logs how long it took and how long it was; never what it said."""
-    first_words = time.perf_counter() - started
-    length = len(first)
-    yield first
+def start_exchange(req: ChatRequest, client: ChatClient) -> StartedExchange:
+    source = ChatSource(provider=client.provider, model=client.model, system_prompt_id=chat_store.system_prompt_id(client.system_prompt))
     try:
-        for piece in rest:
-            length += len(piece)
+        return chat_store.start(NewExchange(question=req.messages[-1].content, source=source, conversation_id=req.conversation_id, parent_id=req.parent_id))
+    except ChatNotFound as error:
+        raise HTTPException(422, str(error))
+
+
+def elapsed_ms(started: float) -> int:
+    return round((time.perf_counter() - started) * 1000)
+
+
+@dataclass
+class ChatReply:
+    """An answer on its way to the browser: who writes it, where it is saved, and its pieces (the first already in)."""
+
+    client: ChatClient
+    exchange: StartedExchange
+    question: str
+    first: str
+    rest: Iterator[str]
+    started: float
+
+
+def saved_reply(reply: ChatReply) -> Iterator[str]:
+    """
+    Passes the answer on as it comes, then saves it: complete, failed with the reason, or stopped when the browser
+    left before the end (the part that arrived is kept). Logs its timing and length, never what it said.
+    """
+    first_words_ms = elapsed_ms(reply.started)
+    pieces = [reply.first]
+    outcome: Outcome | None = None
+    try:
+        yield reply.first
+        for piece in reply.rest:
+            pieces.append(piece)
             yield piece
+        outcome = Outcome(answer="".join(pieces), status="complete", first_words_ms=first_words_ms, total_ms=elapsed_ms(reply.started))
     except ChatError as error:
-        log.warning("Chat with %s stopped after %d characters (%s)", client.name, length, error.reason)
+        outcome = Outcome(answer="".join(pieces), status="failed", first_words_ms=first_words_ms, total_ms=elapsed_ms(reply.started), error=error.reason)
         raise
-    log.info("Chat with %s answered %d characters in %.1fs (first words after %.1fs)", client.name, length, time.perf_counter() - started, first_words)
+    finally:
+        record_reply(reply, outcome or Outcome(answer="".join(pieces), status="stopped", first_words_ms=first_words_ms, total_ms=elapsed_ms(reply.started)))
+
+
+def record_reply(reply: ChatReply, outcome: Outcome) -> None:
+    chat_store.finish(reply.exchange.id, outcome)
+    name, length, seconds = reply.client.name, len(outcome.answer), outcome.total_ms / 1000
+    if outcome.status != "complete":
+        log.warning("Chat with %s %s after %d characters (%s)", name, outcome.status, length, outcome.error or "the browser left")
+        return
+    log.info("Chat with %s answered %d characters in %.1fs (first words after %.1fs)", name, length, seconds, (outcome.first_words_ms or 0) / 1000)
+    if reply.exchange.new_conversation:
+        start_titling(reply.client, reply.exchange.conversation_id, reply.question)
+
+
+def start_titling(client: ChatClient, conversation_id: int, question: str) -> None:
+    """In the background, so the chat never waits for its title."""
+    threading.Thread(target=title_conversation, args=(client, conversation_id, question), name="chat-title", daemon=True).start()
+
+
+def title_conversation(client: ChatClient, conversation_id: int, question: str) -> None:
+    """Asks the chat model for a short title from the conversation's first question; best effort, a failure is only logged."""
+    try:
+        title = "".join(client.chat_stream([{"role": "user", "content": question}], system_prompts.TITLE))
+        chat_store.set_title(conversation_id, title)
+    except Exception as error:  # Any failure leaves the conversation untitled; the chat itself has already succeeded
+        log.warning("Could not title conversation #%d (%s)", conversation_id, getattr(error, "reason", type(error).__name__))
+        return
+    log.info("Titled conversation #%d", conversation_id)
 
 
 if FRONTEND_DIST.exists():

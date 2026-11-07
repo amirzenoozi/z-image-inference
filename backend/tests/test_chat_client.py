@@ -47,7 +47,7 @@ def ollama(monkeypatch: pytest.MonkeyPatch) -> FakeOllama:
 
 
 def stream(client: OllamaClient) -> Iterator[str]:
-    return client.chat_stream(MESSAGES)
+    return client.chat_stream(MESSAGES, client.system_prompt)
 
 
 def local(keep_alive: str = "2m") -> OllamaClient:
@@ -106,7 +106,8 @@ class FakeOpenAI:
 def test_grok_streams_the_reply_with_its_own_system_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(chat_client, "OpenAI", FakeOpenAI)
     monkeypatch.setattr(FakeOpenAI, "sent", [])
-    assert list(GrokClient().chat_stream(MESSAGES)) == ["A tall ", "lighthouse"]
+    grok = GrokClient()
+    assert list(grok.chat_stream(MESSAGES, grok.system_prompt)) == ["A tall ", "lighthouse"]
     sent, = FakeOpenAI.sent
     assert sent["messages"] == [{"role": "system", "content": system_prompts.GROK}, *MESSAGES]
 

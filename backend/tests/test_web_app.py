@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 import chat_client
+import chat_store
 import history_store
 import main
 from chat_client import ChatError
@@ -64,12 +65,15 @@ class FakeModelServer:
 @dataclass
 class FakeChat:
     name: str = "gemma-3-4b"
+    provider: str = "ollama"
+    model: str = "gemma-3-4b"
+    system_prompt: str = "Rewrite it."
     available: bool = True
     chunks: list[str] = field(default_factory=lambda: ["A detailed ", "prompt"])
     error: Exception | None = None
     received: list[list[dict[str, str]]] = field(default_factory=list)
 
-    def chat_stream(self, messages: list[dict[str, str]]) -> Iterator[str]:
+    def chat_stream(self, messages: list[dict[str, str]], system_prompt: str) -> Iterator[str]:
         self.received.append(messages)
         if self.error:
             raise self.error
@@ -80,6 +84,7 @@ class FakeChat:
 def chat(monkeypatch: pytest.MonkeyPatch) -> FakeChat:
     fake = FakeChat()
     monkeypatch.setattr(chat_client, "chat_client", lambda: fake)
+    monkeypatch.setattr(main, "start_titling", lambda client, conversation_id, question: None)
     return fake
 
 
@@ -759,3 +764,94 @@ def test_a_stopped_model_server_is_logged(client: TestClient, model_server: Fake
     model_server.error = requests.ConnectionError()
     generate(client)
     assert "The model server is not running" in caplog.text
+
+
+def saved_chat(conversation_id: int) -> chat_store.Conversation:
+    conversation = chat_store.conversation(conversation_id)
+    assert conversation is not None
+    return conversation
+
+
+def ask(client: TestClient, content: str, **ids: int) -> requests.Response:
+    return client.post("/api/chat", json={"messages": [{"role": "user", "content": content}], **ids})
+
+
+def test_a_chat_answer_is_saved_with_its_ids_sent_back(client: TestClient, chat: FakeChat) -> None:
+    resp = ask(client, "a cat")
+    conversation_id, exchange_id = int(resp.headers["X-Chat-Conversation-Id"]), int(resp.headers["X-Chat-Exchange-Id"])
+
+    exchange, = saved_chat(conversation_id).exchanges
+    assert (exchange.id, exchange.question, exchange.answer, exchange.status) == (exchange_id, "a cat", "A detailed prompt", "complete")
+    assert exchange.total_ms is not None and exchange.first_words_ms is not None
+    assert (exchange.provider, exchange.model, exchange.system_prompt_id) == ("ollama", "gemma-3-4b", chat_store.system_prompt_id("Rewrite it."))
+
+    follow_up = ask(client, "make it night", conversation_id=conversation_id, parent_id=exchange_id)
+    assert follow_up.headers["X-Chat-Conversation-Id"] == str(conversation_id)
+    assert [each.parent_id for each in saved_chat(conversation_id).exchanges] == [None, exchange_id]
+
+
+def test_a_chat_for_an_unknown_conversation_is_refused(client: TestClient, chat: FakeChat) -> None:
+    resp = ask(client, "a cat", conversation_id=999)
+    assert resp.status_code == 422
+    assert chat.received == []
+
+
+def test_a_failed_chat_is_saved_as_failed(client: TestClient, chat: FakeChat) -> None:
+    chat.error = ChatError("Ollama is not running", "Ollama is not running")
+    assert ask(client, "a cat").status_code == 502
+    exchange, = saved_chat(1).exchanges
+    assert (exchange.status, exchange.error, exchange.answer) == ("failed", "Ollama is not running", "")
+
+
+def test_a_reply_the_browser_leaves_is_saved_as_stopped_with_what_arrived(client: TestClient, chat: FakeChat) -> None:
+    started = chat_store.start(chat_store.NewExchange(question="a cat", source=chat_store.ChatSource("ollama", "gemma-3-4b", "abc")))
+    reply = main.ChatReply(client=chat, exchange=started, question="a cat", first="A detailed ", rest=iter(["prompt"]), started=0.0)
+    pieces = main.saved_reply(reply)
+    assert next(pieces) == "A detailed "
+    pieces.close()
+
+    exchange, = saved_chat(started.conversation_id).exchanges
+    assert (exchange.status, exchange.answer) == ("stopped", "A detailed ")
+
+
+def test_a_new_conversation_gets_a_title_from_its_first_question(client: TestClient, chat: FakeChat, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    conversation_id = int(ask(client, "a cat").headers["X-Chat-Conversation-Id"])
+    chat.chunks = ['"Curious Cat"']
+
+    main.title_conversation(chat, conversation_id, "a cat")
+
+    assert saved_chat(conversation_id).title == "Curious Cat"
+    assert chat.received[-1] == [{"role": "user", "content": "a cat"}]
+    assert f"Titled conversation #{conversation_id}" in caplog.text
+
+
+def test_a_failed_title_is_only_logged(client: TestClient, chat: FakeChat, caplog: pytest.LogCaptureFixture) -> None:
+    conversation_id = int(ask(client, "a cat").headers["X-Chat-Conversation-Id"])
+    chat.error = ChatError("Ollama is not running", "Ollama is not running")
+
+    main.title_conversation(chat, conversation_id, "a cat")
+
+    assert saved_chat(conversation_id).title is None
+    assert f"Could not title conversation #{conversation_id} (Ollama is not running)" in caplog.text
+
+
+def test_only_a_new_conversation_starts_a_title(client: TestClient, chat: FakeChat, monkeypatch: pytest.MonkeyPatch) -> None:
+    titled: list[int] = []
+    monkeypatch.setattr(main, "start_titling", lambda client, conversation_id, question: titled.append(conversation_id))
+    first = ask(client, "a cat")
+    conversation_id, exchange_id = int(first.headers["X-Chat-Conversation-Id"]), int(first.headers["X-Chat-Exchange-Id"])
+    ask(client, "make it night", conversation_id=conversation_id, parent_id=exchange_id)
+    assert titled == [conversation_id]
+
+
+def test_the_image_made_from_a_chat_answer_is_linked_to_it(client: TestClient, model_server: FakeModelServer, chat: FakeChat) -> None:
+    resp = ask(client, "a cat")
+    conversation_id, exchange_id = int(resp.headers["X-Chat-Conversation-Id"]), int(resp.headers["X-Chat-Exchange-Id"])
+
+    item = generate(client, chat_exchange_id=exchange_id).json()
+
+    assert saved_chat(conversation_id).exchanges[0].history_id == item["id"]
+    unknown = generate(client, chat_exchange_id=999)
+    assert unknown.status_code == 422
+    assert model_server.calls == [model_server.calls[0]]
