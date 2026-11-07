@@ -172,6 +172,30 @@ Response: `200`, `text/plain; charset=utf-8`, streamed. Headers: `X-Chat-Convers
 
 There is no endpoint yet to read, list or delete saved chats (`chat_store.conversation` exists but is not served).
 
+### `POST /api/llm`
+
+Talks with the local model (`OLLAMA_MODEL`) directly. The messages go to Ollama as sent: no system prompt is added, their content is not checked (not even while adult content is locked, by design), and nothing is saved. It works whenever `OLLAMA_MODEL` is set, whatever `CHAT_PROVIDER` says.
+
+Request:
+
+| Field | Type | Limits |
+|---|---|---|
+| `messages` | list of `{role, content}` | 1 to 50; `role` is `system`, `user` or `assistant`; `content` 1 to 20,000 characters; the last message must be from the user |
+| `options.temperature` | number, optional | 0 to 2 |
+| `options.max_tokens` | integer, optional | 1 to 4096 (sent to Ollama as `num_predict`) |
+
+Other `options` keys are refused.
+
+Response: the answer streamed as plain text (`text/plain; charset=utf-8`), with an `X-Trace-Id` header. The log records the trace id, the model, the number of messages, the length and the time taken, never the text.
+
+Errors: `422` for invalid input; `503` when `OLLAMA_MODEL` is not set; `502` when Ollama is not running, the model is not downloaded or Ollama fails (with `X-Trace-Id`).
+
+```bash
+curl -N http://127.0.0.1:7860/api/llm -H 'Content-Type: application/json' -d '{
+  "messages": [{"role": "system", "content": "Be brief."}, {"role": "user", "content": "Give me three names for a cat."}],
+  "options": {"temperature": 0.7, "max_tokens": 200}}'
+```
+
 ## Decision model
 
 ### `POST /api/decide`

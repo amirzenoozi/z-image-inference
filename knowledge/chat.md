@@ -83,6 +83,10 @@ Steps:
 
 `record_reply` saves the outcome (`chat_store.finish`) and logs it: `Chat with <name> answered <n> characters in <s>s (first words after <s>s)`, or a warning `Chat with <name> <status> after <n> characters (<reason or "the browser left">)`. The text itself is never logged. A complete answer in a new conversation starts the title (below).
 
+## Talking with the local model directly (`POST /api/llm`)
+
+`POST /api/llm` sends messages to the local model exactly as given, through `OllamaClient.raw_stream` (the chat's `chat_stream` is the same call with the app's system prompt added in front). There is no system prompt, no saving, no title and no Laya check, even while adult content is locked; only the input's shape and sizes are checked, and the log has the trace id and timings, never the text. It uses `ollama_client()`, so it works whenever `OLLAMA_MODEL` is set, whichever provider the chat uses. See [api.md](api.md) for the request and response.
+
 ## Saved chats (`backend/chat_store.py`)
 
 Two tables in `history.db`, created in `backend/history_store.py`:

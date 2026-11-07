@@ -169,6 +169,8 @@ A chat answer that is then rendered (the Create page generates right after a cha
 
 ## Known gaps
 
+- `POST /api/llm` talks with the local model with no checks at all, by design: its messages are not checked even while adult content is locked. It produces text only; any image made from it still goes through the render safeguards.
+
 - **Laya checks only chat questions.** Image prompts typed in Create, the builder's output and scripted renders are checked only by the word list before rendering, then by the image classifier after the GPU time is spent.
 - **Laya checks only the last user message**, not earlier messages in the conversation nor the chat model's answer. The answer is caught only if it is rendered.
 - **`DECISION_MODEL=off` turns the chat check off entirely**, so locked chat questions are answered unchecked. This is fail open by configuration; the start-up log says so.

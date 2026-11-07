@@ -31,6 +31,7 @@ The choices that shape this project, and why each was made. Read this before cha
 - **Fail closed.** If a required check cannot run (the image classifier still loading, Laya failing while adult content is locked), the request is refused rather than allowed.
 - **Decisions in code, thresholds in `.env`.** Each Laya task decides in code; its thresholds are `.env` variables listed in `.env.example`, and each saved decision records the task's version (a fingerprint of its questions and thresholds).
 - **What is saved about a decision.** The `decision_tasks` table keeps the task, its version, the linked chat exchange (not the text), the outcome (`pass`, `refuse` or `error`), the probabilities and the time taken. When Laya fails, the row records only the outcome `error`; the reason is logged with the trace id, not stored. The free `/api/decide` endpoint saves nothing.
+- **A direct line to the local model.** `POST /api/llm` sends messages to Ollama with no system prompt, no checks and no saving, even while adult content is locked: chosen so the model can be used freely for text, while every image still goes through the render safeguards.
 - **Logs never hold content.** No prompts, chat text, character names, images, keys or the unlock word: only ids, settings, timings and trace ids. See [logging.md](logging.md).
 
 ## Code and process
