@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { loadTest, saveTest, startTest, testVersions, type AbTest } from '../lib/abTest'
 import { newJobId } from '../lib/jobId'
 import type { BuilderMode } from '../lib/promptBuilder/modes'
-import type { GenerationSettings, HistoryItem, ModelInfo, SentSettings } from '../types'
+import type { GenerationSettings, HistoryItem, ModelInfo, RunLink } from '../types'
 
 export interface TestProgress {
   /** The image being made, from 1. */
@@ -28,7 +28,7 @@ interface Options {
   modes: readonly BuilderMode[]
   maxSeed: number
   /** Renders one image; resolves to it, or null when it failed or was cancelled. */
-  generate: (settings: GenerationSettings, testSet: SentSettings['testSet']) => Promise<HistoryItem | null>
+  generate: (settings: GenerationSettings, link: RunLink) => Promise<HistoryItem | null>
 }
 
 /** The A/B test: kept across reloads, started over the current settings, and run one image at a time, stopping at the first that fails. */
@@ -58,7 +58,7 @@ export function useAbTest({ settings, setSettings, model, modes, maxSeed, genera
     const made: HistoryItem[] = []
     for (const [index, version] of versions.entries()) {
       setProgress({ index: index + 1, total: versions.length })
-      const item = await generate(version.settings, { id, label: version.label })
+      const item = await generate(version.settings, { testSet: { id, label: version.label } })
       if (!item) break
       made.push(item)
     }

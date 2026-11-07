@@ -20,7 +20,7 @@ import { characterSettings, findModel, loadSettings, saveSettings, settingsFromI
 import { askToNotify, useRenderAlerts } from '../lib/renderAlerts'
 import { useUnseenResult } from '../lib/unseenResult'
 import { useView, type View } from '../lib/view'
-import type { Catalog, GenerationSettings, HistoryItem, SentSettings } from '../types'
+import type { Catalog, GenerationSettings, HistoryItem, RunLink } from '../types'
 import { AbTestContext } from '../shared/abTest/AbTestContext'
 import { CompareDialog } from '../shared/images/CompareDialog'
 import { useAbTest } from './useAbTest'
@@ -119,10 +119,10 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
   const sliders = useMemo(() => downloadedSliders(catalog, modelStatus), [catalog, modelStatus])
   const character = useCharacter(settings.characterId)
   /** Renders one image; resolves to it, or null when it can't start, fails or is cancelled. */
-  const generateWith = (next: GenerationSettings, testSet?: SentSettings['testSet']): Promise<HistoryItem | null> => {
+  const generateWith = (next: GenerationSettings, link: RunLink = {}): Promise<HistoryItem | null> => {
     if (generating || !next.prompt.trim()) return Promise.resolve(null)
     askToNotify()
-    const made = renderRequest(next, { catalog, character, modes: builderModes, modelStatus, safeOnly: !adultShown }, testSet)
+    const made = renderRequest(next, { catalog, character, modes: builderModes, modelStatus, safeOnly: !adultShown }, link)
     return made.status === 'ready' ? generation.run(made.request) : Promise.resolve(null)
   }
   const abTest = useAbTest({
@@ -157,11 +157,11 @@ function Workspace({ fullCatalog }: { fullCatalog: Catalog }) {
           onModelStatusChanged={refreshModelStatus}
           abTest={abTest.controls}
           onGenerate={() => void (testRunning ? abTest.run() : generateWith(settings))}
-          onChatPrompt={(prompt) => {
+          onChatPrompt={(prompt, exchangeId) => {
             // The chat's prompt is new, so it doesn't have the character's look yet
             const next: GenerationSettings = { ...settings, prompt, promptFormat: 'text', lookIncluded: null }
             setSettings(next)
-            void generateWith(next)
+            void generateWith(next, { chatExchangeId: exchangeId })
           }}
           hidden={view !== 'create'}
         />

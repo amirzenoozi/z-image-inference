@@ -40,7 +40,8 @@ interface Props {
   generating: boolean
   lastSeed: number | null
   onGenerate: () => void
-  onChatPrompt: (prompt: string) => void
+  /** A finished chat answer, and the saved exchange it is, which the image made from it is linked to. */
+  onChatPrompt: (prompt: string, exchangeId: number) => void
   modelStatus: Loadable<ModelStatusReport>
   onModelStatusChanged: () => void
   abTest: AbTestControls

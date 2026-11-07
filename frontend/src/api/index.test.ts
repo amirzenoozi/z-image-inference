@@ -43,13 +43,20 @@ describe('generateImage', () => {
 })
 
 describe('streamChat', () => {
-  it('reports the text as it streams and resolves with the full prompt', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(streamOf(['A detailed ', 'prompt'])))
+  it('reports the text as it streams and resolves with the full answer and where it is saved', async () => {
+    const headers = { 'X-Chat-Conversation-Id': '5', 'X-Chat-Exchange-Id': '12' }
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(streamOf(['A detailed ', 'prompt']), { headers }))
     const updates: string[] = []
+    const messages = [{ role: 'user' as const, content: 'a cat' }, { role: 'assistant' as const, content: 'A cat', exchangeId: 11 }, { role: 'user' as const, content: 'at night' }]
 
-    const prompt = await streamChat([{ role: 'user', content: 'a cat' }], (text) => updates.push(text))
+    const reply = await streamChat({ messages, conversationId: 5, parentId: 11 }, (text) => updates.push(text))
 
-    expect(prompt).toBe('A detailed prompt')
+    expect(reply).toEqual({ text: 'A detailed prompt', conversationId: 5, exchangeId: 12 })
     expect(updates).toEqual(['A detailed ', 'A detailed prompt'])
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
+      messages: [{ role: 'user', content: 'a cat' }, { role: 'assistant', content: 'A cat' }, { role: 'user', content: 'at night' }],
+      conversation_id: 5,
+      parent_id: 11,
+    })
   })
 })

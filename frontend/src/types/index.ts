@@ -315,7 +315,12 @@ export interface SentSettings extends GenerationSettings {
   safeOnly?: boolean
   /** One image of an A/B test: the set it belongs to, and what it tried. */
   testSet?: { id: string; label: string }
+  /** The saved chat answer the prompt came from: the image made right after a chat reply. */
+  chatExchangeId?: number
 }
+
+/** What one render is part of, sent with that render only and never kept in the settings. */
+export type RunLink = Pick<SentSettings, 'testSet' | 'chatExchangeId'>
 
 export interface StartImage {
   id: number
@@ -325,6 +330,22 @@ export interface StartImage {
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  /** An answer's saved exchange, which a follow-up or an edit continues from. */
+  exchangeId?: number
+}
+
+/** What a chat message is sent with: the saved conversation it continues, and the exchange it follows. */
+export interface ChatTurn {
+  messages: ChatMessage[]
+  conversationId: number | null
+  parentId: number | null
+}
+
+/** A finished chat answer, and where it is saved. */
+export interface ChatReply {
+  text: string
+  conversationId: number
+  exchangeId: number
 }
 
 /** Every piece of loaded data is pending, failed or settled; settled data may still be empty. */

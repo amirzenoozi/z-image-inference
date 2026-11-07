@@ -18,7 +18,7 @@ interface Props {
   onModelStatusChanged: () => void
   abTest: AbTestControls
   onGenerate: () => void
-  onChatPrompt: (prompt: string) => void
+  onChatPrompt: (prompt: string, exchangeId: number) => void
   /** Kept mounted while another page shows, so a render in progress and the settings stay as they are. */
   hidden: boolean
 }

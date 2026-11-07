@@ -15,13 +15,21 @@ interface Props {
   name: string
   /** True while an image is being generated; sending waits until it finishes. */
   busy: boolean
-  onPromptReady: (prompt: string) => void
+  /** A finished answer, and the saved exchange it is. */
+  onPromptReady: (prompt: string, exchangeId: number) => void
+}
+
+/** The exchange a new question follows: the last saved answer before it, so an edited question starts a new branch. */
+function parentOf(conversation: ChatMessage[]): number | null {
+  return conversation.findLast((message) => message.exchangeId !== undefined)?.exchangeId ?? null
 }
 
 export function ChatPanel({ name, busy, onPromptReady }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [chat, setChat] = useState<ChatStatus>({ status: 'idle' })
+  // The saved conversation the messages belong to; set by the first answer, cleared with the chat
+  const [conversationId, setConversationId] = useState<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   useEffect(() => () => abortRef.current?.abort(), [])
 
@@ -31,13 +39,15 @@ export function ChatPanel({ name, busy, onPromptReady }: Props) {
     setChat({ status: 'streaming' })
     setMessages([...conversation, { role: 'assistant', content: '' }])
     try {
-      const prompt = await streamChat(
-        conversation,
+      const reply = await streamChat(
+        { messages: conversation, conversationId, parentId: parentOf(conversation) },
         (text) => setMessages([...conversation, { role: 'assistant', content: text }]),
         controller.signal,
       )
+      setMessages([...conversation, { role: 'assistant', content: reply.text, exchangeId: reply.exchangeId }])
+      setConversationId(reply.conversationId)
       setChat({ status: 'idle' })
-      onPromptReady(prompt)
+      onPromptReady(reply.text, reply.exchangeId)
     } catch (error) {
       if (controller.signal.aborted) return
       setMessages(conversation)
@@ -50,6 +60,10 @@ export function ChatPanel({ name, busy, onPromptReady }: Props) {
     if (blocked || !draft.trim()) return
     void send([...messages, { role: 'user', content: draft.trim() }])
     setDraft('')
+  }
+  const clearChat = () => {
+    setMessages([])
+    setConversationId(null)
   }
   const editMessage = (index: number, content: string) => {
     if (!blocked) void send([...messages.slice(0, index), { role: 'user', content }])
@@ -84,7 +98,7 @@ export function ChatPanel({ name, busy, onPromptReady }: Props) {
         </button>
       </div>
       {messages.length > 0 && (
-        <button type="button" onClick={() => setMessages([])} disabled={blocked} className={secondaryButtonClass}>
+        <button type="button" onClick={clearChat} disabled={blocked} className={secondaryButtonClass}>
           {t('create.clearChat')}
         </button>
       )}

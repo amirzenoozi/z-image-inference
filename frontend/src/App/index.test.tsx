@@ -20,6 +20,7 @@ vi.mock('../api', async (importOriginal) => ({
   fetchHistorySummary: vi.fn(),
   fetchPalette: vi.fn(),
   fetchCharacters: vi.fn(),
+  streamChat: vi.fn(),
 }))
 
 beforeEach(() => {
@@ -611,4 +612,23 @@ it('labels the chat tab plainly and names the chat model only once the tab is op
   expect(screen.queryByText('gemma-3-4b')).not.toBeInTheDocument()
   await userEvent.click(tab)
   expect(screen.getByText('gemma-3-4b').tagName).toBe('EM')
+})
+
+it('links the image made right after a chat answer to that answer, and only that image', async () => {
+  vi.mocked(api.fetchCatalog).mockResolvedValue({ ...catalog, chat_available: true, chat_name: 'gemma-3-4b' })
+  vi.mocked(api.streamChat).mockResolvedValue({ text: 'A red fox in the snow', conversationId: 5, exchangeId: 12 })
+  vi.mocked(api.generateImage).mockResolvedValue(historyItem({ id: 3, prompt: 'A red fox in the snow' }))
+  render(<App />)
+
+  await userEvent.click(await screen.findByRole('tab', { name: 'Chat' }))
+  await userEvent.type(screen.getByRole('textbox', { name: 'Describe the image you want' }), 'a fox')
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+  await waitFor(() => expect(api.generateImage).toHaveBeenCalledOnce())
+  expect(vi.mocked(api.generateImage).mock.calls[0][0]).toMatchObject({ prompt: 'A red fox in the snow', chatExchangeId: 12 })
+  await screen.findByRole('img', { name: 'A red fox in the snow' })
+  await userEvent.click(screen.getByRole('tab', { name: 'Write prompt' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  await waitFor(() => expect(api.generateImage).toHaveBeenCalledTimes(2))
+  expect(vi.mocked(api.generateImage).mock.calls[1][0].chatExchangeId).toBeUndefined()
 })
