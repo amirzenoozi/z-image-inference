@@ -95,7 +95,13 @@ class OllamaClient:
         return bool(self.model)
 
     def chat_stream(self, messages: list[Message], system_prompt: str) -> Iterator[str]:
-        body = {"model": self.model, "messages": with_system_prompt(system_prompt, messages), "stream": True, "keep_alive": self.keep_alive}
+        return self.raw_stream(with_system_prompt(system_prompt, messages))
+
+    def raw_stream(self, messages: list[Message], options: dict[str, float | int] | None = None) -> Iterator[str]:
+        """The model's answer to exactly these messages, with no system prompt added; `options` are Ollama's own (num_predict…)."""
+        body: dict[str, object] = {"model": self.model, "messages": messages, "stream": True, "keep_alive": self.keep_alive}
+        if options:
+            body["options"] = options
         try:
             with requests.post(f"{self.url}/api/chat", json=body, stream=True, timeout=OLLAMA_TIMEOUT) as response:
                 self.check_answer(response)
@@ -123,12 +129,17 @@ class OllamaClient:
         return str(data.get("message", {}).get("content", ""))
 
 
+def ollama_client() -> OllamaClient:
+    """The local model in OLLAMA_MODEL, whichever provider the chat uses; available once a model is set."""
+    env = os.environ.get
+    return OllamaClient(env("OLLAMA_URL", DEFAULT_OLLAMA_URL).strip(), env("OLLAMA_MODEL", "").strip(), env("OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE).strip())
+
+
 def chat_client() -> ChatClient | None:
     """The chat CHAT_PROVIDER in .env picks (available once set up: Grok with a key, Ollama with a model); None for an unknown one."""
     provider = os.environ.get("CHAT_PROVIDER", "grok").strip().lower()
     if provider == "ollama":
-        env = os.environ.get
-        return OllamaClient(env("OLLAMA_URL", DEFAULT_OLLAMA_URL).strip(), env("OLLAMA_MODEL", "").strip(), env("OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE).strip())
+        return ollama_client()
     if provider == "grok":
         return GrokClient()
     logging.getLogger(__name__).warning("CHAT_PROVIDER=%r is not grok or ollama; chat is off.", provider)

@@ -4,6 +4,7 @@ import base64
 import logging
 import threading
 import time
+import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
@@ -997,6 +998,86 @@ def title_conversation(client: ChatClient, conversation_id: int, question: str) 
         log.warning("Could not title conversation #%d (%s)", conversation_id, getattr(error, "reason", type(error).__name__))
         return
     log.info("Titled conversation #%d", conversation_id)
+
+
+MAX_LLM_MESSAGES = 50
+MAX_LLM_MESSAGE_LENGTH = 20_000
+MAX_LLM_TOKENS = 4096
+
+
+class LlmMessage(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str = Field(min_length=1, max_length=MAX_LLM_MESSAGE_LENGTH)
+
+
+class LlmOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    max_tokens: int | None = Field(default=None, ge=1, le=MAX_LLM_TOKENS)
+
+    def for_ollama(self) -> dict[str, float | int]:
+        named = {"temperature": self.temperature, "num_predict": self.max_tokens}
+        return {name: value for name, value in named.items() if value is not None}
+
+
+class LlmRequest(BaseModel):
+    messages: list[LlmMessage] = Field(min_length=1, max_length=MAX_LLM_MESSAGES)
+    options: LlmOptions = LlmOptions()
+
+    @model_validator(mode="after")
+    def ends_with_user(self) -> "LlmRequest":
+        if self.messages[-1].role != "user":
+            raise ValueError(i18n.t("lastMessageFromUser"))
+        return self
+
+
+@app.post("/api/llm")
+def llm(req: LlmRequest) -> StreamingResponse:
+    """
+    Talks with the local model (OLLAMA_MODEL) directly: the messages go as sent, with no system prompt, no checks of
+    their content (not even while adult content is locked), and nothing saved. The answer streams as plain text; the
+    log has the trace id, the model and the timings, never the text.
+    """
+    client = chat_client.ollama_client()
+    if not client.available:
+        raise HTTPException(503, i18n.t("llmUnavailable"))
+    trace_id = str(uuid.uuid4())
+    log.info("[%s] LLM with %s: %d message(s)", trace_id, client.model, len(req.messages))
+    started = time.perf_counter()
+    chunks = client.raw_stream([message.model_dump() for message in req.messages], req.options.for_ollama())
+    try:
+        first = next(chunks, "")
+    except ChatError as error:
+        log.warning("[%s] LLM with %s failed (%s)", trace_id, client.model, error.reason)
+        raise HTTPException(502, str(error), headers={"X-Trace-Id": trace_id})
+    reply = LlmReply(trace_id=trace_id, model=client.model, first=first, rest=chunks, started=started)
+    return StreamingResponse(logged_llm_reply(reply), media_type="text/plain; charset=utf-8", headers={"X-Trace-Id": trace_id})
+
+
+@dataclass
+class LlmReply:
+    trace_id: str
+    model: str
+    first: str
+    rest: Iterator[str]
+    started: float
+
+
+def logged_llm_reply(reply: LlmReply) -> Iterator[str]:
+    """Passes the answer on as it comes, then logs how long it took and how long it was; nothing is saved."""
+    length, ending = len(reply.first), "stopped (the caller left)"
+    try:
+        yield reply.first
+        for piece in reply.rest:
+            length += len(piece)
+            yield piece
+        ending = "answered"
+    except ChatError as error:
+        ending = f"failed ({error.reason})"
+        raise
+    finally:
+        log.info("[%s] LLM with %s %s: %d characters in %.1fs", reply.trace_id, reply.model, ending, length, time.perf_counter() - reply.started)
 
 
 MAX_DECISION_QUESTIONS = 10

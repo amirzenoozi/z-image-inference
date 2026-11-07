@@ -24,6 +24,7 @@ import main
 from chat_client import ChatError
 from decision_tasks import NUDITY
 from test_decision_model import FakeLaya, Loads
+from test_chat_client import FakeOllama
 from resolutions import CATEGORIES, PRESETS
 
 
@@ -958,3 +959,66 @@ def test_the_free_endpoint_checks_its_limits_and_the_switch(client: TestClient, 
     assert client.post("/api/decide", json={"text": "", "questions": {"q": one}}).status_code == 422
     monkeypatch.setenv("DECISION_MODEL", "off")
     assert client.post("/api/decide", json={"text": "a fox", "questions": {"q": one}}).status_code == 503
+
+
+@pytest.fixture
+def ollama(monkeypatch: pytest.MonkeyPatch) -> FakeOllama:
+    fake = FakeOllama()
+    monkeypatch.setattr(chat_client.requests, "post", fake.post)
+    monkeypatch.setenv("OLLAMA_MODEL", "gemma-3-4b")
+    monkeypatch.setenv("CHAT_PROVIDER", "grok")  # the endpoint uses the local model whatever the chat uses
+    return fake
+
+
+def talk(client: TestClient, **body: object) -> requests.Response:
+    return client.post("/api/llm", json={"messages": [{"role": "user", "content": "three cat names"}], **body})
+
+
+def test_llm_streams_the_local_models_answer_to_exactly_the_messages_sent(client: TestClient, ollama: FakeOllama, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    messages = [{"role": "system", "content": "Be brief."}, {"role": "user", "content": "three cat names"}]
+    resp = client.post("/api/llm", json={"messages": messages, "options": {"temperature": 0.2, "max_tokens": 64}})
+
+    assert resp.status_code == 200 and resp.text == "A tall lighthouse"
+    sent, = ollama.sent
+    assert (sent["model"], sent["messages"], sent["options"]) == ("gemma-3-4b", messages, {"temperature": 0.2, "num_predict": 64})
+    trace_id = resp.headers["X-Trace-Id"]
+    assert f"[{trace_id}] LLM with gemma-3-4b: 2 message(s)" in caplog.text
+    assert f"[{trace_id}] LLM with gemma-3-4b answered: 17 characters in " in caplog.text
+    assert "cat names" not in caplog.text and "lighthouse" not in caplog.text
+
+
+def test_llm_adds_no_system_prompt_checks_nothing_and_saves_nothing(client: TestClient, ollama: FakeOllama, monkeypatch: pytest.MonkeyPatch) -> None:
+    loads = laya_says(monkeypatch, 0.99)
+    monkeypatch.setenv("ADULT_CONTENT", "off")
+    resp = talk(client)
+
+    assert resp.status_code == 200
+    assert ollama.sent[0]["messages"] == [{"role": "user", "content": "three cat names"}]
+    assert "options" not in ollama.sent[0]
+    assert loads.count == 0
+    with history_store.connection() as conn:
+        assert conn.execute("SELECT count(*) FROM chat_exchanges").fetchone()[0] == 0
+
+
+def test_llm_needs_a_local_model_and_reports_ollama_failing(client: TestClient, ollama: FakeOllama, monkeypatch: pytest.MonkeyPatch) -> None:
+    ollama.error = requests.ConnectionError()
+    resp = talk(client)
+    assert resp.status_code == 502 and "Ollama is not running" in resp.json()["detail"]
+    assert resp.headers["X-Trace-Id"]
+    monkeypatch.delenv("OLLAMA_MODEL")
+    assert talk(client).status_code == 503
+
+
+@pytest.mark.parametrize("body", [
+    {"messages": []},
+    {"messages": [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}]},
+    {"messages": [{"role": "tool", "content": "a"}]},
+    {"messages": [{"role": "user", "content": ""}]},
+    {"messages": [{"role": "user", "content": "a"}], "options": {"temperature": 3}},
+    {"messages": [{"role": "user", "content": "a"}], "options": {"max_tokens": 0}},
+    {"messages": [{"role": "user", "content": "a"}], "options": {"top_k": 5}},
+])
+def test_llm_checks_its_input(client: TestClient, ollama: FakeOllama, body: dict[str, object]) -> None:
+    assert client.post("/api/llm", json=body).status_code == 422
+    assert ollama.sent == []
