@@ -9,12 +9,12 @@
 | [RealVisXL V5.0](https://huggingface.co/SG161222/RealVisXL_V5.0) (SDXL) | diffusers on MPS, float16 | Photorealistic people, and the face lock in photo style |
 | [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (4-bit) | mflux (MLX), always 4-bit | Detailed photorealistic images, and nude photos with its add-ons (see [Add-ons](#add-ons)); slow |
 
-All eight are defined in one place, with the add-ons (see [Add-ons](#add-ons)),, `model_catalog.py`, which both the web app and the model server read.
+All six models, and their 23 add-ons (see [Add-ons](#add-ons)), are defined in one place, `backend/model_catalog.py`, which both the web app and the model server read. WAI-NSFW-Illustrious, Anime Desire and MOSS-Image NSFW are adult models, and some add-ons are adult too: they are hidden while adult content is locked (see [safety.md](safety.md)).
 
 ## Defaults
 
 | Setting | Z-Image-Turbo | WAI-Illustrious | MOSS-Image | Anime Desire | RealVisXL | FLUX.1-dev |
-|---------|---------------|-----------------|------------|--------------|-----------|
+|---------|---------------|-----------------|------------|--------------|-----------|------------|
 | Steps | 9 (up to 20) | 28 (up to 50) | 30 (up to 50) | 30 (up to 50) | 30 (up to 50) | 25 (up to 50) |
 | Guidance (CFG) | not used | 7 | 3 | 4 | 5 | 3.5 (distilled guidance) |
 | Sampler | | Euler Ancestral | | DPM++ 3M SDE Karras | DPM++ 2M SDE Karras | |
@@ -83,7 +83,7 @@ Only the default model, Z-Image-Turbo, downloads by itself, on the model server'
 - **Download** fetches a model in the background, with a progress bar. One download runs at a time; the rest wait as **Queued**.
 - **Remove** deletes a downloaded model and frees its space. The model in use cannot be removed. Removing an add-on deletes only its LoRA; removing its base model leaves the add-on's files, and the add-on then needs the base again.
 - The dialog shows how much space the models use and how much is free. A download is refused with a clear message if there is not enough room for it and any one-time setup.
-- A model can be selected once it is downloaded; no restart is needed. Each card links to the model's page on Hugging Face.
+- A model can be selected once it is downloaded; no restart is needed. Each card links to the model's page on its site (Hugging Face, or Civitai for the Civitai add-ons).
 
 The server keeps one model in memory at a time and swaps when a request asks for another, which takes about 10 seconds.
 
@@ -101,11 +101,12 @@ Files go in `models/` (not in git). One-time builds (compressed copies) are writ
 | FLUX.1-dev | 33.8 GB, always kept, plus the 4-bit copy it runs (about 9.6 GB) | same |
 | FLUX.1-dev add-ons | create-nsfw 0.7 GB, asian-nudity-2 0.04 GB | same |
 | Tattoo add-on (for Z-Image-Turbo) | 0.17 GB | same |
+| Other Z-Image-Turbo add-ons | 0.01 to 0.34 GB each | same |
 | Face lock (IP-Adapter, for the SDXL models) | 3.4 GB, downloaded on the first face-locked render, in `models/ip-adapter/` | same |
 
 ## Model compression
 
-By default the app keeps and runs the original files of WAI-Illustrious, MOSS-Image and Anime Desire. To save disk space and run faster on a 24 GB Mac, set this in `.env` and restart the model server:
+By default the app keeps and runs the original files of WAI-Illustrious, MOSS-Image and Anime Desire. To save disk space and run faster on a 24 GB Mac, set this in `.env` and restart both servers (the web app reads it too, for the sizes and speeds the model dialog shows):
 
 ```
 MODEL_COMPRESSION=on
