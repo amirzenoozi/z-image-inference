@@ -2,6 +2,7 @@ import io
 import os
 import base64
 import itertools
+import logging
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ import character_store
 import history_export
 import image_codec
 import i18n
+import log_setup
 import nsfw_detector
 import paths
 import safe_for_work
@@ -43,6 +45,8 @@ from prompt_spec import PromptSpec
 from history_store import CLEANUP_AGES_DAYS, HistoryFilter, HistoryItem, HistorySummary, ItemPosition, NewImage
 from model_catalog import ADDONS, MODEL_CATEGORIES, MODELS, AddonKind, AddonSpec, ModelSpec, addons_for, kept_gb, page_url, speed_hint
 from resolutions import CATEGORIES, PRESETS, Category
+
+log = logging.getLogger("web_app")
 
 MODEL_SERVER_URL = "http://127.0.0.1:8000"
 # Long enough for a first-time model download or a switch between models
@@ -269,7 +273,7 @@ def check_unchecked_images() -> None:
     try:
         nsfw_detector.load()
     except Exception as error:  # A failed download or load leaves the prompt words as the only check, as before
-        print(f"The sensitive-image check could not start: {error}")
+        log.warning("The sensitive-image check could not start: %s", error)
         return
     while ids := history_store.unchecked_image_ids(IMAGE_CHECK_BATCH):
         for item_id in ids:
@@ -281,7 +285,7 @@ def image_is_nsfw(item_id: int) -> bool:
     try:
         return png is not None and bool(nsfw_detector.is_nsfw(png))
     except Exception as error:  # An image the classifier can't read keeps what its prompt said
-        print(f"Image #{item_id} could not be checked: {error}")
+        log.warning("Image #%d could not be checked: %s", item_id, error)
         return False
 
 
@@ -292,6 +296,7 @@ def start_image_checks() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log.info("Language %s; adult content is %s", i18n.language(), "on" if adult_content.enabled() else "off")
     history_store.init_db()
     character_store.add_samples_once()
     start_image_checks()
@@ -375,13 +380,18 @@ def request_image(req: GenerateRequest) -> RenderedImage:
     try:
         resp = requests.post(f"{MODEL_SERVER_URL}/generate", json=req.model_dump(), timeout=REQUEST_TIMEOUT)
     except requests.ConnectionError:
+        log.warning("The model server is not running")
         raise HTTPException(503, i18n.t("modelServerDown"))
     except requests.Timeout:
+        log.error("The model server did not answer within %ds", REQUEST_TIMEOUT)
         raise HTTPException(504, i18n.t("modelServerSlow"))
     if resp.status_code in (409, 422, 503):
         # 409 means the user cancelled it; 503 that the model is still downloading, which its message says
-        raise HTTPException(resp.status_code, model_server_detail(resp))
+        detail = model_server_detail(resp)
+        log.info("The model server did not render (%d): %s", resp.status_code, detail)
+        raise HTTPException(resp.status_code, detail)
     if not resp.ok:
+        log.error("The model server failed with status %d", resp.status_code)
         raise HTTPException(502, i18n.t("modelServerFailed", status=resp.status_code))
     return RenderedImage.model_validate(resp.json())
 
@@ -486,6 +496,8 @@ def generate(req: WebGenerateRequest) -> HistoryItem:
     try:
         return render_and_save(req, character)
     except safe_for_work.NotSafeForWork as error:
+        # Its message can quote the prompt and name the character, so only the id is logged
+        log.warning("Render refused by the safe-for-work rules (character %s)", req.character_id)
         raise HTTPException(422, str(error))
 
 
@@ -512,7 +524,7 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
     nsfw = nsfw_detector.is_nsfw(png)
     if keep_safe:
         safe_for_work.check_result(nsfw, name)
-    return history_store.add(NewImage(
+    item = history_store.add(NewImage(
         png=png, prompt=req.prompt, negative_prompt=server_request.negative_prompt, seed=rendered.seed,
         width=req.width, height=req.height, steps=req.steps or spec.default_steps,
         guidance=guidance_used(req, spec), model=req.model, duration_seconds=rendered.seconds,
@@ -521,6 +533,16 @@ def render_and_save(req: WebGenerateRequest, character: Character | None) -> His
         sensitive=True if nsfw else None, image_checked=nsfw is not None, addons=tuple(rendered.addons), strengths=rendered.strengths,
         prompt_spec=req.prompt_spec.to_json() if req.prompt_spec else None, set_id=req.set_id, set_label=req.set_label,
     ))
+    log_saved(item, keep_safe)
+    return item
+
+
+def log_saved(item: HistoryItem, keep_safe: bool) -> None:
+    log.info(
+        "Saved image #%d: %s%s, %dx%d, %d steps, rendered in %.1fs%s%s", item.id, item.model, "".join(f" + {addon}" for addon in item.addons),
+        item.width, item.height, item.steps, item.duration_seconds or 0, ", kept safe for work" if keep_safe else "",
+        f", set {item.set_id}" if item.set_id else "",
+    )
 
 
 @app.get("/api/models/status")
@@ -736,11 +758,13 @@ def download_history_image(item_id: int) -> Response:
 def delete_history_item(item_id: int) -> None:
     if not history_store.delete(item_id):
         raise HTTPException(404, i18n.t("imageNotFound"))
+    log.info("Deleted image #%d", item_id)
 
 
 @app.delete("/api/history", status_code=204)
 def clear_history() -> None:
     history_store.clear()
+    log.info("Cleared History")
 
 
 @app.get("/api/history/summary")
@@ -756,7 +780,9 @@ class Deleted(BaseModel):
 def delete_old_history(days: int) -> Deleted:
     if days not in CLEANUP_AGES_DAYS:
         raise HTTPException(422, i18n.t("cleanupDays", days=", ".join(map(str, CLEANUP_AGES_DAYS))))
-    return Deleted(deleted=history_store.delete_older_than(days))
+    deleted = history_store.delete_older_than(days)
+    log.info("Deleted %d image(s) older than %d days", deleted, days)
+    return Deleted(deleted=deleted)
 
 
 @app.get("/api/characters")
@@ -767,11 +793,13 @@ def list_characters() -> list[Character]:
 @app.post("/api/characters", status_code=201)
 def create_character(new: NewCharacter) -> Character:
     try:
-        return character_store.create(new)
+        character = character_store.create(new)
     except DuplicateName as error:
         raise HTTPException(409, str(error))
     except (MissingImage, BadPhoto) as error:
         raise HTTPException(422, str(error))
+    log.info("Created character #%d", character.id)
+    return character
 
 
 @app.patch("/api/characters/{character_id}")
@@ -801,6 +829,7 @@ def uploaded_face(character_id: int, thumb: bool = False) -> Response:
 def delete_character(character_id: int) -> None:
     if not character_store.delete(character_id):
         raise HTTPException(404, i18n.t("characterNotFound"))
+    log.info("Deleted character #%d", character_id)
 
 
 @app.post("/api/chat")
@@ -813,6 +842,8 @@ def chat(req: ChatRequest) -> StreamingResponse:
     try:
         first: Iterator[str] = iter([next(chunks, "")])
     except (openai.OpenAIError, ValueError) as e:
+        # Only the kind of error: its message can hold part of the API key
+        log.warning("Grok chat failed (%s)", type(e).__name__)
         raise HTTPException(502, i18n.t("grokError", error=e))
     return StreamingResponse(itertools.chain(first, chunks), media_type="text/plain; charset=utf-8")
 
@@ -835,4 +866,5 @@ else:
 
 if __name__ == "__main__":
     # 0.0.0.0 opens the app to other devices on the network, such as a phone; it has no login, so only on a trusted one
-    uvicorn.run(app, host=os.environ.get("APP_HOST", "127.0.0.1").strip(), port=7860)
+    log_setup.configure("web_app")
+    uvicorn.run(app, host=os.environ.get("APP_HOST", "127.0.0.1").strip(), port=7860, log_config=None)

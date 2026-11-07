@@ -1,6 +1,7 @@
 import io
 import os
 import json
+import logging
 import zipfile
 from json import dumps
 import base64
@@ -721,3 +722,18 @@ def test_history_records_the_addons_a_render_used_and_an_edited_copy_keeps_them(
     assert edited["addons"] == ["tattoo"]
     model_server.body = None
     assert generate(client).json()["addons"] == []
+
+
+def test_a_saved_image_is_logged_without_its_prompt(client: TestClient, model_server: FakeModelServer, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG)
+    item = generate(client, prompt="a quiet garden at dawn", negative_prompt="blurry hands").json()
+
+    assert f"Saved image #{item['id']}: z-image-turbo, 512x512, 9 steps, rendered in 52.3s" in caplog.text
+    assert "quiet garden" not in caplog.text
+    assert "blurry hands" not in caplog.text
+
+
+def test_a_stopped_model_server_is_logged(client: TestClient, model_server: FakeModelServer, caplog: pytest.LogCaptureFixture) -> None:
+    model_server.error = requests.ConnectionError()
+    generate(client)
+    assert "The model server is not running" in caplog.text
