@@ -1,7 +1,7 @@
 import pytest
 
 import model_server
-from grok_client import GrokClient
+from chat_client import GrokClient
 from paths import PROJECT_DIR
 
 

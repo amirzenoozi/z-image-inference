@@ -81,6 +81,8 @@ export interface Catalog {
   resolutions: ResolutionInfo[]
   categories: Category[]
   chat_available: boolean
+  /** Who writes the chat's prompts: Grok, or the local model's name. */
+  chat_name: string
   limits: Limits
   builder_modes: BuilderModeData[]
   /** The UI's language code, from APP_LANGUAGE in .env. */

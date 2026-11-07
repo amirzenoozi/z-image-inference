@@ -15,8 +15,10 @@ import requests
 from fastapi.testclient import TestClient
 from PIL import Image
 
+import chat_client
 import history_store
 import main
+from chat_client import ChatError
 from resolutions import CATEGORIES, PRESETS
 
 
@@ -60,7 +62,8 @@ class FakeModelServer:
 
 
 @dataclass
-class FakeGrok:
+class FakeChat:
+    name: str = "gemma-3-4b"
     available: bool = True
     chunks: list[str] = field(default_factory=lambda: ["A detailed ", "prompt"])
     error: Exception | None = None
@@ -71,6 +74,13 @@ class FakeGrok:
         if self.error:
             raise self.error
         yield from self.chunks
+
+
+@pytest.fixture
+def chat(monkeypatch: pytest.MonkeyPatch) -> FakeChat:
+    fake = FakeChat()
+    monkeypatch.setattr(chat_client, "chat_client", lambda: fake)
+    return fake
 
 
 @pytest.fixture
@@ -254,27 +264,39 @@ def test_old_history_rows_gain_the_new_columns(tmp_path: Path, monkeypatch: pyte
         assert "palette" in {row[1] for row in conn.execute("PRAGMA table_info(images)")}
 
 
-def test_chat_streams_the_rewritten_prompt(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    grok = FakeGrok()
-    monkeypatch.setattr(main, "grok_client", grok)
-
+def test_chat_streams_the_rewritten_prompt_and_logs_it_without_its_text(client: TestClient, chat: FakeChat, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
     resp = client.post("/api/chat", json={"messages": [{"role": "user", "content": "a cat"}]})
 
     assert resp.status_code == 200
     assert resp.text == "A detailed prompt"
-    assert grok.received == [[{"role": "user", "content": "a cat"}]]
+    assert chat.received == [[{"role": "user", "content": "a cat"}]]
+    assert "Chat with gemma-3-4b: 1 message(s)" in caplog.text
+    assert "Chat with gemma-3-4b answered 17 characters in " in caplog.text
+    assert "a cat" not in caplog.text and "detailed" not in caplog.text
 
 
-def test_chat_errors(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    grok = FakeGrok(available=False)
-    monkeypatch.setattr(main, "grok_client", grok)
+def chat_in_catalog(client: TestClient) -> tuple[bool, str]:
+    catalog = client.get("/api/catalog").json()
+    return catalog["chat_available"], catalog["chat_name"]
+
+
+def test_the_catalog_names_the_chat_and_says_whether_it_is_ready(client: TestClient, chat: FakeChat) -> None:
+    assert chat_in_catalog(client) == (True, "gemma-3-4b")
+    chat.available = False
+    assert chat_in_catalog(client) == (False, "gemma-3-4b")
+
+
+def test_chat_errors(client: TestClient, chat: FakeChat, caplog: pytest.LogCaptureFixture) -> None:
+    chat.available = False
     user_message = {"messages": [{"role": "user", "content": "a cat"}]}
     assert client.post("/api/chat", json=user_message).status_code == 503
 
-    grok.available, grok.error = True, ValueError("bad key")
+    chat.available, chat.error = True, ChatError("Ollama is not running", "Ollama is not running")
     resp = client.post("/api/chat", json=user_message)
     assert resp.status_code == 502
-    assert "bad key" in resp.json()["detail"]
+    assert resp.json()["detail"] == "Ollama is not running"
+    assert "Chat with gemma-3-4b failed (Ollama is not running)" in caplog.text
 
     ends_with_assistant = {"messages": [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}]}
     assert client.post("/api/chat", json=ends_with_assistant).status_code == 422
