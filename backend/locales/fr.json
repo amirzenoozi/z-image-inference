@@ -31,6 +31,8 @@
   "noUploadedFace": "Ce personnage n’a pas de visage importé",
   "chatUnavailable": "La discussion n’est pas disponible : définissez XAI_API_KEY dans .env, ou CHAT_PROVIDER=ollama avec OLLAMA_MODEL",
   "chatError": "Erreur de {name} : {error}",
+  "chatNotFound": "Cette discussion n’est plus enregistrée : effacez-la et recommencez",
+  "chatAnswerNotFound": "La réponse de la discussion dont vient cette image n’est plus enregistrée",
   "ollamaNotRunning": "Ollama n’est pas lancé : démarrez-le avec brew services start ollama",
   "ollamaModelMissing": "Le modèle de discussion {model} n’est pas téléchargé : lancez ollama pull {model}",
   "startImageUnreadable": "Impossible de lire l’image de départ",
