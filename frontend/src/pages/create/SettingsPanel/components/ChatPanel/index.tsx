@@ -7,6 +7,7 @@ import { secondaryButtonClass } from '../../../../../lib/styles'
 import { Textarea } from '../../../../../shared/form/Textarea'
 import { ErrorNotice, Spinner } from '../../../../../shared/ui/ui'
 import { t } from '../../../../../i18n'
+import { useAdultContent } from '../../../../../lib/adultContent'
 
 type ChatStatus = { status: 'idle' } | { status: 'streaming' } | { status: 'failed'; error: string; retry: ChatMessage[] }
 
@@ -30,6 +31,7 @@ export function ChatPanel({ name, busy, onPromptReady }: Props) {
   const [chat, setChat] = useState<ChatStatus>({ status: 'idle' })
   // The saved conversation the messages belong to; set by the first answer, cleared with the chat
   const [conversationId, setConversationId] = useState<number | null>(null)
+  const { shown: adultShown } = useAdultContent()
   const abortRef = useRef<AbortController | null>(null)
   useEffect(() => () => abortRef.current?.abort(), [])
 
@@ -40,7 +42,7 @@ export function ChatPanel({ name, busy, onPromptReady }: Props) {
     setMessages([...conversation, { role: 'assistant', content: '' }])
     try {
       const reply = await streamChat(
-        { messages: conversation, conversationId, parentId: parentOf(conversation) },
+        { messages: conversation, conversationId, parentId: parentOf(conversation), safeOnly: !adultShown },
         (text) => setMessages([...conversation, { role: 'assistant', content: text }]),
         controller.signal,
       )

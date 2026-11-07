@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { streamChat } from '../../../../../api'
 import type { ChatReply, ChatTurn } from '../../../../../types'
+import { AdultContentContext } from '../../../../../lib/adultContent'
 import { ChatPanel } from '.'
 
 vi.mock('../../../../../api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../../../../api')>()), streamChat: vi.fn() }))
@@ -86,4 +87,18 @@ it('sends an edited question after the answer before it, so the saved branch it 
   await screen.findByText('Answer 3')
 
   expect(turns()[2]).toEqual({ conversationId: 5, parentId: 1 })
+})
+
+it('tells the server the adult lock is on, so it checks the question, and shows a refusal', async () => {
+  vi.mocked(streamChat).mockRejectedValue(new Error('This question was refused by the safety check'))
+  render(
+    <AdultContentContext.Provider value={{ shown: false, toggle: vi.fn() }}>
+      <ChatPanel name="Grok" busy={false} onPromptReady={vi.fn()} />
+    </AdultContentContext.Provider>,
+  )
+  await userEvent.type(screen.getByRole('textbox', { name: 'Describe the image you want' }), 'a portrait')
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+  expect(await screen.findByText('This question was refused by the safety check')).toBeInTheDocument()
+  expect(vi.mocked(streamChat).mock.calls[0][0].safeOnly).toBe(true)
 })

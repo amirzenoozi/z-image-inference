@@ -239,6 +239,7 @@ export async function streamChat(turn: ChatTurn, onText: (textSoFar: string) => 
     messages: turn.messages.map(({ role, content }) => ({ role, content })),
     conversation_id: turn.conversationId,
     parent_id: turn.parentId,
+    safe_only: turn.safeOnly,
   }
   const resp = await postJson('/api/chat', body, signal)
   const conversationId = Number(resp.headers.get('X-Chat-Conversation-Id'))
