@@ -49,7 +49,7 @@ Only Z-Image-Turbo downloads by itself; you add or remove the others from the ap
 - **History**: search, filter by model, ratio, character and favourites, page through it, compare two images side by side, and export a zip
 - **Sensitive images blurred** in lists, marked by the prompt's words and by a small image classifier, and shown as they are when opened
 - **Image viewer and editor**: browse with the arrow keys, zoom to 100%, go full screen, see the colour palette, and rotate, flip or crop into a new copy
-- **Chat with Grok** (optional) to turn a plain description into a detailed prompt
+- **Chat** (optional) to turn a plain description into a detailed prompt, with a small local model through Ollama or with Grok
 - **Seven languages**: English, Nederlands, Italiano, Français, Deutsch, Español and Português, set in `.env`; prompts stay English for the models
 - **Light and dark mode**, keyboard shortcuts, and settings remembered between visits
 
@@ -87,7 +87,9 @@ Optional, in a `.env` file in the project folder:
 |----------|--------------|
 | `APP_LANGUAGE` | The app's language: `en` (default), `nl`, `it`, `fr`, `de`, `es` or `pt` |
 | `APP_HOST` | Where the web app listens: `127.0.0.1` (default, this Mac only) or `0.0.0.0` to open it from a phone on the same Wi-Fi, at `http://<the Mac's address>:7860` (find it with `ipconfig getifaddr en0`). There is no login, so use it only on a trusted network |
-| `XAI_API_KEY` | Turns on **Chat with Grok** ([xAI API key](https://x.ai/)) |
+| `CHAT_PROVIDER` | Who writes the chat's prompts: `grok` (default) or `ollama` |
+| `XAI_API_KEY` | Turns on the chat with Grok ([xAI API key](https://x.ai/)) |
+| `OLLAMA_MODEL`, `OLLAMA_URL`, `OLLAMA_KEEP_ALIVE` | The local chat model through Ollama, where Ollama listens (`http://127.0.0.1:11434`), and how long the model stays loaded after the last message (`2m`) |
 | `HF_TOKEN` | Hugging Face token, to download FLUX.1-dev (accept its licence on its page first) |
 | `CIVITAI_TOKEN` | Civitai API key, to download the LoRAs hosted there, such as the tattoo add-on |
 | `Z_IMAGE_BITS` | Which Z-Image-Turbo copy to run: `8` (default), `6`, `5`, `4`, `3`, or `original` |
@@ -107,7 +109,7 @@ Switching branches prints a checklist of these checks for the new branch (`.gith
 
 ## Documentation
 
-- [Using the app](docs/usage.md): the language, creating images, the prompt builder, prompt weights, Grok chat, History, the viewer, the editor, variations, characters and the face lock
+- [Using the app](docs/usage.md): the language, creating images, the prompt builder, prompt weights, the chat (local or Grok), History, the viewer, the editor, variations, characters and the face lock
 - [Models](docs/models.md): the five models, their defaults, downloading and removing them, compression and Z-Image-Turbo's levels
 - [Performance and hardware](docs/performance.md): render times, memory and disk use
 - [How it works](docs/architecture.md): the two servers, the API, storage and technical notes

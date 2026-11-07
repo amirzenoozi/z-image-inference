@@ -37,7 +37,7 @@ The browser's lock is a privacy screen for that browser, not security: anyone wh
 
 ## Logs
 
-Both servers log to the terminal and to a file in `logs/` in the project folder: `logs/model_server.log` and `logs/web_app.log`. Each file keeps up to 5 MB, with the three files before it as `.1` to `.3`. Every line has a time and a level. They record model loads and unloads with how long they took, each render (model, add-ons, size, steps, seconds) and the History id it was saved as, downloads and the full error when one fails, refused renders and model server errors, and deletes. They never hold your prompts, character names or images.
+Both servers log to the terminal and to a file in `logs/` in the project folder: `logs/model_server.log` and `logs/web_app.log`. Each file keeps up to 5 MB, with the three files before it as `.1` to `.3`. Every line has a time and a level. They record model loads and unloads with how long they took, each render (model, add-ons, size, steps, seconds) and the History id it was saved as, downloads and the full error when one fails, refused renders and model server errors, each chat (which model, how long, how many characters), and deletes. They never hold your prompts, chat messages, character names or images.
 
 - **Follow them live:** `tail -f logs/model_server.log logs/web_app.log`
 - **More or less detail:** set `LOG_LEVEL` in `.env` to `DEBUG`, `INFO` (the default), `WARNING` or `ERROR`, and restart both servers.
@@ -217,16 +217,25 @@ Their prompts can also run past the 77 tokens their text encoder reads at once; 
 
 Z-Image-Turbo and MOSS-Image read prompts as natural language and have no weights. For them, put what matters most early and say it plainly.
 
-## Chat with Grok (optional)
+## Chat (optional)
 
-Needs an [xAI API key](https://x.ai/); the tab is disabled without one.
+The chat turns a plain description into a detailed prompt. It is written by Grok (online, needs a key) or by a small model on your Mac through Ollama (free and offline), chosen by `CHAT_PROVIDER` in `.env`. The tab is disabled until one is set up, and names the one in use.
 
-1. Add the key to `.env` in the project folder: `XAI_API_KEY=your_api_key_here`, and restart `main.py`.
-2. Choose **Chat with Grok** and describe the image you want in plain words.
-3. Grok writes a detailed prompt, which becomes your prompt, and the image is generated.
-4. Edit one of your messages to branch from there and generate again.
+**A local model (Ollama):**
 
-Your messages are sent to xAI; everything else stays on your Mac.
+1. Install and start Ollama: `brew install ollama && brew services start ollama` (it starts at login and uses about 50 MB while no model is loaded).
+2. Download a model: `ollama pull hf.co/mlabonne/gemma-3-4b-it-abliterated-GGUF:Q4_K_M` (Gemma 3 4B, uncensored, 4-bit: 2.5 GB on disk, about 2.7 GB of memory while loaded, about 40 words a second).
+3. In `.env`: `CHAT_PROVIDER=ollama` and `OLLAMA_MODEL=` the model's name, then restart `main.py`.
+
+The model loads with your first message, which takes a few seconds, and unloads `OLLAMA_KEEP_ALIVE` after the last one (`2m` by default; `0` unloads it at once), so it holds no memory between chats. Chatting while an image renders works, but both share the GPU and run slower. `OLLAMA_URL` is where Ollama listens (`http://127.0.0.1:11434` by default).
+
+**Grok:** add an [xAI API key](https://x.ai/) to `.env` (`XAI_API_KEY=`, with `CHAT_PROVIDER=grok`, the default) and restart `main.py`. Your messages are sent to xAI; everything else stays on your Mac.
+
+**Using it:**
+
+1. Choose the **Chat with …** tab and describe the image you want in plain words.
+2. The reply streams in as it is written; once complete, it becomes your prompt and the image is generated.
+3. Edit one of your messages to branch from there and generate again.
 
 ## History
 

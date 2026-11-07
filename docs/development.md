@@ -47,7 +47,8 @@ z-image-inference/
 │   ├── nsfw_detector.py       # The image classifier that checks each image for nudity
 │   ├── safe_for_work.py       # The rules for characters with an uploaded face photo
 │   ├── moss_pipeline.py       # Vendored MOSS-Image pipeline (Apache 2.0)
-│   ├── grok_client.py         # xAI Grok client
+│   ├── chat_client.py         # The chat: Ollama (local) or xAI Grok, streamed
+│   ├── system_prompts.py      # The chat's system prompts, one per provider
 │   ├── tests/                 # Backend tests
 │   └── tools/                 # Z-Image-Turbo compression level comparison
 ├── example_prompts.json       # Each model's example prompts

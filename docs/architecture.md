@@ -12,7 +12,7 @@ The app is two Python processes and a React interface, all on your Mac.
 │              history.db (SQLite)         Anime Desire (SDXL)       │
 │                   │                      MOSS-Image (two stages)   │
 │                   ▼                                                │
-│              Grok API (xAI), optional, for Chat with Grok          │
+│              Chat, optional: Ollama (local) or Grok API (xAI)      │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -46,7 +46,7 @@ Both check every request with the same rules (`generation_request.py`), so a bad
 | `GET /api/characters`, `POST /api/characters` | list or create characters |
 | `PATCH /api/characters/{id}`, `DELETE /api/characters/{id}` | change a character (only the fields sent, including `face_upload`, a photo as base64), or delete it and keep its images |
 | `GET /api/characters/{id}/face-upload` | a character's uploaded face photo (`?thumb=true` for a small WebP) |
-| `POST /api/chat` | Chat with Grok, streamed |
+| `POST /api/chat` | Chat with the local model (Ollama) or Grok, streamed |
 
 The model server's own endpoints (`/generate`, `/jobs/{id}`, `/models/...`, `/health`) are for the web app only.
 
