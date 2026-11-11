@@ -34,10 +34,6 @@ Z-Image Inference runs image generation models natively on Apple Silicon (MLX an
 
 Only Z-Image-Turbo downloads by itself; you add or remove the others from the app.
 
-## Screenshot
-
-![The Create page: model, prompt, resolution and sampling settings on the left, the generated image on the right](knowledge/images/create.png)
-
 ## Highlights
 
 - **Runs entirely on your Mac**, with live progress, Cancel, and a notification when a long render finishes
